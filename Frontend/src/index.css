@@ -1,0 +1,52 @@
+:root {
+  font-family: 'Outfit', 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: dark;
+  color: #ffffff;
+  background-color: #0f172a; /* Azul oscuro/gris original */
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Variables */
+  --primary-green: #28a745;
+  --header-green: #1b4332; /* El verde para el header */
+}
+
+body {
+  background: #0f172a; /* Color original */
+  color: #ffffff;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  min-width: 100vw;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+}
+
+.alert {
+  border-radius: 12px;
+  border: none;
+  font-weight: 500;
+  backdrop-filter: blur(5px);
+}
+
+.alert-danger {
+  background-color: rgba(220, 53, 69, 0.2);
+  color: #ff8585;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.alert-info {
+  background-color: rgba(40, 167, 69, 0.15);
+  color: #70f890;
+  border: 1px solid rgba(40, 167, 69, 0.3);
+}

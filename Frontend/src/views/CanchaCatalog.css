@@ -1,0 +1,45 @@
+.cancha-container {
+    padding: 20px;
+    color: #e0e0e0;
+}
+
+.cancha-card {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    color: #ffffff;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.cancha-card:hover {
+    transform: translateY(-10px);
+    border-color: #6366f1;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 0 20px rgba(99, 102, 241, 0.2);
+}
+
+.cancha-card:hover .btn-detail {
+    border-color: #ffffff;
+}
+
+.cancha-title {
+    color: #ffffff;
+    font-weight: bold;
+}
+
+.cancha-description {
+    color: #bbbbbb;
+}
+
+.btn-detail {
+    background-color: #333333;
+    border: 3px solid #444444;
+    font-weight: 600;
+}
+
+.btn-detail:hover {
+    border-color: #333333;
+    background-color: #ffffff;
+    color: #000000;
+    box-shadow: 0 0 15px #75545e50;
+}

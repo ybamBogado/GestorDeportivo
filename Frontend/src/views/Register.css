@@ -1,0 +1,79 @@
+.register-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.register-card {
+    background-color: #111d13;
+    border: 1px solid #1b4332;
+    padding: 2.5rem;
+    border-radius: 20px;
+    max-width: 550px;
+    width: 100%;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+}
+
+.register-logo {
+    height: 80px;
+    filter: drop-shadow(0 0 5px rgba(40, 167, 69, 0.4));
+}
+
+.form-label {
+    font-size: 0.8rem;
+    color: #a0aec0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px;
+    background-color: #050a06;
+    border: 1px solid #1b4332;
+    border-radius: 10px;
+    color: white;
+    transition: all 0.2s;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #28a745;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.2);
+}
+
+.register-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #28a745, #1b4332);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.register-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+}
+
+.back-link {
+    color: #718096;
+    text-decoration: none;
+}
+
+.error-alert {
+    background: rgba(220, 53, 69, 0.1);
+    color: #ff6b6b;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    margin-bottom: 1.5rem;
+    text-align: center;
+    font-size: 0.85rem;
+}
