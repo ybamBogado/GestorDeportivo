@@ -64,3 +64,15 @@ Si ya instalaste las dependencias (`pnpm install`) en una sesión anterior, tu f
 
 * **Terminal 1 (Backend):** `cd Api` ➔ `dotnet run`
 * **Terminal 2 (Frontend):** `cd Frontend` ➔ `pnpm dev`
+
+## Vistas del proyecto
+
+## Catálogo
+<img width="1709" height="500" alt="image" src="https://github.com/user-attachments/assets/4e541e44-7b1a-471f-923c-4a5b2abfb992" />
+
+## Inicio de Sesion 
+<img width="1702" height="493" alt="image" src="https://github.com/user-attachments/assets/fe6c16d3-5dc4-4609-8c73-4640560ccdd4" />
+
+## Registro
+
+<img width="1687" height="493" alt="image" src="https://github.com/user-attachments/assets/4bf38984-a4e9-4de8-8578-368342c6ee80" />
