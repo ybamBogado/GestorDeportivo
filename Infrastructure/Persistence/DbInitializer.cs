@@ -32,6 +32,7 @@ public static class DbInitializer
                     PasswordHash = "daleboca123",
                     Rol = "Usuario"
                 });
+                
             }
             personas.Add(new Administrador
             {
@@ -41,6 +42,16 @@ public static class DbInitializer
                 PasswordHash = "admin123",
                 Rol = "Administrador"
             });
+
+            personas.Add(new Usuario
+                {
+                    Nombre = "Ybam",
+                    Apellido = "sas",
+                    Email = "ybam@bocajuniors.com",
+                    PasswordHash = "admin123",
+                    Rol = "Administrador"
+            });
+            
             context.Personas.AddRange(personas);
             context.SaveChanges();
         }
