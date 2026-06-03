@@ -17,7 +17,11 @@ export default function CanchaCatalog() {
                 if (!response.ok) throw new Error("No se pudieron cargar las canchas.");
                 return response.json();
             })
-            .then(data => setCanchas(data))
+            .then(data => {
+                // Filter out canchas that are in Mantenimiento
+                const canchasDisponibles = data.filter(c => c.estado !== 'Mantenimiento');
+                setCanchas(canchasDisponibles);
+            })
             .catch(err => {
                 console.error(err);
                 setError(err.message);
