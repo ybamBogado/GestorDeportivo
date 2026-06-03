@@ -56,6 +56,17 @@ Mientras la primera terminal sigue corriendo, abre una **nueva terminal** en la 
    ```
 *Nota: Vite iniciará el frontend y te mostrará una URL (generalmente `http://localhost:5173`) a la cual puedes entrar desde tu navegador web para ver la aplicación funcionando.*
 
+Para Login con google
+
+Abrir el archivo .env y completar con tus credenciales locales:
+
+GOOGLE_CLIENT_ID=tu_client_id
+GOOGLE_CLIENT_SECRET=tu_client_secret
+DB_CONNECTION=Server=(localdb)\\MSSQLLocalDB;Database=MSUsersDb;Trusted_Connection=True;TrustServerCertificate=True
+EMAILJS_SERVICE_ID=tu_service_id
+EMAILJS_TEMPLATE_ID=tu_template_id
+EMAILJS_PUBLIC_KEY=tu_public_key
+
 ---
 
 ## 💡 Resumen de Comandos Rápidos
