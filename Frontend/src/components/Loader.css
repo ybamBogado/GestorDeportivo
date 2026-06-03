@@ -7,26 +7,33 @@
 
 .logo-wrapper {
     position: relative;
-    width: 150px; /* Aumentado */
-    height: 150px; /* Aumentado */
+    width: 120px;
+    height: 120px;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: rgba(255, 255, 255, 0.1); /* Fondo sutil para que resalte */
+    background: var(--accent-muted);
     border-radius: 50%;
 }
 
 .custom-spinner {
-    width: 170px; 
-    height: 170px;
-    border-width: 0.3em;
+    width: 140px;
+    height: 140px;
+    border-width: 0.25em;
     position: absolute;
+    border-color: var(--accent) transparent transparent transparent;
 }
 
 .loader-logo {
-    width: 200px; 
-    height: 200px;
+    width: 80px;
+    height: 80px;
     object-fit: contain;
     z-index: 1;
-    filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));
+    filter: drop-shadow(0 0 6px rgba(49, 217, 79, 0.4));
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.7; }
 }

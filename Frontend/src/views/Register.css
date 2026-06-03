@@ -3,77 +3,152 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    background: var(--bg-app);
+    padding: 24px;
 }
 
 .register-card {
-    background-color: #111d13;
-    border: 1px solid #1b4332;
-    padding: 2.5rem;
-    border-radius: 20px;
-    max-width: 550px;
     width: 100%;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+    max-width: 520px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-base);
+    border-radius: 20px;
+    padding: 36px 32px;
+    box-shadow: var(--shadow-card);
+}
+
+.register-header {
+    text-align: center;
+    margin-bottom: 28px;
 }
 
 .register-logo {
-    height: 80px;
-    filter: drop-shadow(0 0 5px rgba(40, 167, 69, 0.4));
+    height: 72px;
+    width: auto;
+    filter: drop-shadow(0 0 6px rgba(49, 217, 79, 0.35));
+    margin-bottom: 12px;
 }
 
-.form-label {
-    font-size: 0.8rem;
-    color: #a0aec0;
-    text-transform: uppercase;
+.register-header h2 {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--text-primary);
+    margin: 0 0 4px;
     letter-spacing: 1px;
-    margin-bottom: 5px;
 }
 
-.form-input {
-    width: 100%;
-    padding: 12px;
-    background-color: #050a06;
-    border: 1px solid #1b4332;
-    border-radius: 10px;
-    color: white;
-    transition: all 0.2s;
+.register-header p {
+    color: var(--text-secondary);
+    font-size: 0.87rem;
+    margin: 0;
 }
 
-.form-input:focus {
+.register-error {
+    background: var(--danger-muted);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--danger);
+    padding: 10px 14px;
+    border-radius: 9px;
+    font-size: 0.87rem;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.register-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.register-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.field-group label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.field-group input {
+    padding: 11px 13px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-base);
+    border-radius: 9px;
+    color: var(--text-primary);
+    font-size: 0.93rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
     outline: none;
-    border-color: #28a745;
-    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.2);
+}
+
+.field-group input:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(49, 217, 79, 0.13);
+}
+
+.field-group input.input-error {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.13);
+}
+
+.field-error {
+    font-size: 0.76rem;
+    color: var(--danger);
+    font-weight: 600;
 }
 
 .register-btn {
     width: 100%;
-    padding: 14px;
-    background: linear-gradient(135deg, #28a745, #1b4332);
-    color: white;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    color: #061007;
     border: none;
-    border-radius: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: 0.3s;
-}
-
-.register-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
-}
-
-.back-link {
-    color: #718096;
-    text-decoration: none;
-}
-
-.error-alert {
-    background: rgba(220, 53, 69, 0.1);
-    color: #ff6b6b;
-    padding: 10px;
     border-radius: 10px;
-    border: 1px solid rgba(220, 53, 69, 0.2);
-    margin-bottom: 1.5rem;
+    font-weight: 800;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+}
+
+.register-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(49, 217, 79, 0.35);
+}
+
+.register-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.register-footer {
     text-align: center;
-    font-size: 0.85rem;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.register-footer a {
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.register-footer a:hover { color: var(--accent); }
+.register-footer a strong { color: var(--accent); }
+
+@media (max-width: 480px) {
+    .register-grid { grid-template-columns: 1fr; }
+    .register-card { padding: 28px 20px; }
 }

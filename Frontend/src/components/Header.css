@@ -1,53 +1,123 @@
 .header-main {
-    background: linear-gradient(to right, #1b4332, #111d13); /* Verde oscuro solicitado */
-    border-bottom: 1px solid #2d6a4f !important; /* Borde verde sutil */
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-    padding: 10px 0;
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--header-border);
+    box-shadow: var(--shadow-card);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    transition: background 0.25s ease;
 }
 
-.logo-container {
+.header-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.header-brand {
     text-decoration: none;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    flex-shrink: 0;
 }
 
-.logo {
-    height: 40px !important;
+.header-logo {
+    height: 40px;
     width: auto;
-    display: block;
-    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.25));
 }
 
-@media (min-width: 768px) {
-    .logo {
-        height: 50px !important;
-    }
+.header-title {
+    color: #ffffff;
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
 }
 
-.brand-title {
-    color: white;
-    font-size: 1.5rem;
-    margin: 0;
-    font-weight: 700;
-    letter-spacing: 1px;
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
-.btn-auth {
-    background: transparent;
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    padding: 8px 20px;
+.header-username {
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.85rem;
+    font-weight: 600;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.header-admin-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 16px;
+    background: #f59e0b;
+    color: #1a0000;
     border-radius: 8px;
-    transition: 0.3s;
-    font-size: 0.9rem;
-    font-weight: 500;
+    font-weight: 800;
+    font-size: 0.82rem;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: background 0.2s, transform 0.15s;
 }
 
-.btn-auth:hover {
-    background: #28a745; /* Verde brillante al pasar el mouse */
-    color: white;
-    border-color: #28a745;
+.header-admin-btn:hover {
+    background: #fbbf24;
     transform: translateY(-1px);
-    box-shadow: 0 0 10px rgba(40, 167, 69, 0.4);
+    color: #1a0000;
+}
+
+.header-theme-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    display: grid;
+    place-items: center;
+}
+
+.header-theme-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
+}
+
+.header-auth-btn {
+    padding: 7px 18px;
+    background: transparent;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    white-space: nowrap;
+}
+
+.header-auth-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+
+@media (max-width: 640px) {
+    .header-inner  { padding: 10px 16px; }
+    .header-title  { font-size: 1.15rem; }
+    .header-logo   { height: 32px; }
+    .header-username { display: none; }
 }
