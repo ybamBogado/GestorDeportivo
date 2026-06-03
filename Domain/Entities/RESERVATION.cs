@@ -6,7 +6,13 @@ namespace Domain.Entities
     public class Reserva
     {
         public int Id { get; set; }
-        
+
+        public DateTime Fecha { get; set; }
+        public TimeSpan HoraInicio { get; set; }
+        public TimeSpan HoraFin { get; set; }
+        public decimal Precio { get; set; }
+        public string Estado { get; set; } = "Pendiente";
+
         // Propiedades del UML
         public int LimiteReserva { get; set; }
         public int LimiteHorario { get; set; }

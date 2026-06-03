@@ -23,6 +23,12 @@ export default function CanchaDetail() {
         "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"
     ];
 
+    const getEndTime = (time) => {
+        const hour = parseInt(time.split(':')[0]);
+        if (hour >= 23) return '23:59';
+        return `${String(hour + 1).padStart(2, '0')}:00`;
+    };
+
     useEffect(() => {
         fetch(`http://localhost:5071/api/v1/canchas/${canchaId}`)
             .then(res => {
@@ -56,7 +62,10 @@ export default function CanchaDetail() {
             canchaId: parseInt(canchaId), 
             personaId: user.id,
             fecha: selectedDate,
-            horario: selectedTime
+            horaInicio: selectedTime,
+            horaFin: getEndTime(selectedTime),
+            precio: 4500,
+            pago: false
         };
 
         try {
@@ -72,7 +81,7 @@ export default function CanchaDetail() {
             } else {
                 setError("La reserva no pudo procesarse (Servicio de Reservas en mantenimiento).");
             }
-        } catch (error) {
+        } catch {
             setError("Error de conexión con el sistema de reservas.");
         }
     };

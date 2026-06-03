@@ -8,10 +8,12 @@ namespace Application.Handlers
     public class CreateCanchaCommandHandler
     {
         private readonly ICanchaRepository _canchaRepository;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public CreateCanchaCommandHandler(ICanchaRepository canchaRepository)
+        public CreateCanchaCommandHandler(ICanchaRepository canchaRepository, IUnitOfWork unitOfWork)
         {
             _canchaRepository = canchaRepository;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<int> HandleAsync(CreateCanchaCommand command)
@@ -24,6 +26,7 @@ namespace Application.Handlers
             };
 
             await _canchaRepository.AddAsync(nuevaCancha);
+            await _unitOfWork.SaveChangesAsync();
             return nuevaCancha.Id;
         }
     }
