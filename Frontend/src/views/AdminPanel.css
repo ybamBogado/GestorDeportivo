@@ -2,21 +2,45 @@
     min-height: 100vh;
     display: grid;
     grid-template-columns: 260px minmax(0, 1fr);
-    background:
-        radial-gradient(circle at 70% 10%, rgba(34, 197, 94, 0.12), transparent 28%),
-        linear-gradient(135deg, #090d0b 0%, #141716 52%, #0b0f0d 100%);
-    color: #f7fff8;
+    background: var(--bg-app);
+    color: var(--text-primary);
 }
 
 .admin-sidebar {
     min-height: 100vh;
     padding: 28px 22px;
-    background: rgba(10, 12, 11, 0.92);
-    border-right: 1px solid rgba(82, 255, 124, 0.14);
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border-subtle);
     display: flex;
     flex-direction: column;
     gap: 24px;
 }
+
+.admin-sidebar-footer {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin-theme-btn {
+    min-height: 38px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-weight: 700;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.admin-theme-btn:hover {
+    background: var(--accent-muted);
+    color: var(--accent);
+}
+
+.menu-icon { margin-right: 6px; }
 
 .admin-brand {
     display: flex;
@@ -138,10 +162,10 @@
 
 .admin-panel {
     padding: 26px;
-    background: rgba(20, 23, 22, 0.86);
-    border: 1px solid rgba(149, 255, 172, 0.12);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
-    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.36);
+    box-shadow: var(--shadow-card);
 }
 
 .admin-message {
@@ -175,9 +199,9 @@
     min-height: 44px;
     width: 100%;
     padding: 0 12px;
-    color: #f7fff8;
-    background: #080c0a;
-    border: 1px solid rgba(149, 255, 172, 0.18);
+    color: var(--text-primary);
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
     outline: none;
 }
@@ -185,7 +209,7 @@
 .date-controls input:focus,
 .admin-form input:focus,
 .admin-form select:focus {
-    border-color: #31d94f;
+    border-color: var(--border-focus);
     box-shadow: 0 0 0 3px rgba(49, 217, 79, 0.13);
 }
 
