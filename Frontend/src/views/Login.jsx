@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { GoogleLogin } from '@react-oauth/google';
 import './Login.css';
 
 export default function Login() {
@@ -40,6 +41,39 @@ export default function Login() {
             }
         } catch (err) {
             console.error("Login error:", err);
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleSuccess = async (credentialResponse) => {
+        setError(null);
+        setLoading(true);
+
+        try {
+            const response = await fetch('http://localhost:5071/api/v1/auth/google', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ idToken: credentialResponse.credential }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.text();
+                throw new Error(errorData || 'Error en la autenticación con Google');
+            }
+
+            const userData = await response.json();
+            login(userData);
+            if (userData.rol === 'Administrador') {
+                navigate('/admin');
+            } else {
+                navigate('/');
+            }
+        } catch (err) {
+            console.error("Google login error:", err);
             setError(err.message);
         } finally {
             setLoading(false);
@@ -91,10 +125,13 @@ export default function Login() {
 
                 <div className="divider"><span>O CONTINUAR CON</span></div>
 
-                <button className="btn google-btn w-100 d-flex align-items-center justify-content-center gap-2">
-                    <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" alt="Google" width="20" />
-                    Google
-                </button>
+                <div className="d-flex justify-content-center mt-3">
+                    <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={() => setError('Error al autenticar con Google')}
+                        useOneTap
+                    />
+                </div>
 
                 <div className="text-center mt-4 border-top pt-3">
                     <Link to="/register" className="back-to-home-link small d-block mb-2">
