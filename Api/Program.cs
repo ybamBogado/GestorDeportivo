@@ -49,6 +49,7 @@ builder.Services.AddScoped<IPersonaRepository, PersonaRepository>();
 
 builder.Services.AddScoped<RegisterPersonaCommandHandler>();
 builder.Services.AddScoped<LoginPersonaCommandHandler>();
+builder.Services.AddScoped<GoogleLoginPersonaCommandHandler>();
 builder.Services.AddScoped<GetPersonasQueryHandler>();
 builder.Services.AddScoped<GetPersonaByIdQueryHandler>();
 builder.Services.AddScoped<UpdatePersonaCommandHandler>();

@@ -11,12 +11,15 @@ namespace Api.Controllers
     {
         private readonly RegisterPersonaCommandHandler _registerHandler;
         private readonly LoginPersonaCommandHandler _loginHandler;
+        private readonly GoogleLoginPersonaCommandHandler _googleLoginHandler;
 
         public AuthController(RegisterPersonaCommandHandler registerHandler,
-                              LoginPersonaCommandHandler loginHandler)
+                              LoginPersonaCommandHandler loginHandler,
+                              GoogleLoginPersonaCommandHandler googleLoginHandler)
         {
             _registerHandler = registerHandler;
             _loginHandler = loginHandler;
+            _googleLoginHandler = googleLoginHandler;
         }
 
         [HttpPost("register")]
@@ -33,6 +36,17 @@ namespace Api.Controllers
             
             if (persona == null) 
                 return Unauthorized("Credenciales inválidas");
+                
+            return Ok(persona);
+        }
+
+        [HttpPost("google")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginCommand command)
+        {
+            var persona = await _googleLoginHandler.HandleAsync(command);
+            
+            if (persona == null) 
+                return Unauthorized("Token de Google inválido");
                 
             return Ok(persona);
         }
