@@ -14,8 +14,8 @@ const moneyFormatter = new Intl.NumberFormat('es-AR', {
 });
 
 const menuItems = [
-    { id: 'usuarios', label: 'Gestión de usuarios' },
-    { id: 'canchas', label: 'Gestión de canchas' },
+    { id: 'usuarios', label: 'Gesti├│n de usuarios' },
+    { id: 'canchas', label: 'Gesti├│n de canchas' },
     { id: 'reservas', label: 'Reservas y turnos' },
     { id: 'pagos', label: 'Pagos y recibos' },
     { id: 'reportes', label: 'Reportes' }
@@ -153,7 +153,7 @@ export default function AdminPanel() {
         });
 
         if (response.ok) {
-            setMessage('Cancha creada con éxito');
+            setMessage('Cancha creada con ├®xito');
             setShowCanchaForm(false);
             setCanchaFormData({ superficie: '', capacidad: 10, tipoCancha: 'Futbol5' });
             fetchDashboardData();
@@ -177,7 +177,7 @@ export default function AdminPanel() {
         });
 
         if (response.ok) {
-            setMessage('Reserva creada con éxito');
+            setMessage('Reserva creada con ├®xito');
             setShowReservaForm(false);
             setSelectedDate(reservaFormData.fecha);
             fetchDashboardData();
@@ -194,7 +194,7 @@ export default function AdminPanel() {
         });
 
         if (response.ok) {
-            setMessage(`Reserva ${estado.toLowerCase()} con éxito`);
+            setMessage(`Reserva ${estado.toLowerCase()} con ├®xito`);
             fetchDashboardData();
         } else {
             setMessage('No se pudo actualizar la reserva');
@@ -224,7 +224,7 @@ export default function AdminPanel() {
         });
 
         if (response.ok) {
-            setMessage('Usuario actualizado con éxito');
+            setMessage('Usuario actualizado con ├®xito');
             setEditingUser(null);
             fetchDashboardData();
         } else {
@@ -234,14 +234,14 @@ export default function AdminPanel() {
     };
 
     const handleDeleteUser = async (id) => {
-        if (!window.confirm('¿Estás seguro de eliminar este usuario?')) return;
+        if (!window.confirm('┬┐Est├ís seguro de eliminar este usuario?')) return;
 
         const response = await fetch(`${API_URL}/users/${id}`, {
             method: 'DELETE'
         });
 
         if (response.ok) {
-            setMessage('Usuario eliminado con éxito');
+            setMessage('Usuario eliminado con ├®xito');
             fetchDashboardData();
         } else {
             setMessage('Error al eliminar el usuario');
@@ -295,7 +295,7 @@ export default function AdminPanel() {
                     <div className="admin-avatar">{user?.nombre?.[0] || 'A'}</div>
                     <div>
                         <strong>{user?.nombre || 'Administrador'}</strong>
-                        <span>En línea</span>
+                        <span>En l├¡nea</span>
                     </div>
                 </div>
 
@@ -312,7 +312,7 @@ export default function AdminPanel() {
                 </nav>
 
                 <button className="admin-logout" onClick={handleLogout}>
-                    Cerrar sesión
+                    Cerrar sesi├│n
                 </button>
             </aside>
 
@@ -335,7 +335,7 @@ export default function AdminPanel() {
                             <div>
                                 <p>Fecha</p>
                                 <div className="date-controls">
-                                    <button type="button" onClick={() => shiftDate(-1)}>‹</button>
+                                    <button type="button" onClick={() => shiftDate(-1)}>ÔÇ╣</button>
                                     <input
                                         type="date"
                                         value={selectedDate}
@@ -344,7 +344,7 @@ export default function AdminPanel() {
                                             setReservaFormData(current => ({ ...current, fecha: e.target.value }));
                                         }}
                                     />
-                                    <button type="button" onClick={() => shiftDate(1)}>›</button>
+                                    <button type="button" onClick={() => shiftDate(1)}>ÔÇ║</button>
                                 </div>
                             </div>
 
@@ -379,7 +379,7 @@ export default function AdminPanel() {
                                 <strong>{metrics.canceled}</strong>
                             </article>
                             <article>
-                                <span>Ingresos del día</span>
+                                <span>Ingresos del d├¡a</span>
                                 <strong>{moneyFormatter.format(metrics.revenue)}</strong>
                             </article>
                         </div>
@@ -528,9 +528,9 @@ export default function AdminPanel() {
                                     value={canchaFormData.tipoCancha}
                                     onChange={(e) => setCanchaFormData({ ...canchaFormData, tipoCancha: e.target.value })}
                                 >
-                                    <option value="Futbol5">Fútbol 5</option>
-                                    <option value="Futbol7">Fútbol 7</option>
-                                    <option value="Futbol11">Fútbol 11</option>
+                                    <option value="Futbol5">F├║tbol 5</option>
+                                    <option value="Futbol7">F├║tbol 7</option>
+                                    <option value="Futbol11">F├║tbol 11</option>
                                 </select>
                                 <input
                                     type="number"
@@ -655,7 +655,7 @@ export default function AdminPanel() {
                 {(activeSection === 'pagos' || activeSection === 'reportes') && (
                     <section className="admin-panel placeholder-panel">
                         <h2>{activeSection === 'pagos' ? 'Pagos y recibos' : 'Reportes'}</h2>
-                        <p>La estructura del panel ya está preparada para sumar este módulo cuando se definan sus datos.</p>
+                        <p>La estructura del panel ya est├í preparada para sumar este m├│dulo cuando se definan sus datos.</p>
                     </section>
                 )}
             </section>

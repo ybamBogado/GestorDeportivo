@@ -33,7 +33,11 @@ export default function Login() {
 
             const userData = await response.json();
             login(userData);
-            navigate('/');
+            if (userData.rol === 'Administrador') {
+                navigate('/admin');
+            } else {
+                navigate('/');
+            }
         } catch (err) {
             console.error("Login error:", err);
             setError(err.message);
