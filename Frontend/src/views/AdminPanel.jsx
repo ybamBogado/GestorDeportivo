@@ -57,6 +57,16 @@ export default function AdminPanel() {
         pago: false
     });
 
+    const [roleFilter, setRoleFilter] = useState('Todos');
+    const [showCreateUserForm, setShowCreateUserForm] = useState(false);
+    const [createUserFormData, setCreateUserFormData] = useState({
+        nombre: '',
+        apellido: '',
+        email: '',
+        password: '',
+        rol: 'Usuario'
+    });
+
     const [usuariosSubTab, setUsuariosSubTab] = useState('lista');
     const [editingUser, setEditingUser] = useState(null);
     const [userFormData, setUserFormData] = useState({
@@ -141,6 +151,11 @@ export default function AdminPanel() {
     const pendingKycUsers = useMemo(() => {
         return users.filter(u => u.rol === 'Usuario' && u.certificadoPdf && u.certificadoPdf.trim() !== '');
     }, [users]);
+
+    const filteredUsers = useMemo(() => {
+        if (roleFilter === 'Todos') return users;
+        return users.filter(u => u.rol === roleFilter);
+    }, [users, roleFilter]);
 
     const handleLogout = () => {
         logout();
@@ -314,6 +329,31 @@ export default function AdminPanel() {
             } else {
                 const err = await response.text();
                 setMessage(`Error al procesar solicitud: ${err}`);
+            }
+        } catch (error) {
+            setMessage(`Error de red: ${error.message}`);
+        }
+    };
+
+    const handleCreateUser = async (e) => {
+        e.preventDefault();
+        setMessage('');
+
+        try {
+            const response = await fetch(`${API_URL}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(createUserFormData)
+            });
+
+            if (response.ok) {
+                setMessage('Usuario creado con éxito');
+                setShowCreateUserForm(false);
+                setCreateUserFormData({ nombre: '', apellido: '', email: '', password: '', rol: 'Usuario' });
+                fetchDashboardData();
+            } else {
+                const text = await response.text();
+                setMessage(`Error al crear usuario: ${text}`);
             }
         } catch (error) {
             setMessage(`Error de red: ${error.message}`);
@@ -762,52 +802,129 @@ export default function AdminPanel() {
                         )}
 
                         {usuariosSubTab === 'lista' && !editingUser && (
-                            <div className="data-table">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>Nombre</th>
-                                            <th>DNI</th>
-                                            <th>Contacto</th>
-                                            <th>Email</th>
-                                            <th>Rol / Certif.</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {users.map(selectedUser => (
-                                            <tr key={selectedUser.id}>
-                                                <td>#{selectedUser.id}</td>
-                                                <td style={{ fontWeight: 'bold' }}>{selectedUser.nombre} {selectedUser.apellido}</td>
-                                                <td>{selectedUser.dni}</td>
-                                                <td>
-                                                    <div style={{ fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                        <span>📞 {selectedUser.telefono || '—'}</span>
-                                                        <span style={{ color: '#8ca092' }}>📍 {selectedUser.direccion || '—'}</span>
-                                                    </div>
-                                                </td>
-                                                <td>{selectedUser.email}</td>
-                                                <td>
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
-                                                        <span className="pill neutral">{selectedUser.rol}</span>
-                                                        {(selectedUser.rol === 'Profesor' || selectedUser.rol === 'Entrenador') && (
-                                                            <span className={`pill ${(selectedUser.certificacion ?? selectedUser.certificado) ? 'success' : 'danger'}`} style={{ fontSize: '0.65rem', padding: '2px 6px', height: 'auto', minHeight: 'auto' }}>
-                                                                {(selectedUser.certificacion ?? selectedUser.certificado) ? '✓ Certificado OK' : '✗ Sin Certif.'}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="table-actions">
-                                                    <button onClick={() => handleEditUser(selectedUser)}>Editar</button>
-                                                    <button onClick={() => handlePrintUser(selectedUser)}>Imprimir</button>
-                                                    <button className="danger" onClick={() => handleDeleteUser(selectedUser.id)}>Borrar</button>
-                                                </td>
+                            <>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                                    <div className="status-tabs" style={{ display: 'flex', gap: '6px', margin: 0, flexWrap: 'wrap' }}>
+                                        <button className={roleFilter === 'Todos' ? 'active' : ''} onClick={() => setRoleFilter('Todos')}>Todos</button>
+                                        <button className={roleFilter === 'Usuario' ? 'active' : ''} onClick={() => setRoleFilter('Usuario')}>Usuarios</button>
+                                        <button className={roleFilter === 'Profesor' ? 'active' : ''} onClick={() => setRoleFilter('Profesor')}>Profesores</button>
+                                        <button className={roleFilter === 'Entrenador' ? 'active' : ''} onClick={() => setRoleFilter('Entrenador')}>Entrenadores</button>
+                                        <button className={roleFilter === 'Empleado' ? 'active' : ''} onClick={() => setRoleFilter('Empleado')}>Empleados</button>
+                                        <button className={roleFilter === 'Administrador' ? 'active' : ''} onClick={() => setRoleFilter('Administrador')}>Administradores</button>
+                                    </div>
+                                    <button className="primary-action" onClick={() => setShowCreateUserForm(!showCreateUserForm)}>
+                                        {showCreateUserForm ? 'Cancelar' : '+ Nuevo usuario'}
+                                    </button>
+                                </div>
+
+                                {showCreateUserForm && (
+                                    <form className="admin-form user-form" onSubmit={handleCreateUser} style={{ display: 'grid', gap: '16px', marginBottom: '24px' }}>
+                                        <h3 className="text-success fw-bold" style={{ fontSize: '1.1rem', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>Crear Nuevo Usuario</h3>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                                            <input
+                                                type="text"
+                                                placeholder="Nombre"
+                                                value={createUserFormData.nombre}
+                                                onChange={(e) => setCreateUserFormData({ ...createUserFormData, nombre: e.target.value })}
+                                                required
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="Apellido"
+                                                value={createUserFormData.apellido}
+                                                onChange={(e) => setCreateUserFormData({ ...createUserFormData, apellido: e.target.value })}
+                                                required
+                                            />
+                                            <input
+                                                type="email"
+                                                placeholder="Email"
+                                                value={createUserFormData.email}
+                                                onChange={(e) => setCreateUserFormData({ ...createUserFormData, email: e.target.value })}
+                                                required
+                                            />
+                                            <input
+                                                type="password"
+                                                placeholder="Contraseña"
+                                                value={createUserFormData.password}
+                                                onChange={(e) => setCreateUserFormData({ ...createUserFormData, password: e.target.value })}
+                                                required
+                                            />
+                                            <select
+                                                value={createUserFormData.rol}
+                                                onChange={(e) => setCreateUserFormData({ ...createUserFormData, rol: e.target.value })}
+                                            >
+                                                <option value="Usuario">Cliente / Usuario</option>
+                                                <option value="Empleado">Empleado</option>
+                                                <option value="Profesor">Profesor</option>
+                                                <option value="Entrenador">Entrenador</option>
+                                                <option value="Administrador">Administrador</option>
+                                            </select>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                                            <button type="button" className="ghost-button" onClick={() => {
+                                                setShowCreateUserForm(false);
+                                                setCreateUserFormData({ nombre: '', apellido: '', email: '', password: '', rol: 'Usuario' });
+                                            }}>Cancelar</button>
+                                            <button type="submit" className="primary-action">Crear Usuario</button>
+                                        </div>
+                                    </form>
+                                )}
+
+                                <div className="data-table">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Nombre</th>
+                                                <th>DNI</th>
+                                                <th>Contacto</th>
+                                                <th>Email</th>
+                                                <th>Rol / Certif.</th>
+                                                <th>Acciones</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            {filteredUsers.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#8ca092' }}>
+                                                        No hay usuarios registrados con este rol.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                filteredUsers.map(selectedUser => (
+                                                    <tr key={selectedUser.id}>
+                                                        <td>#{selectedUser.id}</td>
+                                                        <td style={{ fontWeight: 'bold' }}>{selectedUser.nombre} {selectedUser.apellido}</td>
+                                                        <td>{selectedUser.dni}</td>
+                                                        <td>
+                                                            <div style={{ fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                                <span>📞 {selectedUser.telefono || '—'}</span>
+                                                                <span style={{ color: '#8ca092' }}>📍 {selectedUser.direccion || '—'}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td>{selectedUser.email}</td>
+                                                        <td>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                                                                <span className="pill neutral">{selectedUser.rol}</span>
+                                                                {(selectedUser.rol === 'Profesor' || selectedUser.rol === 'Entrenador') && (
+                                                                    <span className={`pill ${(selectedUser.certificacion ?? selectedUser.certificado) ? 'success' : 'danger'}`} style={{ fontSize: '0.65rem', padding: '2px 6px', height: 'auto', minHeight: 'auto' }}>
+                                                                        {(selectedUser.certificacion ?? selectedUser.certificado) ? '✓ Certificado OK' : '✗ Sin Certif.'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="table-actions">
+                                                            <button onClick={() => handleEditUser(selectedUser)}>Editar</button>
+                                                            <button onClick={() => handlePrintUser(selectedUser)}>Imprimir</button>
+                                                            <button className="danger" onClick={() => handleDeleteUser(selectedUser.id)}>Borrar</button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
                         )}
 
                         {usuariosSubTab === 'kyc' && !editingUser && (
