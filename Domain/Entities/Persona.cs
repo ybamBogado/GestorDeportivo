@@ -14,7 +14,6 @@ namespace Domain.Entities
         public string Rol { get; set; } = "Cliente";
         public string Direccion { get; set; } = string.Empty;
         public string Telefono { get; set; } = string.Empty;
-        public string? CertificadoPdf { get; set; } = string.Empty;
         public int? ComplejoId { get; set; }
         public virtual Complejo? Complejo { get; set; }
     }
