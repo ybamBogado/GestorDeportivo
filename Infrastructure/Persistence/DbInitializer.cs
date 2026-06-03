@@ -34,22 +34,24 @@ public static class DbInitializer
                 });
                 
             }
-            personas.Add(new Administrador
-            {
-                Nombre = "Admin",
-                Apellido = "Sistema",
-                Email = "admin@golahora.com",
-                PasswordHash = "admin123",
-                Rol = "Administrador"
-            });
+            
 
             personas.Add(new Usuario
                 {
                     Nombre = "Ybam",
                     Apellido = "sas",
                     Email = "ybam@bocajuniors.com",
-                    PasswordHash = "admin123",
+                    PasswordHash = "123",
                     Rol = "Administrador"
+            });
+
+            personas.Add(new Administrador
+            {
+                Nombre = "Wilson",
+                Apellido = "Rios",
+                Email = "wilson@wil.com",
+                PasswordHash = "123",
+                Rol = "Administrador"
             });
             
             context.Personas.AddRange(personas);
