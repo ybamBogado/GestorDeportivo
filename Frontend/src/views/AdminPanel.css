@@ -579,3 +579,50 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ─── Pagos sub-tabs ─────────────────────────────────── */
+.pagos-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.pagos-tabs button {
+    min-height: 40px;
+    padding: 0 20px;
+    border-radius: 8px;
+    border: 1px solid rgba(149, 255, 172, 0.15);
+    background: rgba(255,255,255,0.04);
+    color: #8ca092;
+    font-weight: 800;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 160ms ease;
+}
+
+.pagos-tabs button.active {
+    background: rgba(49, 217, 79, 0.14);
+    border-color: #31d94f;
+    color: #41ef62;
+}
+
+.pagos-tabs button:hover:not(.active) {
+    color: #d0ffd8;
+    border-color: rgba(149, 255, 172, 0.3);
+}
+
+/* ─── Cobro form columns ──────────────────────────────── */
+.cobro-form {
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
+}
+
+/* ─── State pills ─────────────────────────────────────── */
+.pill.pending {
+    color: #78350f;
+    background: #f2b84b;
+}
+
+.pill.danger {
+    color: #fff;
+    background: #ef4444;
+}

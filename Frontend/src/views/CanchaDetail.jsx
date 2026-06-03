@@ -76,8 +76,9 @@ export default function CanchaDetail() {
             });
 
             if (response.ok) {
-                alert(`¡Reserva confirmada para el ${selectedDate} a las ${selectedTime}!`);
-                navigate('/');
+                const data = await response.json();
+                // Redirigir a la vista de pago con el cobroId devuelto por el back
+                navigate(`/pago/${data.cobroId}`);
             } else {
                 setError("La reserva no pudo procesarse (Servicio de Reservas en mantenimiento).");
             }

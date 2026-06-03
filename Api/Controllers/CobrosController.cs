@@ -1,7 +1,12 @@
-using Domain.Entities;
-using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Threading.Tasks;
+using System.Linq;
+using Domain.Entities;
+using Infrastructure.Persistence;
+using Api.Models;
+using Infrastructure.Services;
 
 namespace Api.Controllers
 {
@@ -10,10 +15,14 @@ namespace Api.Controllers
     public class CobrosController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IVirtualWalletService _walletService;
 
-        public CobrosController(AppDbContext context)
+
+
+        public CobrosController(AppDbContext context, IVirtualWalletService walletService)
         {
             _context = context;
+            _walletService = walletService;
         }
 
         [HttpGet]
@@ -83,16 +92,18 @@ namespace Api.Controllers
             var cobro = await _context.Cobros.Include(c => c.Reserva).FirstOrDefaultAsync(c => c.Id == id);
             if (cobro == null) return NotFound("Cobro no encontrado");
 
-            cobro.Estado = request.Aprobado ? "Pagado" : "Rechazado";
+            // Process payment through virtual wallet service
+            var paymentApproved = await _walletService.ProcessPaymentAsync(request.Monto);
+            cobro.Estado = paymentApproved ? "Pagado" : "Rechazado";
             cobro.MetodoPago = request.MetodoPago;
 
-            if (request.Aprobado && cobro.Reserva != null)
+            if (paymentApproved && cobro.Reserva != null)
             {
                 cobro.Reserva.Estado = "Confirmada";
                 cobro.Reserva.Pago = true;
             }
 
-            if (request.Aprobado)
+            if (paymentApproved)
             {
                 var recibo = new Recibo
                 {
@@ -119,20 +130,6 @@ namespace Api.Controllers
             return Ok("Cobro eliminado");
         }
 
-        public class CobroRequest
-        {
-            public int? ReservaId { get; set; }
-            public string Concepto { get; set; } = string.Empty;
-            public decimal Monto { get; set; }
-            public decimal Descuento { get; set; }
-            public string Estado { get; set; } = "Pendiente";
-            public string MetodoPago { get; set; } = string.Empty;
-        }
 
-        public class PagoRequest
-        {
-            public bool Aprobado { get; set; }
-            public string MetodoPago { get; set; } = string.Empty;
-        }
     }
 }

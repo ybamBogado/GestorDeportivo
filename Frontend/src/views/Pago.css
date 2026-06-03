@@ -1,0 +1,256 @@
+/* ─── Page wrapper ──────────────────────────────────── */
+.pago-page {
+  min-height: calc(100vh - 120px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  background: radial-gradient(ellipse at top, #0d1f0e 0%, #050a06 70%);
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up { animation: fadeInUp 0.45s ease both; }
+
+/* ─── Payment card ──────────────────────────────────── */
+.pago-card {
+  width: 100%;
+  max-width: 520px;
+  background: rgba(17, 29, 19, 0.92);
+  border: 1px solid #1b4332;
+  border-radius: 20px;
+  padding: 40px 36px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(39,174,96,0.08);
+  backdrop-filter: blur(12px);
+}
+
+.pago-header { text-align: center; margin-bottom: 28px; }
+.pago-step   { font-size: 11px; letter-spacing: 2px; color: #27ae60; font-weight: 700; text-transform: uppercase; }
+.pago-header h2 { color: #fff; font-size: 26px; font-weight: 800; margin: 6px 0 4px; }
+.pago-header p  { color: #6b7280; font-size: 14px; }
+
+/* ─── Error ─────────────────────────────────────────── */
+.pago-error {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: #f87171;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+/* ─── Summary ───────────────────────────────────────── */
+.pago-resumen {
+  background: rgba(5, 10, 6, 0.7);
+  border: 1px solid #1b4332;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+.pago-resumen-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 14px;
+  color: #9ca3af;
+  border-bottom: 1px solid #1b433240;
+}
+.pago-resumen-row:last-child { border-bottom: none; }
+.pago-resumen-row strong { color: #e5e7eb; }
+.pago-descuento { color: #34d399; }
+.pago-descuento strong { color: #34d399; }
+.pago-total {
+  margin-top: 4px;
+  padding-top: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+.pago-total strong { color: #4ade80; font-size: 22px; }
+
+/* ─── Method selector ───────────────────────────────── */
+.pago-metodos { margin-bottom: 20px; }
+.pago-label   { display: block; font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #6b7280; text-transform: uppercase; margin-bottom: 12px; }
+.metodo-grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+.metodo-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border-radius: 12px;
+  border: 1px solid #1b4332;
+  background: rgba(5, 10, 6, 0.6);
+  color: #9ca3af;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+.metodo-btn:hover { border-color: #27ae60; color: #d1fae5; transform: translateY(-2px); }
+.metodo-btn--active {
+  border-color: #27ae60;
+  background: rgba(39, 174, 96, 0.12);
+  color: #4ade80;
+  box-shadow: 0 0 0 2px rgba(39,174,96,0.25), 0 4px 16px rgba(39,174,96,0.15);
+}
+.metodo-icon { font-size: 22px; }
+
+/* ─── Wallet info block ─────────────────────────────── */
+.wallet-info {
+  background: linear-gradient(135deg, rgba(39,174,96,0.08), rgba(16,185,129,0.05));
+  border: 1px solid rgba(39,174,96,0.25);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+}
+.wallet-logo  { font-size: 16px; font-weight: 700; color: #4ade80; margin-bottom: 6px; }
+.wallet-desc  { color: #6b7280; font-size: 12px; margin-bottom: 12px; }
+.wallet-saldo {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #9ca3af;
+}
+.wallet-saldo strong { color: #4ade80; }
+
+/* ─── CTA buttons ───────────────────────────────────── */
+.btn-pagar {
+  width: 100%;
+  padding: 18px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 6px 24px rgba(22,163,74,0.35);
+  margin-bottom: 12px;
+}
+.btn-pagar:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 32px rgba(22,163,74,0.5);
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+.btn-pagar:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+
+.btn-cancelar {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #374151;
+  background: transparent;
+  color: #6b7280;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-cancelar:hover { border-color: #4b5563; color: #9ca3af; }
+
+/* Spinner */
+.dots::after {
+  content: '';
+  animation: dots 1.4s infinite;
+}
+@keyframes dots {
+  0%   { content: '.'; }
+  33%  { content: '..'; }
+  66%  { content: '...'; }
+}
+
+/* ─── Receipt card ───────────────────────────────────── */
+.recibo-card {
+  width: 100%;
+  max-width: 480px;
+  background: rgba(17, 29, 19, 0.95);
+  border: 1px solid #1b4332;
+  border-radius: 20px;
+  padding: 44px 36px 36px;
+  text-align: center;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.55), 0 0 40px rgba(39,174,96,0.1);
+}
+
+.recibo-check {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #fff;
+  font-size: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 0 32px rgba(34,197,94,0.4);
+  animation: pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@keyframes pop {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.recibo-title    { color: #fff; font-size: 26px; font-weight: 800; margin: 0 0 6px; }
+.recibo-subtitle { color: #4ade80; font-size: 14px; margin-bottom: 28px; }
+
+.recibo-body {
+  background: rgba(5, 10, 6, 0.7);
+  border: 1px solid #1b4332;
+  border-radius: 14px;
+  padding: 20px;
+  text-align: left;
+  margin-bottom: 28px;
+}
+.recibo-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 14px;
+  color: #9ca3af;
+  border-bottom: 1px solid #1b433240;
+}
+.recibo-row:last-child { border-bottom: none; }
+.recibo-row strong    { color: #e5e7eb; }
+.recibo-row--total    { padding-top: 14px; margin-top: 4px; }
+.recibo-monto         { color: #4ade80; font-size: 22px; font-weight: 800; }
+
+.badge-pagado {
+  background: rgba(34,197,94,0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34,197,94,0.3);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.btn-volver {
+  width: 100%;
+  padding: 16px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s;
+  box-shadow: 0 6px 20px rgba(22,163,74,0.3);
+}
+.btn-volver:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(22,163,74,0.45);
+}
+
+/* ─── Responsive ─────────────────────────────────────── */
+@media (max-width: 480px) {
+  .pago-card, .recibo-card { padding: 28px 18px; }
+  .metodo-grid { grid-template-columns: 1fr; }
+}

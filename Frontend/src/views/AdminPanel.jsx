@@ -652,13 +652,343 @@ export default function AdminPanel() {
                     </section>
                 )}
 
-                {(activeSection === 'pagos' || activeSection === 'reportes') && (
+                {activeSection === 'pagos' && <PagosPanel moneyFormatter={moneyFormatter} setMessage={setMessage} />}
+
+                {activeSection === 'reportes' && (
                     <section className="admin-panel placeholder-panel">
-                        <h2>{activeSection === 'pagos' ? 'Pagos y recibos' : 'Reportes'}</h2>
+                        <h2>Reportes</h2>
                         <p>La estructura del panel ya está preparada para sumar este módulo cuando se definan sus datos.</p>
                     </section>
                 )}
             </section>
         </main>
+    );
+}
+
+// ─── Módulo Pagos y Recibos ───────────────────────────────────────────────────
+function PagosPanel({ moneyFormatter, setMessage }) {
+    const [tab, setTab] = useState('cobros');
+    const [cobros, setCobros] = useState([]);
+    const [recibos, setRecibos] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    // Cobro form state
+    const [showCobroForm, setShowCobroForm] = useState(false);
+    const [editingCobro, setEditingCobro] = useState(null);
+    const [cobroForm, setCobroForm] = useState({
+        concepto: '', monto: '', descuento: 0, estado: 'Pendiente', metodoPago: ''
+    });
+
+    const fetchAll = async () => {
+        setLoading(true);
+        const [cr, rr] = await Promise.all([
+            fetch(`${API_URL}/cobros`),
+            fetch(`${API_URL}/recibos`)
+        ]);
+        if (cr.ok) setCobros(await cr.json());
+        if (rr.ok) setRecibos(await rr.json());
+        setLoading(false);
+    };
+
+    useEffect(() => { fetchAll(); }, []);
+
+    // ── Cobros CRUD ────────────────────────────────────────────────────────────
+    const handleSaveCobro = async (e) => {
+        e.preventDefault();
+        const monto = Number(cobroForm.monto);
+        const desc  = Number(cobroForm.descuento);
+        const body = {
+            concepto: cobroForm.concepto,
+            monto,
+            descuento: desc,
+            estado: cobroForm.estado,
+            metodoPago: cobroForm.metodoPago
+        };
+        const url    = editingCobro ? `${API_URL}/cobros/${editingCobro}` : `${API_URL}/cobros`;
+        const method = editingCobro ? 'PUT' : 'POST';
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (res.ok) {
+            setMessage(editingCobro ? 'Cobro actualizado' : 'Cobro creado');
+            setShowCobroForm(false);
+            setEditingCobro(null);
+            setCobroForm({ concepto: '', monto: '', descuento: 0, estado: 'Pendiente', metodoPago: '' });
+            fetchAll();
+        } else {
+            setMessage('No se pudo guardar el cobro');
+        }
+    };
+
+    const handleEditCobro = (c) => {
+        setEditingCobro(c.id);
+        setCobroForm({ concepto: c.concepto, monto: c.monto, descuento: c.descuento, estado: c.estado, metodoPago: c.metodoPago });
+        setShowCobroForm(true);
+    };
+
+    const handleDeleteCobro = async (id) => {
+        if (!window.confirm('¿Eliminar este cobro?')) return;
+        const res = await fetch(`${API_URL}/cobros/${id}`, { method: 'DELETE' });
+        if (res.ok) { setMessage('Cobro eliminado'); fetchAll(); }
+        else setMessage('No se pudo eliminar');
+    };
+
+    const handlePagarCobro = async (cobro) => {
+        if (!window.confirm(`¿Registrar pago de ${moneyFormatter.format(cobro.montoFinal)} para el cobro #${cobro.id}?`)) return;
+        const res = await fetch(`${API_URL}/cobros/${cobro.id}/pagar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ monto: cobro.montoFinal, metodoPago: 'Efectivo', aprobado: true })
+        });
+        if (res.ok) { setMessage('Pago registrado y recibo generado'); fetchAll(); }
+        else setMessage('Error al procesar el pago');
+    };
+
+    const handlePrintCobro = (c) => {
+        const win = window.open('', '_blank', 'width=650,height=520');
+        win.document.write(`
+            <html><head><title>Cobro #${c.id} - Gol Ahora</title>
+            <style>
+                body { font-family: Arial, sans-serif; background: #0b130e; color: #fff; padding: 40px; }
+                .card { border: 2px solid #28a745; border-radius: 12px; padding: 28px; max-width: 480px; margin: auto; background: #111d13; }
+                .header { font-size: 20px; font-weight: bold; border-bottom: 2px solid #28a745; padding-bottom: 12px; margin-bottom: 20px; color: #28a745; text-align: center; }
+                .row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 15px; }
+                .label { color: #8ca092; }
+                .value { color: #fff; font-weight: bold; }
+                .total { margin-top: 16px; padding-top: 12px; border-top: 1px solid #1b4332; font-size: 18px; }
+                .pill { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; background: ${c.estado === 'Pagado' ? '#22c55e' : c.estado === 'Rechazado' ? '#ef4444' : '#f2b84b'}; color: #061007; }
+                .footer { text-align: center; margin-top: 28px; font-size: 11px; color: #6b7280; }
+            </style></head>
+            <body>
+                <div class="card">
+                    <div class="header">GOL AHORA — COMPROBANTE DE COBRO</div>
+                    <div class="row"><span class="label">N° Cobro</span><span class="value">#${c.id}</span></div>
+                    <div class="row"><span class="label">Fecha</span><span class="value">${new Date(c.fecha).toLocaleDateString('es-AR')}</span></div>
+                    <div class="row"><span class="label">Concepto</span><span class="value">${c.concepto}</span></div>
+                    <div class="row"><span class="label">Monto</span><span class="value">$${Number(c.monto).toLocaleString('es-AR')}</span></div>
+                    <div class="row"><span class="label">Descuento</span><span class="value">-$${Number(c.descuento).toLocaleString('es-AR')}</span></div>
+                    <div class="row total"><span class="label">Total</span><span class="value" style="color:#4ade80;font-size:20px">$${Number(c.montoFinal).toLocaleString('es-AR')}</span></div>
+                    <div class="row"><span class="label">Método de Pago</span><span class="value">${c.metodoPago || '—'}</span></div>
+                    <div class="row"><span class="label">Estado</span><span class="value"><span class="pill">${c.estado}</span></span></div>
+                    <div class="footer">Gol Ahora — ${new Date().toLocaleString('es-AR')}</div>
+                </div>
+                <script>window.onload = () => window.print();</script>
+            </body></html>`);
+        win.document.close();
+    };
+
+    // ── Recibos ────────────────────────────────────────────────────────────────
+    const handleDeleteRecibo = async (id) => {
+        if (!window.confirm('¿Eliminar este recibo?')) return;
+        const res = await fetch(`${API_URL}/recibos/${id}`, { method: 'DELETE' });
+        if (res.ok) { setMessage('Recibo eliminado'); fetchAll(); }
+        else setMessage('No se pudo eliminar');
+    };
+
+    const handlePrintRecibo = (r) => {
+        const win = window.open('', '_blank', 'width=650,height=520');
+        win.document.write(`
+            <html><head><title>Recibo ${r.numero} - Gol Ahora</title>
+            <style>
+                body { font-family: Arial, sans-serif; background: #0b130e; color: #fff; padding: 40px; }
+                .card { border: 2px solid #28a745; border-radius: 12px; padding: 28px; max-width: 480px; margin: auto; background: #111d13; }
+                .header { font-size: 20px; font-weight: bold; border-bottom: 2px solid #28a745; padding-bottom: 12px; margin-bottom: 20px; color: #28a745; text-align: center; }
+                .check { font-size: 48px; text-align: center; margin-bottom: 8px; }
+                .row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 15px; }
+                .label { color: #8ca092; }
+                .value { color: #fff; font-weight: bold; }
+                .datos { margin-top: 16px; padding: 14px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2); border-radius: 8px; font-size: 13px; color: #d1fae5; }
+                .footer { text-align: center; margin-top: 28px; font-size: 11px; color: #6b7280; }
+            </style></head>
+            <body>
+                <div class="card">
+                    <div class="check">✅</div>
+                    <div class="header">GOL AHORA — RECIBO DE PAGO</div>
+                    <div class="row"><span class="label">N° Recibo</span><span class="value">${r.numero}</span></div>
+                    <div class="row"><span class="label">Fecha de Emisión</span><span class="value">${new Date(r.fechaEmision).toLocaleString('es-AR', { dateStyle:'medium', timeStyle:'short' })}</span></div>
+                    <div class="row"><span class="label">Cobro vinculado</span><span class="value">#${r.cobroId}</span></div>
+                    <div class="datos">${r.datos}</div>
+                    <div class="footer">Gol Ahora — Comprobante oficial de pago — ${new Date().toLocaleString('es-AR')}</div>
+                </div>
+                <script>window.onload = () => window.print();</script>
+            </body></html>`);
+        win.document.close();
+    };
+
+    // ── Estadísticas cobros ────────────────────────────────────────────────────
+    const totalCobrado  = cobros.filter(c => c.estado === 'Pagado').reduce((s, c) => s + Number(c.montoFinal), 0);
+    const totalPendiente = cobros.filter(c => c.estado === 'Pendiente').reduce((s, c) => s + Number(c.montoFinal), 0);
+
+    const estadoPill = (estado) => {
+        const map = { Pagado: 'success', Pendiente: 'pending', Rechazado: 'danger' };
+        return map[estado] ?? 'neutral';
+    };
+
+    return (
+        <section className="admin-panel">
+            {/* Sub-tabs */}
+            <div className="pagos-tabs">
+                <button className={tab === 'cobros' ? 'active' : ''} onClick={() => setTab('cobros')}>📋 Cobros</button>
+                <button className={tab === 'recibos' ? 'active' : ''} onClick={() => setTab('recibos')}>🧾 Recibos</button>
+            </div>
+
+            {/* ── COBROS ── */}
+            {tab === 'cobros' && (
+                <>
+                    {/* Métricas */}
+                    <div className="metric-grid" style={{ marginTop: 16 }}>
+                        <article>
+                            <span>Total cobros</span>
+                            <strong>{cobros.length}</strong>
+                        </article>
+                        <article>
+                            <span>Cobrado</span>
+                            <strong style={{ color: '#4ade80' }}>{moneyFormatter.format(totalCobrado)}</strong>
+                        </article>
+                        <article>
+                            <span>Pendiente</span>
+                            <strong style={{ color: '#f2b84b' }}>{moneyFormatter.format(totalPendiente)}</strong>
+                        </article>
+                        <article>
+                            <span>Recibos emitidos</span>
+                            <strong>{recibos.length}</strong>
+                        </article>
+                    </div>
+
+                    {/* Toolbar */}
+                    <div className="section-actions">
+                        <button className="primary-action" onClick={() => {
+                            setEditingCobro(null);
+                            setCobroForm({ concepto: '', monto: '', descuento: 0, estado: 'Pendiente', metodoPago: '' });
+                            setShowCobroForm(v => !v);
+                        }}>
+                            {showCobroForm ? 'Cancelar' : '+ Nuevo cobro'}
+                        </button>
+                    </div>
+
+                    {/* Formulario */}
+                    {showCobroForm && (
+                        <form className="admin-form cobro-form" onSubmit={handleSaveCobro}>
+                            <input
+                                placeholder="Concepto"
+                                value={cobroForm.concepto}
+                                onChange={e => setCobroForm({ ...cobroForm, concepto: e.target.value })}
+                                required
+                            />
+                            <input
+                                type="number" min="0" placeholder="Monto"
+                                value={cobroForm.monto}
+                                onChange={e => setCobroForm({ ...cobroForm, monto: e.target.value })}
+                                required
+                            />
+                            <input
+                                type="number" min="0" placeholder="Descuento"
+                                value={cobroForm.descuento}
+                                onChange={e => setCobroForm({ ...cobroForm, descuento: e.target.value })}
+                            />
+                            <select value={cobroForm.estado} onChange={e => setCobroForm({ ...cobroForm, estado: e.target.value })}>
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="Pagado">Pagado</option>
+                                <option value="Rechazado">Rechazado</option>
+                            </select>
+                            <input
+                                placeholder="Método de pago"
+                                value={cobroForm.metodoPago}
+                                onChange={e => setCobroForm({ ...cobroForm, metodoPago: e.target.value })}
+                            />
+                            <button type="submit" className="primary-action">
+                                {editingCobro ? 'Actualizar' : 'Guardar cobro'}
+                            </button>
+                        </form>
+                    )}
+
+                    {/* Tabla */}
+                    {loading ? <div className="empty-state">Cargando cobros...</div> : (
+                        cobros.length === 0
+                            ? <div className="empty-state">No hay cobros registrados.</div>
+                            : (
+                                <div className="data-table">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Fecha</th>
+                                                <th>Concepto</th>
+                                                <th>Monto</th>
+                                                <th>Descuento</th>
+                                                <th>Total</th>
+                                                <th>Método</th>
+                                                <th>Estado</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {cobros.map(c => (
+                                                <tr key={c.id}>
+                                                    <td>#{c.id}</td>
+                                                    <td>{new Date(c.fecha).toLocaleDateString('es-AR')}</td>
+                                                    <td>{c.concepto}</td>
+                                                    <td>{moneyFormatter.format(c.monto)}</td>
+                                                    <td style={{ color: '#f2b84b' }}>{c.descuento > 0 ? `-${moneyFormatter.format(c.descuento)}` : '—'}</td>
+                                                    <td style={{ color: '#4ade80', fontWeight: 700 }}>{moneyFormatter.format(c.montoFinal)}</td>
+                                                    <td>{c.metodoPago || '—'}</td>
+                                                    <td>
+                                                        <span className={`pill ${estadoPill(c.estado)}`}>{c.estado}</span>
+                                                    </td>
+                                                    <td className="table-actions">
+                                                        {c.estado === 'Pendiente' && (
+                                                            <button onClick={() => handlePagarCobro(c)}>💳 Pagar</button>
+                                                        )}
+                                                        <button onClick={() => handleEditCobro(c)}>Editar</button>
+                                                        <button onClick={() => handlePrintCobro(c)}>🖨️ Imprimir</button>
+                                                        <button className="danger" onClick={() => handleDeleteCobro(c.id)}>Borrar</button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )
+                    )}
+                </>
+            )}
+
+            {/* ── RECIBOS ── */}
+            {tab === 'recibos' && (
+                <>
+                    {loading ? <div className="empty-state">Cargando recibos...</div> : (
+                        recibos.length === 0
+                            ? <div className="empty-state">No hay recibos emitidos.</div>
+                            : (
+                                <div className="data-table" style={{ marginTop: 16 }}>
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>N° Recibo</th>
+                                                <th>Cobro</th>
+                                                <th>Fecha Emisión</th>
+                                                <th>Datos</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {recibos.map(r => (
+                                                <tr key={r.id}>
+                                                    <td style={{ fontWeight: 700, color: '#4ade80' }}>{r.numero}</td>
+                                                    <td>#{r.cobroId}</td>
+                                                    <td>{new Date(r.fechaEmision).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                                    <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.datos}</td>
+                                                    <td className="table-actions">
+                                                        <button onClick={() => handlePrintRecibo(r)}>🖨️ Imprimir</button>
+                                                        <button className="danger" onClick={() => handleDeleteRecibo(r.id)}>Borrar</button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )
+                    )}
+                </>
+            )}
+        </section>
     );
 }

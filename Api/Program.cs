@@ -7,6 +7,7 @@ using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using Ticketinador2000.Infrastructure.Persistence;
+using Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,7 +43,7 @@ builder.Services.AddScoped<GetPersonasQueryHandler>();
 builder.Services.AddScoped<GetPersonaByIdQueryHandler>();
 builder.Services.AddScoped<UpdatePersonaCommandHandler>();
 builder.Services.AddScoped<DeletePersonaCommandHandler>();
-builder.Services.AddScoped<GetReservasQueryHandler>();
+builder.Services.AddScoped<IVirtualWalletService, FakeVirtualWalletService>();
 builder.Services.AddScoped<CreateReservaCommandHandler>();
 builder.Services.AddScoped<UpdateReservaEstadoCommandHandler>();
 
