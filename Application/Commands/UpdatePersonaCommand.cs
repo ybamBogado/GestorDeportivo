@@ -7,5 +7,11 @@ public record UpdatePersonaCommand(
     string Nombre,
     string Apellido,
     int Dni,
-    int Legajo
+    int Legajo,
+    string? Direccion = null,
+    string? Telefono = null,
+    bool? Certificacion = null,
+    System.DateTime? FechaVencimientoCertificacion = null,
+    string? CertificadoPdf = null
 );
+

@@ -57,6 +57,7 @@ builder.Services.AddScoped<DeletePersonaCommandHandler>();
 builder.Services.AddScoped<IVirtualWalletService, FakeVirtualWalletService>();
 builder.Services.AddScoped<CreateReservaCommandHandler>();
 builder.Services.AddScoped<UpdateReservaEstadoCommandHandler>();
+builder.Services.AddScoped<GetReservasQueryHandler>();
 
 builder.Services.AddScoped<IGetCanchaCatalogQueryHandler, GetCanchaCatalogQueryHandler>();
 builder.Services.AddScoped<GetCanchaByIdQueryHandler>();
@@ -100,6 +101,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseStaticFiles();
 app.UseCors("AllowAnyOrigin");
 
 app.UseHttpsRedirection();

@@ -47,11 +47,32 @@ namespace Infrastructure.Repositories
                 "Empleado" => "Empleado",
                 _ => "Usuario"
             };
-            await _context.Database.ExecuteSqlRawAsync(
-                "UPDATE PERSONA SET Discriminator = {0} WHERE Id = {1}", 
-                discriminator, 
-                persona.Id
-            );
+            if (discriminator == "Profesor")
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "UPDATE PERSONA SET Discriminator = {0}, Certificacion = COALESCE(Certificacion, 1), FechaVencimientoCertificacion = COALESCE(FechaVencimientoCertificacion, {1}) WHERE Id = {2}",
+                    discriminator,
+                    System.DateTime.UtcNow.AddYears(1),
+                    persona.Id
+                );
+            }
+            else if (discriminator == "Entrenador")
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "UPDATE PERSONA SET Discriminator = {0}, Certificado = COALESCE(Certificado, 1), FechaVencimientoCertificacion = COALESCE(FechaVencimientoCertificacion, {1}) WHERE Id = {2}",
+                    discriminator,
+                    System.DateTime.UtcNow.AddYears(1),
+                    persona.Id
+                );
+            }
+            else
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "UPDATE PERSONA SET Discriminator = {0} WHERE Id = {1}", 
+                    discriminator, 
+                    persona.Id
+                );
+            }
         }
 
         public async Task DeleteAsync(int id)

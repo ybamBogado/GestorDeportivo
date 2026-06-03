@@ -1,5 +1,6 @@
 using Domain.Entities;
 using Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -9,14 +10,20 @@ public static class DbInitializer
 {
     public static void Initialize(AppDbContext context)
     {
+        try
+        {
+            context.Database.ExecuteSqlRaw("ALTER TABLE PERSONA ADD CertificadoPdf NVARCHAR(MAX) NULL");
+        }
+        catch { }
+
         if (!context.Personas.Any())
         {
-            var bocaPlayers = new string[] 
+            var bocaPlayers = new string[]
             {
-                "Juan Román Riquelme", 
-                "Martín Palermo", 
+                "Juan Román Riquelme",
+                "Martín Palermo",
                 "Carlos Tevez",
-                "Diego Maradona", 
+                "Diego Maradona",
                 "Roberto Abbondanzieri"
             };
 
@@ -32,29 +39,53 @@ public static class DbInitializer
                     PasswordHash = "daleboca123",
                     Rol = "Usuario"
                 });
-                
-            }
-            
 
-            personas.Add(new Usuario
-                {
-                    Nombre = "Ybam",
-                    Apellido = "sas",
-                    Email = "ybam@bocajuniors.com",
-                    PasswordHash = "123",
-                    Rol = "Administrador"
+            }
+
+
+            personas.Add(new Administrador
+            {
+                Nombre = "Ybam",
+                Apellido = "sas",
+                Email = "ybam@bocajuniors.com",
+                PasswordHash = "123",
+                Rol = "Administrador"
             });
 
             personas.Add(new Administrador
             {
                 Nombre = "Wilson",
-                Apellido = "Rios",
-                Email = "wilson@wil.com",
-                PasswordHash = "123",
+                Apellido = "Huarachi",
+                Email = "elviswilsonh@gmail.com",
+                PasswordHash = "admin123",
                 Rol = "Administrador"
             });
-            
+
+            personas.Add(new Profesor
+            {
+                Nombre = "Carlos",
+                Apellido = "Bianchi",
+                Email = "bianchi@boca.com",
+                Rol = "Profesor",
+                PasswordHash = "123",
+                Certificacion = true,
+                FechaVencimientoCertificacion = System.DateTime.UtcNow.AddYears(1)
+            });
+
             context.Personas.AddRange(personas);
+            context.SaveChanges();
+        }
+
+        if (!context.Equipos.Any())
+        {
+            var equipos = new List<Equipo>
+            {
+                new Equipo { Nombre = "Boca Seniors", Categoria = "Libre", Estado = "Activo" },
+                new Equipo { Nombre = "River Seniors", Categoria = "Libre", Estado = "Activo" },
+                new Equipo { Nombre = "San Lorenzo", Categoria = "Libre", Estado = "Activo" },
+                new Equipo { Nombre = "Racing Club", Categoria = "Libre", Estado = "Activo" }
+            };
+            context.Equipos.AddRange(equipos);
             context.SaveChanges();
         }
 
@@ -71,6 +102,6 @@ public static class DbInitializer
         };
 
         context.Canchas.AddRange(canchas);
-        context.SaveChanges(); 
+        context.SaveChanges();
     }
 }
