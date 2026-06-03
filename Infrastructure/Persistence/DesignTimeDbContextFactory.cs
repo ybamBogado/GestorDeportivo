@@ -9,7 +9,7 @@ namespace Infrastructure.Persistence
         {
             var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
 
-            var connectionString = "Server=(localdb)\\MSSQLLocalDB;Database=Ticketinador2000Db;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True;";
+            var connectionString = "Server=(localdb)\\MSSQLLocalDB;Database=GolAhoraDb;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True;";
 
             optionsBuilder.UseSqlServer(connectionString);
 
