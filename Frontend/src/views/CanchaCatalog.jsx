@@ -1,9 +1,21 @@
-import { useState, useEffect } from 'react'
-import Header from '../components/Header.jsx'
-import Footer from '../components/Footer.jsx'
-import Loader from '../components/Loader.jsx'
-import { Link } from 'react-router-dom'
-import './CanchaCatalog.css'
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import Header from '../components/Header.jsx';
+import Footer from '../components/Footer.jsx';
+import Loader from '../components/Loader.jsx';
+import { canchas as canchasApi } from '../services/api.js';
+import './CanchaCatalog.css';
+
+const CANCHA_IMAGES = {
+    'Fútbol 5':  'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=800&q=80',
+    'Fútbol 7':  'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80',
+    'Fútbol 11': 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=800&q=80',
+    default:     'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80',
+};
+
+function getCanchaImage(tipo) {
+    return CANCHA_IMAGES[tipo] || CANCHA_IMAGES.default;
+}
 
 export default function CanchaCatalog() {
     const [canchas, setCanchas] = useState([]);
@@ -11,47 +23,26 @@ export default function CanchaCatalog() {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        // Actualizado al puerto 5071 del backend
-        fetch('http://localhost:5071/api/v1/canchas')
-            .then(response => {
-                if (!response.ok) throw new Error("No se pudieron cargar las canchas.");
-                return response.json();
-            })
-            .then(data => {
-                // Filter out canchas that are in Mantenimiento
-                const canchasDisponibles = data.filter(c => c.estado !== 'Mantenimiento');
-                setCanchas(canchasDisponibles);
-            })
-            .catch(err => {
-                console.error(err);
-                setError(err.message);
-            })
+        canchasApi.getAll()
+            .then(data => setCanchas(data.filter(c => c.estado !== 'Mantenimiento')))
+            .catch(err => setError(err.message))
             .finally(() => setLoading(false));
     }, []);
+
+    if (loading) return <><Header /><Loader /><Footer /></>;
 
     if (error) {
         return (
             <>
                 <Header />
-                <div className="container text-center mt-5">
-                    <div className="alert alert-danger shadow-sm py-4" style={{ backgroundColor: '#1a1a1a', border: '1px solid #dc3545' }}>
-                        <h4 className="fw-bold text-danger">Error al conectar con el servidor</h4>
-                        <p className="text-secondary">Asegúrate de que el backend esté corriendo en el puerto 5071.</p>
-                        <button className="btn btn-outline-danger mt-2" onClick={() => window.location.reload()}>
-                            Reintentar
-                        </button>
+                <div className="catalog-error-container">
+                    <div className="catalog-error-card">
+                        <div className="catalog-error-icon">⚠</div>
+                        <h4>No se pudo conectar con el servidor</h4>
+                        <p>Asegúrate de que el backend esté corriendo.</p>
+                        <button onClick={() => window.location.reload()}>Reintentar</button>
                     </div>
                 </div>
-                <Footer />
-            </>
-        );
-    }
-
-    if (loading) {
-        return (
-            <>
-                <Header />
-                <Loader />
                 <Footer />
             </>
         );
@@ -60,39 +51,45 @@ export default function CanchaCatalog() {
     return (
         <>
             <Header />
-            <div className="container mt-4 cancha-container">
-                <h1 className="text-center mb-4 cancha-title fw-bold" style={{ letterSpacing: '2px' }}>CATÁLOGO DE CANCHAS</h1>
-                <div className="row justify-content-center">
-                    {canchas.map(cancha => (
-                        <div key={cancha.id} className="col-12 col-md-6 col-lg-4 mb-4">
-                            <div className="card shadow-sm cancha-card" style={{ backgroundColor: '#111d13', border: '1px solid #1b4332' }}>
-                                <div className="card-body p-0">
-                                    <div style={{ position: 'relative' }}>
-                                        <img 
-                                            src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
-                                            alt={cancha.superficie} 
-                                            className="card-img-top"
-                                            style={{ height: '200px', objectFit: 'cover', opacity: '0.8' }}
-                                        />
-                                        <span className={`badge position-absolute top-0 end-0 m-3 ${cancha.estado === 'Disponible' ? 'bg-success' : 'bg-warning'}`}>
-                                            {cancha.estado}
-                                        </span>
-                                    </div>
-                                    <div className="p-3">
-                                        <h5 className="card-title fw-bold text-white mb-1">{cancha.superficie}</h5>
-                                        <p className="text-secondary small mb-3">Capacidad: {cancha.capacidad} jugadores</p>
-                                        <Link to={`/cancha/${cancha.id}`}>
-                                            <button className="btn btn-success w-100 fw-bold" style={{ borderRadius: '8px' }}>
-                                                RESERVAR AHORA
-                                            </button>
-                                        </Link>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+            <main className="catalog-page">
+                <div className="catalog-hero">
+                    <h1>Reservá tu cancha</h1>
+                    <p>Elegí el tipo de cancha que más se adapte a tu partido</p>
                 </div>
-            </div>
+
+                <div className="catalog-grid">
+                    {canchas.length === 0 ? (
+                        <div className="catalog-empty">
+                            <p>No hay canchas disponibles en este momento.</p>
+                        </div>
+                    ) : (
+                        canchas.map(cancha => (
+                            <article key={cancha.id} className="cancha-card">
+                                <div className="cancha-card-img-wrapper">
+                                    <img
+                                        src={getCanchaImage(cancha.tipoCancha)}
+                                        alt={cancha.superficie}
+                                        loading="lazy"
+                                    />
+                                    <span className={`cancha-badge ${cancha.estado === 'Disponible' ? 'cancha-badge--available' : 'cancha-badge--busy'}`}>
+                                        {cancha.estado}
+                                    </span>
+                                </div>
+                                <div className="cancha-card-body">
+                                    <h2 className="cancha-card-title">{cancha.superficie}</h2>
+                                    <p className="cancha-card-type">{cancha.tipoCancha || 'Fútbol'}</p>
+                                    <div className="cancha-card-meta">
+                                        <span>👥 {cancha.capacidad} jugadores</span>
+                                    </div>
+                                    <Link to={`/cancha/${cancha.id}`} className="cancha-card-btn">
+                                        Reservar ahora
+                                    </Link>
+                                </div>
+                            </article>
+                        ))
+                    )}
+                </div>
+            </main>
             <Footer />
         </>
     );

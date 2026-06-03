@@ -1,32 +1,35 @@
 using Domain.Entities;
+using Application.Interfaces;
 using Application.Interfaces.Repositories;
 using Application.Commands;
+using Application.DTOs;
 
 namespace Application.Handlers;
 
 public class LoginPersonaCommandHandler
 {
     private readonly IPersonaRepository _repo;
+    private readonly IPasswordHasher _hasher;
+    private readonly ITokenService _tokenService;
 
-    public LoginPersonaCommandHandler(IPersonaRepository repo)
+    public LoginPersonaCommandHandler(IPersonaRepository repo, IPasswordHasher hasher, ITokenService tokenService)
     {
         _repo = repo;
+        _hasher = hasher;
+        _tokenService = tokenService;
     }
 
-    public async Task<Persona?> HandleAsync(LoginPersonaCommand command)
+    public async Task<AuthResult?> HandleAsync(LoginPersonaCommand command)
     {
-        // Buscamos a la persona por su email en el repositorio base
         var persona = await _repo.GetByEmailAsync(command.Email);
-        
         if (persona == null) return null;
 
-        // Verificamos la contraseña ( esto debería ser con Hash en el futuro)
-        if (persona.PasswordHash == command.Password)
-        {
-            // Retorna la instancia real (puede ser Administrador, Profesor, etc.)
-            return persona; 
-        }
+        bool valid = _hasher.Verify(command.Password, persona.PasswordHash);
+        if (!valid) return null;
 
-        return null;
+        var token = _tokenService.GenerateToken(persona);
+
+        return new AuthResult(persona.Id, persona.Nombre, persona.Apellido,
+            persona.Email, persona.Rol, persona.Legajo, persona.Dni, token);
     }
 }

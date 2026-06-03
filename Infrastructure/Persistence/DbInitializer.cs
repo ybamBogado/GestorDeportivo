@@ -11,38 +11,36 @@ public static class DbInitializer
     {
         if (!context.Personas.Any())
         {
-            var bocaPlayers = new string[] 
+            var bocaPlayers = new[]
             {
-                "Juan Román Riquelme", 
-                "Martín Palermo", 
-                "Carlos Tevez",
-                "Diego Maradona", 
-                "Roberto Abbondanzieri"
+                ("Juan Román", "Riquelme"),
+                ("Martín",    "Palermo"),
+                ("Carlos",    "Tevez"),
+                ("Diego",     "Maradona"),
+                ("Roberto",   "Abbondanzieri")
             };
 
-            var personas = new List<Persona>(); // Usamos la clase Usuario que hereda de Persona
-            foreach (var name in bocaPlayers)
+            var personas = new List<Persona>();
+
+            foreach (var (nombre, apellido) in bocaPlayers)
             {
-                var emailPrefix = name.Replace(" ", "").Replace("ó", "o").Replace("á", "a").ToLowerInvariant();
                 personas.Add(new Usuario
                 {
-                    Nombre = name.Split(' ')[0],
-                    Apellido = name.Contains(' ') ? name.Split(' ')[1] : "",
-                    Email = $"{emailPrefix}@bocajuniors.com",
-                    PasswordHash = "daleboca123",
+                    Nombre = nombre,
+                    Apellido = apellido,
+                    Email = $"{nombre.Replace(" ", "").Replace("ó", "o").Replace("á", "a").ToLowerInvariant()}{apellido.ToLowerInvariant()}@bocajuniors.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("daleboca123", 12),
                     Rol = "Usuario"
                 });
-                
             }
-            
 
-            personas.Add(new Usuario
-                {
-                    Nombre = "Ybam",
-                    Apellido = "sas",
-                    Email = "ybam@bocajuniors.com",
-                    PasswordHash = "123",
-                    Rol = "Administrador"
+            personas.Add(new Administrador
+            {
+                Nombre = "Ybam",
+                Apellido = "Sas",
+                Email = "ybam@bocajuniors.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123", 12),
+                Rol = "Administrador"
             });
 
             personas.Add(new Administrador
@@ -50,27 +48,22 @@ public static class DbInitializer
                 Nombre = "Wilson",
                 Apellido = "Rios",
                 Email = "wilson@wil.com",
-                PasswordHash = "123",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123", 12),
                 Rol = "Administrador"
             });
-            
+
             context.Personas.AddRange(personas);
             context.SaveChanges();
         }
 
-        if (context.Canchas.Any())
-        {
-            return;
-        }
+        if (context.Canchas.Any()) return;
 
-        var canchas = new List<Cancha>
-        {
+        context.Canchas.AddRange(
             new Futbol5 { Superficie = "Sintético", Capacidad = 10, Estado = "Disponible" },
             new Futbol7 { Superficie = "Césped Natural", Capacidad = 14, Estado = "Disponible" },
             new Futbol11 { Superficie = "Césped Natural", Capacidad = 22, Estado = "Mantenimiento" }
-        };
+        );
 
-        context.Canchas.AddRange(canchas);
-        context.SaveChanges(); 
+        context.SaveChanges();
     }
 }

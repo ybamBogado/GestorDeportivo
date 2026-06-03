@@ -1,45 +1,179 @@
-.cancha-container {
-    padding: 20px;
-    color: #e0e0e0;
+.catalog-page {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+}
+
+.catalog-hero {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.catalog-hero h1 {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 900;
+    color: var(--text-primary);
+    margin: 0 0 8px;
+}
+
+.catalog-hero p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin: 0;
+}
+
+.catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+}
+
+.catalog-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 80px 0;
+    color: var(--text-secondary);
 }
 
 .cancha-card {
-    background-color: #1e293b;
-    border: 1px solid #334155;
-    color: #ffffff;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    border-radius: 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
     overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .cancha-card:hover {
-    transform: translateY(-10px);
-    border-color: #6366f1;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 0 20px rgba(99, 102, 241, 0.2);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-card);
 }
 
-.cancha-card:hover .btn-detail {
-    border-color: #ffffff;
+.cancha-card-img-wrapper {
+    position: relative;
+    height: 200px;
+    overflow: hidden;
 }
 
-.cancha-title {
-    color: #ffffff;
-    font-weight: bold;
+.cancha-card-img-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
 }
 
-.cancha-description {
-    color: #bbbbbb;
+.cancha-card:hover .cancha-card-img-wrapper img {
+    transform: scale(1.04);
 }
 
-.btn-detail {
-    background-color: #333333;
-    border: 3px solid #444444;
-    font-weight: 600;
+.cancha-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.btn-detail:hover {
-    border-color: #333333;
-    background-color: #ffffff;
-    color: #000000;
-    box-shadow: 0 0 15px #75545e50;
+.cancha-badge--available {
+    background: var(--accent);
+    color: #061007;
 }
+
+.cancha-badge--busy {
+    background: var(--warning);
+    color: #3a1a00;
+}
+
+.cancha-card-body {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cancha-card-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.cancha-card-type {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.cancha-card-meta {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin: 4px 0;
+}
+
+.cancha-card-btn {
+    display: block;
+    margin-top: 10px;
+    padding: 11px;
+    background: var(--accent);
+    color: #061007;
+    text-align: center;
+    border-radius: 9px;
+    font-weight: 800;
+    font-size: 0.88rem;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.cancha-card-btn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    color: #061007;
+}
+
+.catalog-error-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 50vh;
+    padding: 24px;
+}
+
+.catalog-error-card {
+    text-align: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--danger);
+    border-radius: 14px;
+    padding: 40px 32px;
+    max-width: 420px;
+}
+
+.catalog-error-icon {
+    font-size: 2.5rem;
+    margin-bottom: 16px;
+    color: var(--danger);
+}
+
+.catalog-error-card h4 { color: var(--danger); margin: 0 0 8px; font-weight: 800; }
+.catalog-error-card p  { color: var(--text-secondary); margin: 0 0 20px; }
+
+.catalog-error-card button {
+    padding: 10px 24px;
+    background: var(--danger);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.catalog-error-card button:hover { opacity: 0.85; }

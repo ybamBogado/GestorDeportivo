@@ -1,54 +1,61 @@
 using Application.Commands;
 using Application.Handlers;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.RateLimiting;
 
-namespace Api.Controllers
+namespace Api.Controllers;
+
+[Route("api/v1/auth")]
+[ApiController]
+public class AuthController : ControllerBase
 {
-    [Route("api/v1/auth")]
-    [ApiController]
-    public class AuthController : ControllerBase
+    private readonly RegisterPersonaCommandHandler _registerHandler;
+    private readonly LoginPersonaCommandHandler    _loginHandler;
+    private readonly GoogleLoginPersonaCommandHandler _googleHandler;
+
+    public AuthController(
+        RegisterPersonaCommandHandler registerHandler,
+        LoginPersonaCommandHandler loginHandler,
+        GoogleLoginPersonaCommandHandler googleHandler)
     {
-        private readonly RegisterPersonaCommandHandler _registerHandler;
-        private readonly LoginPersonaCommandHandler _loginHandler;
-        private readonly GoogleLoginPersonaCommandHandler _googleLoginHandler;
+        _registerHandler = registerHandler;
+        _loginHandler    = loginHandler;
+        _googleHandler   = googleHandler;
+    }
 
-        public AuthController(RegisterPersonaCommandHandler registerHandler,
-                              LoginPersonaCommandHandler loginHandler,
-                              GoogleLoginPersonaCommandHandler googleLoginHandler)
-        {
-            _registerHandler = registerHandler;
-            _loginHandler = loginHandler;
-            _googleLoginHandler = googleLoginHandler;
-        }
-
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterPersonaCommand command)
+    /// <summary>Registra un nuevo usuario.</summary>
+    [HttpPost("register")]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> Register([FromBody] RegisterPersonaCommand command)
+    {
+        try
         {
             var id = await _registerHandler.HandleAsync(command);
-            return CreatedAtAction(nameof(Register), new { id }, "Persona creada con éxito");
+            return CreatedAtAction(nameof(Register), new { id }, "Cuenta creada con éxito");
         }
-
-        [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginPersonaCommand command)
+        catch (InvalidOperationException ex)
         {
-            var persona = await _loginHandler.HandleAsync(command);
-            
-            if (persona == null) 
-                return Unauthorized("Credenciales inválidas");
-                
-            return Ok(persona);
+            return Conflict(ex.Message);
         }
+    }
 
-        [HttpPost("google")]
-        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginCommand command)
-        {
-            var persona = await _googleLoginHandler.HandleAsync(command);
-            
-            if (persona == null) 
-                return Unauthorized("Token de Google inválido");
-                
-            return Ok(persona);
-        }
+    /// <summary>Inicia sesión con email y contraseña.</summary>
+    [HttpPost("login")]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> Login([FromBody] LoginPersonaCommand command)
+    {
+        var result = await _loginHandler.HandleAsync(command);
+        if (result == null) return Unauthorized("Credenciales inválidas");
+        return Ok(result);
+    }
+
+    /// <summary>Inicia sesión con Google OAuth.</summary>
+    [HttpPost("google")]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginCommand command)
+    {
+        var result = await _googleHandler.HandleAsync(command);
+        if (result == null) return Unauthorized("Token de Google inválido");
+        return Ok(result);
     }
 }
