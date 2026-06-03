@@ -14,8 +14,8 @@ const moneyFormatter = new Intl.NumberFormat('es-AR', {
 });
 
 const menuItems = [
-    { id: 'usuarios', label: 'Gesti├│n de usuarios' },
-    { id: 'canchas', label: 'Gesti├│n de canchas' },
+    { id: 'usuarios', label: 'Gestión de usuarios' },
+    { id: 'canchas', label: 'Gestión de canchas' },
     { id: 'reservas', label: 'Reservas y turnos' },
     { id: 'pagos', label: 'Pagos y recibos' },
     { id: 'reportes', label: 'Reportes' }
@@ -295,7 +295,7 @@ export default function AdminPanel() {
                     <div className="admin-avatar">{user?.nombre?.[0] || 'A'}</div>
                     <div>
                         <strong>{user?.nombre || 'Administrador'}</strong>
-                        <span>En l├¡nea</span>
+                        <span>En linea</span>
                     </div>
                 </div>
 
@@ -335,7 +335,7 @@ export default function AdminPanel() {
                             <div>
                                 <p>Fecha</p>
                                 <div className="date-controls">
-                                    <button type="button" onClick={() => shiftDate(-1)}>ÔÇ╣</button>
+                                    <button type="button" onClick={() => shiftDate(-1)}>&lt;</button>
                                     <input
                                         type="date"
                                         value={selectedDate}
@@ -344,7 +344,7 @@ export default function AdminPanel() {
                                             setReservaFormData(current => ({ ...current, fecha: e.target.value }));
                                         }}
                                     />
-                                    <button type="button" onClick={() => shiftDate(1)}>ÔÇ║</button>
+                                    <button type="button" onClick={() => shiftDate(1)}>&gt;</button>
                                 </div>
                             </div>
 
@@ -379,7 +379,7 @@ export default function AdminPanel() {
                                 <strong>{metrics.canceled}</strong>
                             </article>
                             <article>
-                                <span>Ingresos del d├¡a</span>
+                                <span>Ingresos del día</span>
                                 <strong>{moneyFormatter.format(metrics.revenue)}</strong>
                             </article>
                         </div>
