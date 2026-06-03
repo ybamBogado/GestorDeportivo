@@ -20,7 +20,7 @@ public static class DbInitializer
                 "Roberto Abbondanzieri"
             };
 
-            var personas = new List<Usuario>(); // Usamos la clase Usuario que hereda de Persona
+            var personas = new List<Persona>(); // Usamos la clase Usuario que hereda de Persona
             foreach (var name in bocaPlayers)
             {
                 var emailPrefix = name.Replace(" ", "").Replace("ó", "o").Replace("á", "a").ToLowerInvariant();
@@ -34,6 +34,14 @@ public static class DbInitializer
                 });
                 
             }
+            personas.Add(new Administrador
+            {
+                Nombre = "Admin",
+                Apellido = "Sistema",
+                Email = "admin@golahora.com",
+                PasswordHash = "admin123",
+                Rol = "Administrador"
+            });
 
             personas.Add(new Usuario
                 {

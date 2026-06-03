@@ -12,5 +12,9 @@ namespace Domain.Entities
         public string Email { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
         public string Rol { get; set; } = "Cliente";
+        public string Direccion { get; set; } = string.Empty;
+        public string Telefono { get; set; } = string.Empty;
+        public int? ComplejoId { get; set; }
+        public virtual Complejo? Complejo { get; set; }
     }
 }

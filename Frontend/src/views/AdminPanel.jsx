@@ -153,7 +153,7 @@ export default function AdminPanel() {
         });
 
         if (response.ok) {
-            setMessage('Cancha creada con ├®xito');
+            setMessage('Cancha creada con éxito');
             setShowCanchaForm(false);
             setCanchaFormData({ superficie: '', capacidad: 10, tipoCancha: 'Futbol5' });
             fetchDashboardData();
@@ -177,7 +177,7 @@ export default function AdminPanel() {
         });
 
         if (response.ok) {
-            setMessage('Reserva creada con ├®xito');
+            setMessage('Reserva creada con éxito');
             setShowReservaForm(false);
             setSelectedDate(reservaFormData.fecha);
             fetchDashboardData();
@@ -194,7 +194,7 @@ export default function AdminPanel() {
         });
 
         if (response.ok) {
-            setMessage(`Reserva ${estado.toLowerCase()} con ├®xito`);
+            setMessage(`Reserva ${estado.toLowerCase()} con éxito`);
             fetchDashboardData();
         } else {
             setMessage('No se pudo actualizar la reserva');
@@ -224,7 +224,7 @@ export default function AdminPanel() {
         });
 
         if (response.ok) {
-            setMessage('Usuario actualizado con ├®xito');
+            setMessage('Usuario actualizado con éxito');
             setEditingUser(null);
             fetchDashboardData();
         } else {
@@ -234,14 +234,14 @@ export default function AdminPanel() {
     };
 
     const handleDeleteUser = async (id) => {
-        if (!window.confirm('┬┐Est├ís seguro de eliminar este usuario?')) return;
+        if (!window.confirm('¿Estás seguro de eliminar este usuario?')) return;
 
         const response = await fetch(`${API_URL}/users/${id}`, {
             method: 'DELETE'
         });
 
         if (response.ok) {
-            setMessage('Usuario eliminado con ├®xito');
+            setMessage('Usuario eliminado con éxito');
             fetchDashboardData();
         } else {
             setMessage('Error al eliminar el usuario');
@@ -295,7 +295,7 @@ export default function AdminPanel() {
                     <div className="admin-avatar">{user?.nombre?.[0] || 'A'}</div>
                     <div>
                         <strong>{user?.nombre || 'Administrador'}</strong>
-                        <span>En linea</span>
+                        <span>En línea</span>
                     </div>
                 </div>
 
@@ -312,7 +312,7 @@ export default function AdminPanel() {
                 </nav>
 
                 <button className="admin-logout" onClick={handleLogout}>
-                    Cerrar sesi├│n
+                    Cerrar sesión
                 </button>
             </aside>
 
@@ -528,9 +528,9 @@ export default function AdminPanel() {
                                     value={canchaFormData.tipoCancha}
                                     onChange={(e) => setCanchaFormData({ ...canchaFormData, tipoCancha: e.target.value })}
                                 >
-                                    <option value="Futbol5">F├║tbol 5</option>
-                                    <option value="Futbol7">F├║tbol 7</option>
-                                    <option value="Futbol11">F├║tbol 11</option>
+                                    <option value="Futbol5">Fútbol 5</option>
+                                    <option value="Futbol7">Fútbol 7</option>
+                                    <option value="Futbol11">Fútbol 11</option>
                                 </select>
                                 <input
                                     type="number"
@@ -655,7 +655,7 @@ export default function AdminPanel() {
                 {(activeSection === 'pagos' || activeSection === 'reportes') && (
                     <section className="admin-panel placeholder-panel">
                         <h2>{activeSection === 'pagos' ? 'Pagos y recibos' : 'Reportes'}</h2>
-                        <p>La estructura del panel ya est├í preparada para sumar este m├│dulo cuando se definan sus datos.</p>
+                        <p>La estructura del panel ya está preparada para sumar este módulo cuando se definan sus datos.</p>
                     </section>
                 )}
             </section>
