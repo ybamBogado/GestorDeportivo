@@ -26,12 +26,20 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<ICanchaRepository, CanchaRepository>();
+builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
 
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IPersonaRepository, PersonaRepository>();
 
 builder.Services.AddScoped<RegisterPersonaCommandHandler>();
 builder.Services.AddScoped<LoginPersonaCommandHandler>();
+builder.Services.AddScoped<GetPersonasQueryHandler>();
+builder.Services.AddScoped<GetPersonaByIdQueryHandler>();
+builder.Services.AddScoped<UpdatePersonaCommandHandler>();
+builder.Services.AddScoped<DeletePersonaCommandHandler>();
+builder.Services.AddScoped<GetReservasQueryHandler>();
+builder.Services.AddScoped<CreateReservaCommandHandler>();
+builder.Services.AddScoped<UpdateReservaEstadoCommandHandler>();
 
 builder.Services.AddScoped<IGetCanchaCatalogQueryHandler, GetCanchaCatalogQueryHandler>();
 builder.Services.AddScoped<GetCanchaByIdQueryHandler>();

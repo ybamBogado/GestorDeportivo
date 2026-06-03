@@ -3,14 +3,20 @@ import { useAuth } from '../context/AuthContext';
 import './Header.css';
 
 export default function Header() {
+    // Obtenemos el usuario actual y la funcion para cerrar sesion desde el contexto global.
     const { user, logout } = useAuth();
+
+    // useNavigate permite cambiar de pagina desde codigo.
     const navigate = useNavigate();
 
+    // Este boton funciona distinto segun si hay un usuario logueado o no.
     const handleAuthClick = () => {
         if (user) {
+            // Si hay usuario, cerramos sesion y volvemos al inicio.
             logout();
             navigate('/');
         } else {
+            // Si no hay usuario, lo mandamos a la pagina de login.
             navigate('/login');
         }
     };
@@ -31,7 +37,7 @@ export default function Header() {
                 </div>
 
                 <div className="d-flex align-items-center gap-3">
-                    {/* Botón de Admin solo si el usuario tiene el rol */}
+                    {/* Este boton solo aparece cuando el usuario logueado tiene rol Administrador. */}
                     {user && user.rol === 'Administrador' && (
                         <Link to="/admin" className="btn btn-warning fw-bold px-4">
                             PANEL ADMIN
@@ -39,6 +45,7 @@ export default function Header() {
                     )}
 
                     <div className="text-center text-md-end">
+                        {/* Si hay usuario muestra "Cerrar Sesion"; si no, muestra "Iniciar Sesion". */}
                         <button onClick={handleAuthClick} className="btn btn-auth px-4">
                             {user ? `Cerrar Sesión` : "Iniciar Sesión"}
                         </button>

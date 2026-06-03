@@ -50,6 +50,8 @@ namespace Infrastructure.Persistence
             {
                 entity.ToTable("RESERVA");
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.Precio).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Estado).HasMaxLength(30);
 
                 entity.HasOne(e => e.Cancha)
                     .WithMany(c => c.Reservas)
