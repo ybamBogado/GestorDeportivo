@@ -8,6 +8,7 @@ import CanchaDetail from './views/CanchaDetail.jsx'
 import Login from './views/Login.jsx'
 import Register from './views/Register.jsx'
 import AdminPanel from './views/AdminPanel.jsx'
+import Pago from './views/Pago.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -19,6 +20,7 @@ createRoot(document.getElementById('root')).render(
           <Route path="/register" element={<Register />} />
           <Route path="/cancha/:canchaId" element={<CanchaDetail />} />
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/pago/:cobroId" element={<Pago />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
