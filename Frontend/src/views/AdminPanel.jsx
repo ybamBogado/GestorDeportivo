@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { canchas as canchasApi, reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi } from '../services/api.js';
+import { canchas as canchasApi, reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi, auth as authApi } from '../services/api.js';
 import { useToast } from '../components/Toast.jsx';
 import './AdminPanel.css';
 
@@ -99,8 +99,8 @@ export default function AdminPanel() {
     }, [user, navigate]);
 
     useEffect(() => {
-        fetchDashboardData();
-    }, [fetchDashboardData]);
+        fetchAll();
+    }, [fetchAll]);
 
     const reservasByCancha = useMemo(() => {
         return reservas.reduce((groups, reserva) => {
@@ -207,26 +207,21 @@ export default function AdminPanel() {
     const handleUpdateUser = async (e) => {
         e.preventDefault();
 
-        const payload = {
-            ...userFormData,
-            direccion: userFormData.direccion,
-            telefono: userFormData.telefono,
-            certificacion: userFormData.rol === 'Profesor' || userFormData.rol === 'Entrenador' 
-                ? Boolean(userFormData.certificacion) 
-                : null,
-            fechaVencimientoCertificacion: userFormData.rol === 'Profesor' || userFormData.rol === 'Entrenador' 
-                ? new Date(userFormData.fechaVencimientoCertificacion).toISOString() 
-                : null
-        };
+        try {
+            const payload = {
+                ...userFormData,
+                direccion: userFormData.direccion,
+                telefono: userFormData.telefono,
+                certificacion: userFormData.rol === 'Profesor' || userFormData.rol === 'Entrenador' 
+                    ? Boolean(userFormData.certificacion) 
+                    : null,
+                fechaVencimientoCertificacion: userFormData.rol === 'Profesor' || userFormData.rol === 'Entrenador' 
+                    ? new Date(userFormData.fechaVencimientoCertificacion).toISOString() 
+                    : null
+            };
 
-        const response = await fetch(`${API_URL}/users/${userFormData.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-            setMessage('Usuario actualizado con éxito');
+            await usersApi.update(userFormData.id, payload);
+            notify('Usuario actualizado con éxito', 'success');
             setEditingUser(null);
             fetchAll();
         } catch (err) {
@@ -270,46 +265,25 @@ export default function AdminPanel() {
         };
 
         try {
-            const response = await fetch(`${API_URL}/users/${targetUser.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                setMessage(isApprove ? `Usuario aprobado como ${newRol} con éxito` : 'Solicitud rechazada con éxito');
-                fetchDashboardData();
-            } else {
-                const err = await response.text();
-                setMessage(`Error al procesar solicitud: ${err}`);
-            }
+            await usersApi.update(targetUser.id, payload);
+            notify(isApprove ? `Usuario aprobado como ${newRol} con éxito` : 'Solicitud rechazada con éxito', 'success');
+            fetchAll();
         } catch (error) {
-            setMessage(`Error de red: ${error.message}`);
+            notify(`Error al procesar solicitud: ${error.message}`, 'error');
         }
     };
 
     const handleCreateUser = async (e) => {
         e.preventDefault();
-        setMessage('');
 
         try {
-            const response = await fetch(`${API_URL}/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(createUserFormData)
-            });
-
-            if (response.ok) {
-                setMessage('Usuario creado con éxito');
-                setShowCreateUserForm(false);
-                setCreateUserFormData({ nombre: '', apellido: '', email: '', password: '', rol: 'Usuario' });
-                fetchDashboardData();
-            } else {
-                const text = await response.text();
-                setMessage(`Error al crear usuario: ${text}`);
-            }
+            await authApi.register(createUserFormData);
+            notify('Usuario creado con éxito', 'success');
+            setShowCreateUserForm(false);
+            setCreateUserFormData({ nombre: '', apellido: '', email: '', password: '', rol: 'Usuario' });
+            fetchAll();
         } catch (error) {
-            setMessage(`Error de red: ${error.message}`);
+            notify(`Error al crear usuario: ${error.message}`, 'error');
         }
     };
 
@@ -542,7 +516,7 @@ export default function AdminPanel() {
                                     className={usuariosSubTab === 'kyc' ? 'active' : ''}
                                     onClick={() => {
                                         setUsuariosSubTab('kyc');
-                                        fetchDashboardData();
+                                        fetchAll();
                                     }}
                                 >
                                     Solicitudes Pendientes (KYC) {pendingKycUsers.length > 0 && (
