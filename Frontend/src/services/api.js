@@ -78,3 +78,12 @@ export const users = {
     update:  (id, d)  => request(`/users/${id}`, { method: 'PUT',    body: JSON.stringify(d) }),
     remove:  (id)     => request(`/users/${id}`, { method: 'DELETE' }),
 };
+
+// ─── Clases ───────────────────────────────────────────────────────────────────
+export const clases = {
+    getAll:            ()       => request('/clases'),
+    getById:           (id)     => request(`/clases/${id}`),
+    create:            (data)   => request('/clases', { method: 'POST', body: JSON.stringify(data) }),
+    remove:            (id)     => request(`/clases/${id}`, { method: 'DELETE' }),
+    toggleAsistencia:  (claseId, usuarioId, presente) => request(`/clases/${claseId}/asistencias`, { method: 'POST', body: JSON.stringify({ usuarioId, presente }) }),
+};

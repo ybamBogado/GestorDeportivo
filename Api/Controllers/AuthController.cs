@@ -10,7 +10,7 @@ namespace Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly RegisterPersonaCommandHandler _registerHandler;
-    private readonly LoginPersonaCommandHandler    _loginHandler;
+    private readonly LoginPersonaCommandHandler _loginHandler;
     private readonly GoogleLoginPersonaCommandHandler _googleHandler;
 
     public AuthController(
@@ -19,8 +19,8 @@ public class AuthController : ControllerBase
         GoogleLoginPersonaCommandHandler googleHandler)
     {
         _registerHandler = registerHandler;
-        _loginHandler    = loginHandler;
-        _googleHandler   = googleHandler;
+        _loginHandler = loginHandler;
+        _googleHandler = googleHandler;
     }
 
     /// <summary>Registra un nuevo usuario.</summary>
