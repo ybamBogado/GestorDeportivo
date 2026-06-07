@@ -3,12 +3,25 @@ using Infrastructure.Persistence;
 using System.Collections.Generic;
 using System.Linq;
 
+using Microsoft.EntityFrameworkCore;
+
 namespace Ticketinador2000.Infrastructure.Persistence;
 
 public static class DbInitializer
 {
     public static void Initialize(AppDbContext context)
     {
+        try
+        {
+            context.Database.ExecuteSqlRaw(
+                "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PERSONA') AND name = 'CertificadoPdf') " +
+                "ALTER TABLE PERSONA ADD CertificadoPdf NVARCHAR(MAX) NULL;");
+        }
+        catch (System.Exception ex)
+        {
+            System.Console.WriteLine($"Error actualizando esquema: {ex.Message}");
+        }
+
         if (!context.Personas.Any())
         {
             var bocaPlayers = new[]

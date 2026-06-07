@@ -7,5 +7,9 @@ public record UpdatePersonaCommand(
     string Nombre,
     string Apellido,
     int Dni,
-    int Legajo
+    int Legajo,
+    string? FotoPerfil,
+    string? Direccion,
+    string? Telefono,
+    string? CertificadoPdf
 );

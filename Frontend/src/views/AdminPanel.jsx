@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { canchas as canchasApi, reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi, auth as authApi } from '../services/api.js';
 import { useToast } from '../components/Toast.jsx';
+import ConfirmModal from '../components/ConfirmModal.jsx';
 import './AdminPanel.css';
 
 const todayInput = () => new Date().toISOString().split('T')[0];
@@ -29,6 +30,20 @@ export default function AdminPanel() {
     const { theme, toggleTheme } = useTheme();
     const navigate               = useNavigate();
     const { notify }             = useToast();
+
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+
+    const showConfirm = (message, onConfirm, title = 'Confirmación') => {
+        setConfirmConfig({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmConfig(c => ({ ...c, isOpen: false }));
+            }
+        });
+    };
 
     const setMessage = (msg) => {
         if (!msg) return;
@@ -64,6 +79,7 @@ export default function AdminPanel() {
     });
 
     const [usuariosSubTab, setUsuariosSubTab] = useState('lista');
+    const [searchTerm, setSearchTerm] = useState('');
     const [editingUser, setEditingUser] = useState(null);
     const [userFormData, setUserFormData] = useState({
         id: 0,
@@ -135,9 +151,21 @@ export default function AdminPanel() {
     }, [users]);
 
     const filteredUsers = useMemo(() => {
-        if (roleFilter === 'Todos') return users;
-        return users.filter(u => u.rol === roleFilter);
-    }, [users, roleFilter]);
+        let list = users;
+        if (roleFilter !== 'Todos') {
+            list = list.filter(u => u.rol === roleFilter);
+        }
+        if (searchTerm.trim() !== '') {
+            const term = searchTerm.toLowerCase();
+            list = list.filter(u => {
+                const fullName = `${u.nombre || ''} ${u.apellido || ''}`.toLowerCase();
+                const email = (u.email || '').toLowerCase();
+                const dni = String(u.dni || '');
+                return fullName.includes(term) || email.includes(term) || dni.includes(term);
+            });
+        }
+        return list;
+    }, [users, roleFilter, searchTerm]);
 
     const handleLogout = () => {
         logout();
@@ -205,6 +233,8 @@ export default function AdminPanel() {
             legajo: selectedUser.legajo || 0,
             direccion: selectedUser.direccion || '',
             telefono: selectedUser.telefono || '',
+            fotoPerfil: selectedUser.fotoPerfil || null,
+            certificadoPdf: selectedUser.certificadoPdf || null,
             certificacion: selectedUser.certificacion ?? selectedUser.certificado ?? true,
             fechaVencimientoCertificacion: selectedUser.fechaVencimientoCertificacion 
                 ? new Date(selectedUser.fechaVencimientoCertificacion).toISOString().split('T')[0] 
@@ -237,48 +267,48 @@ export default function AdminPanel() {
         }
     };
 
-    const handleDeleteUser = async (id) => {
-        if (!window.confirm('¿Estás seguro de eliminar este usuario?')) return;
-        try {
-            await usersApi.remove(id);
-            notify('Usuario eliminado', 'success');
-            fetchAll();
-        } catch (err) {
-            notify(err.message || 'Error al eliminar', 'error');
-        }
+    const handleDeleteUser = (id) => {
+        showConfirm('¿Estás seguro de eliminar este usuario?', async () => {
+            try {
+                await usersApi.remove(id);
+                notify('Usuario eliminado', 'success');
+                fetchAll();
+            } catch (err) {
+                notify(err.message || 'Error al eliminar', 'error');
+            }
+        });
     };
 
-    const handleKycAction = async (targetUser, newRol, isApprove) => {
+    const handleKycAction = (targetUser, newRol, isApprove) => {
         const actionLabel = isApprove ? `aprobar como ${newRol}` : 'rechazar';
-        if (!window.confirm(`¿Estás seguro de que deseas ${actionLabel} la solicitud de ${targetUser.nombre} ${targetUser.apellido}?`)) {
-            return;
-        }
+        showConfirm(`¿Estás seguro de que deseas ${actionLabel} la solicitud de ${targetUser.nombre} ${targetUser.apellido}?`, async () => {
+            const nextYear = new Date();
+            nextYear.setFullYear(nextYear.getFullYear() + 1);
 
-        const nextYear = new Date();
-        nextYear.setFullYear(nextYear.getFullYear() + 1);
+            const payload = {
+                id: targetUser.id,
+                nombre: targetUser.nombre,
+                apellido: targetUser.apellido,
+                dni: targetUser.dni,
+                email: targetUser.email,
+                rol: isApprove ? newRol : 'Usuario',
+                legajo: targetUser.legajo || 0,
+                direccion: targetUser.direccion || '',
+                telefono: targetUser.telefono || '',
+                fotoPerfil: targetUser.fotoPerfil || null,
+                certificacion: isApprove,
+                fechaVencimientoCertificacion: isApprove ? nextYear.toISOString() : null,
+                certificadoPdf: isApprove ? targetUser.certificadoPdf : null
+            };
 
-        const payload = {
-            id: targetUser.id,
-            nombre: targetUser.nombre,
-            apellido: targetUser.apellido,
-            dni: targetUser.dni,
-            email: targetUser.email,
-            rol: isApprove ? newRol : 'Usuario',
-            legajo: targetUser.legajo || 0,
-            direccion: targetUser.direccion || '',
-            telefono: targetUser.telefono || '',
-            certificacion: isApprove,
-            fechaVencimientoCertificacion: isApprove ? nextYear.toISOString() : null,
-            certificadoPdf: isApprove ? targetUser.certificadoPdf : null
-        };
-
-        try {
-            await usersApi.update(targetUser.id, payload);
-            notify(isApprove ? `Usuario aprobado como ${newRol} con éxito` : 'Solicitud rechazada con éxito', 'success');
-            fetchAll();
-        } catch (error) {
-            notify(`Error al procesar solicitud: ${error.message}`, 'error');
-        }
+            try {
+                await usersApi.update(targetUser.id, payload);
+                notify(isApprove ? `Usuario aprobado como ${newRol} con éxito` : 'Solicitud rechazada con éxito', 'success');
+                fetchAll();
+            } catch (error) {
+                notify(`Error al procesar solicitud: ${error.message}`, 'error');
+            }
+        });
     };
 
     const handleCreateUser = async (e) => {
@@ -537,95 +567,167 @@ export default function AdminPanel() {
                         )}
 
                         {editingUser && (
-                            <form className="admin-form user-form" onSubmit={handleUpdateUser} style={{ display: 'grid', gap: '16px', marginBottom: '24px' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                                    <input
-                                        type="text"
-                                        placeholder="Nombre"
-                                        value={userFormData.nombre}
-                                        onChange={(e) => setUserFormData({ ...userFormData, nombre: e.target.value })}
-                                        required
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Apellido"
-                                        value={userFormData.apellido}
-                                        onChange={(e) => setUserFormData({ ...userFormData, apellido: e.target.value })}
-                                        required
-                                    />
-                                    <input
-                                        type="number"
-                                        placeholder="DNI"
-                                        value={userFormData.dni}
-                                        onChange={(e) => setUserFormData({ ...userFormData, dni: parseInt(e.target.value) })}
-                                        required
-                                    />
-                                    <input
-                                        type="email"
-                                        placeholder="Email"
-                                        value={userFormData.email}
-                                        onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
-                                        required
-                                    />
-                                    <input
-                                        type="number"
-                                        placeholder="Legajo"
-                                        value={userFormData.legajo}
-                                        onChange={(e) => setUserFormData({ ...userFormData, legajo: parseInt(e.target.value) })}
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Dirección"
-                                        value={userFormData.direccion}
-                                        onChange={(e) => setUserFormData({ ...userFormData, direccion: e.target.value })}
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Teléfono"
-                                        value={userFormData.telefono}
-                                        onChange={(e) => setUserFormData({ ...userFormData, telefono: e.target.value })}
-                                    />
-                                    <select
-                                        value={userFormData.rol}
-                                        onChange={(e) => setUserFormData({ ...userFormData, rol: e.target.value })}
-                                    >
-                                        <option value="Usuario">Cliente / Usuario</option>
-                                        <option value="Empleado">Empleado</option>
-                                        <option value="Profesor">Profesor</option>
-                                        <option value="Entrenador">Entrenador</option>
-                                        <option value="Administrador">Administrador</option>
-                                    </select>
-                                </div>
-
-                                {(userFormData.rol === 'Profesor' || userFormData.rol === 'Entrenador') && (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '1px solid rgba(149,255,172,0.1)' }}>
-                                        <label className="check-field" style={{ cursor: 'pointer' }}>
+                            <div className="admin-modal-overlay" style={{
+                                position: 'fixed',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                background: 'rgba(0,0,0,0.65)',
+                                backdropFilter: 'blur(8px)',
+                                zIndex: 1050,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '20px'
+                            }}>
+                                <form className="admin-modal-card" onSubmit={handleUpdateUser} style={{
+                                    background: '#111d13',
+                                    border: '1px solid rgba(49, 217, 79, 0.2)',
+                                    borderRadius: '16px',
+                                    padding: '30px',
+                                    width: '100%',
+                                    maxWidth: '600px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '20px',
+                                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+                                }}>
+                                    <h3 style={{ margin: 0, color: '#31d94f', fontWeight: 'bold', fontSize: '1.4rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
+                                        Editar Perfil de Usuario
+                                    </h3>
+                                    
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>Nombre</label>
                                             <input
-                                                type="checkbox"
-                                                checked={userFormData.certificacion}
-                                                onChange={(e) => setUserFormData({ ...userFormData, certificacion: e.target.checked })}
-                                                style={{ width: 18, height: 18, cursor: 'pointer' }}
-                                            />
-                                            Certificación Deportiva Vigente
-                                        </label>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                            <span style={{ fontSize: '0.8rem', color: '#8ca092', textTransform: 'uppercase', fontWeight: 'bold' }}>Vencimiento:</span>
-                                            <input
-                                                type="date"
-                                                value={userFormData.fechaVencimientoCertificacion}
-                                                onChange={(e) => setUserFormData({ ...userFormData, fechaVencimientoCertificacion: e.target.value })}
-                                                style={{ minHeight: 36, padding: '0 8px', background: '#080c0a', color: '#fff', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 6 }}
+                                                type="text"
+                                                placeholder="Nombre"
+                                                value={userFormData.nombre}
+                                                onChange={(e) => setUserFormData({ ...userFormData, nombre: e.target.value })}
                                                 required
+                                                style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                            />
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>Apellido</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Apellido"
+                                                value={userFormData.apellido}
+                                                onChange={(e) => setUserFormData({ ...userFormData, apellido: e.target.value })}
+                                                required
+                                                style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                            />
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>DNI</label>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                placeholder="DNI"
+                                                value={userFormData.dni || ''}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/\D/g, '');
+                                                    setUserFormData({ ...userFormData, dni: val ? parseInt(val) : 0 });
+                                                }}
+                                                required
+                                                style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                            />
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>Email</label>
+                                            <input
+                                                type="email"
+                                                placeholder="Email"
+                                                value={userFormData.email}
+                                                onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
+                                                required
+                                                style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                            />
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>Legajo</label>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                placeholder="Legajo"
+                                                value={userFormData.legajo || ''}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/\D/g, '');
+                                                    setUserFormData({ ...userFormData, legajo: val ? parseInt(val) : 0 });
+                                                }}
+                                                style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                            />
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>Rol</label>
+                                            <select
+                                                value={userFormData.rol}
+                                                onChange={(e) => setUserFormData({ ...userFormData, rol: e.target.value })}
+                                                style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                            >
+                                                <option value="Usuario">Cliente / Usuario</option>
+                                                <option value="Empleado">Empleado</option>
+                                                <option value="Profesor">Profesor</option>
+                                                <option value="Entrenador">Entrenador</option>
+                                                <option value="Administrador">Administrador</option>
+                                            </select>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', gridColumn: 'span 2' }}>
+                                            <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>Dirección</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Dirección"
+                                                value={userFormData.direccion}
+                                                onChange={(e) => setUserFormData({ ...userFormData, direccion: e.target.value })}
+                                                style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                            />
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', gridColumn: 'span 2' }}>
+                                            <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>Teléfono</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Teléfono"
+                                                value={userFormData.telefono}
+                                                onChange={(e) => setUserFormData({ ...userFormData, telefono: e.target.value })}
+                                                style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
                                             />
                                         </div>
                                     </div>
-                                )}
 
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                                    <button type="button" className="ghost-button" onClick={() => setEditingUser(null)}>Cancelar</button>
-                                    <button type="submit" className="primary-action">Guardar cambios</button>
-                                </div>
-                            </form>
+                                    {(userFormData.rol === 'Profesor' || userFormData.rol === 'Entrenador') && (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(149,255,172,0.15)' }}>
+                                            <label className="check-field" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={userFormData.certificacion}
+                                                    onChange={(e) => setUserFormData({ ...userFormData, certificacion: e.target.checked })}
+                                                    style={{ width: 18, height: 18, cursor: 'pointer' }}
+                                                />
+                                                Certificación Deportiva Vigente
+                                            </label>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                <span style={{ fontSize: '0.8rem', color: '#8ca092', textTransform: 'uppercase', fontWeight: 'bold' }}>Vencimiento:</span>
+                                                <input
+                                                    type="date"
+                                                    value={userFormData.fechaVencimientoCertificacion}
+                                                    onChange={(e) => setUserFormData({ ...userFormData, fechaVencimientoCertificacion: e.target.value })}
+                                                    style={{ minHeight: 36, padding: '0 8px', background: '#080c0a', color: '#fff', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 6 }}
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px', marginTop: '8px' }}>
+                                        <button type="button" className="btn btn-secondary" style={{ borderRadius: '8px', padding: '10px 20px' }} onClick={() => setEditingUser(null)}>Cancelar</button>
+                                        <button type="submit" className="btn btn-success" style={{ backgroundColor: '#31d94f', border: 'none', borderRadius: '8px', padding: '10px 20px', fontWeight: 'bold', color: '#000' }}>Guardar cambios</button>
+                                    </div>
+                                </form>
+                            </div>
                         )}
 
                         {usuariosSubTab === 'lista' && !editingUser && (
@@ -642,6 +744,31 @@ export default function AdminPanel() {
                                     <button className="primary-action" onClick={() => setShowCreateUserForm(!showCreateUserForm)}>
                                         {showCreateUserForm ? 'Cancelar' : '+ Nuevo usuario'}
                                     </button>
+                                </div>
+
+                                <div className="mb-4" style={{ maxWidth: '450px', position: 'relative' }}>
+                                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#8ca092', fontSize: '1rem', pointerEvents: 'none' }}>
+                                        <i className="bi bi-search"></i>
+                                    </span>
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar usuario por nombre, DNI o correo..."
+                                        value={searchTerm}
+                                        onChange={e => setSearchTerm(e.target.value)}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px 12px 10px 40px',
+                                            background: '#0a100c',
+                                            border: '1px solid rgba(49, 217, 79, 0.25)',
+                                            borderRadius: '10px',
+                                            color: '#fff',
+                                            fontSize: '0.9rem',
+                                            outline: 'none',
+                                            transition: 'border-color 0.2s'
+                                        }}
+                                        onFocus={e => e.target.style.borderColor = '#31d94f'}
+                                        onBlur={e => e.target.style.borderColor = 'rgba(49, 217, 79, 0.25)'}
+                                    />
                                 </div>
 
                                 {showCreateUserForm && (
@@ -725,8 +852,8 @@ export default function AdminPanel() {
                                                         <td>{selectedUser.dni}</td>
                                                         <td>
                                                             <div style={{ fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                                <span>📞 {selectedUser.telefono || '—'}</span>
-                                                                <span style={{ color: '#8ca092' }}>📍 {selectedUser.direccion || '—'}</span>
+                                                                <span><i className="bi bi-telephone-fill text-success me-1"></i> {selectedUser.telefono || '—'}</span>
+                                                                <span style={{ color: '#8ca092' }}><i className="bi bi-geo-alt-fill text-success me-1"></i> {selectedUser.direccion || '—'}</span>
                                                             </div>
                                                         </td>
                                                         <td>{selectedUser.email}</td>
@@ -783,8 +910,8 @@ export default function AdminPanel() {
                                                     <td>{selectedUser.dni}</td>
                                                     <td>
                                                         <div style={{ fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                            <span>📞 {selectedUser.telefono || '—'}</span>
-                                                            <span style={{ color: '#8ca092' }}>📍 {selectedUser.direccion || '—'}</span>
+                                                            <span><i className="bi bi-telephone-fill text-success me-1"></i> {selectedUser.telefono || '—'}</span>
+                                                            <span style={{ color: '#8ca092' }}><i className="bi bi-geo-alt-fill text-success me-1"></i> {selectedUser.direccion || '—'}</span>
                                                         </div>
                                                     </td>
                                                     <td>{selectedUser.email}</td>
@@ -796,7 +923,7 @@ export default function AdminPanel() {
                                                             className="pill success text-decoration-none"
                                                             style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'inline-block', fontWeight: 'bold' }}
                                                         >
-                                                            📄 Ver Documento PDF
+                                                            <i className="bi bi-file-earmark-pdf-fill me-1"></i> Ver Documento PDF
                                                         </a>
                                                     </td>
                                                     <td className="table-actions">
@@ -847,6 +974,13 @@ export default function AdminPanel() {
                     </section>
                 )}
             </section>
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(c => ({ ...c, isOpen: false }))}
+            />
         </main>
     );
 }
@@ -891,37 +1025,40 @@ function PagosPanel({ moneyFmt, notify }) {
         }
     };
 
-    const handlePagarCobro = async (c) => {
-        if (!window.confirm(`¿Registrar pago de ${moneyFmt.format(c.montoFinal)} para el cobro #${c.id}?`)) return;
-        try {
-            await cobrosApi.pagar(c.id, { monto: c.montoFinal, metodoPago: 'Efectivo', aprobado: true });
-            notify('Pago registrado y recibo generado', 'success');
-            fetchAll();
-        } catch (err) {
-            notify(err.message || 'Error al procesar', 'error');
-        }
+    const handlePagarCobro = (c) => {
+        showConfirm(`¿Registrar pago de ${moneyFmt.format(c.montoFinal)} para el cobro #${c.id}?`, async () => {
+            try {
+                await cobrosApi.pagar(c.id, { monto: c.montoFinal, metodoPago: 'Efectivo', aprobado: true });
+                notify('Pago registrado y recibo generado', 'success');
+                fetchAll();
+            } catch (err) {
+                notify(err.message || 'Error al procesar', 'error');
+            }
+        });
     };
 
-    const handleDeleteCobro = async (id) => {
-        if (!window.confirm('¿Eliminar este cobro?')) return;
-        try {
-            await cobrosApi.remove(id);
-            notify('Cobro eliminado', 'success');
-            fetchAll();
-        } catch (err) {
-            notify(err.message || 'Error al eliminar', 'error');
-        }
+    const handleDeleteCobro = (id) => {
+        showConfirm('¿Eliminar este cobro?', async () => {
+            try {
+                await cobrosApi.remove(id);
+                notify('Cobro eliminado', 'success');
+                fetchAll();
+            } catch (err) {
+                notify(err.message || 'Error al eliminar', 'error');
+            }
+        });
     };
 
-    const handleDeleteRecibo = async (id) => {
-        if (!window.confirm('¿Eliminar este recibo?')) return;
-        try {
-            await recibosApi.remove(id);
-            notify('Recibo eliminado', 'success');
-            fetchAll();
-        } catch (err) {
-            notify(err.message || 'Error al eliminar', 'error');
-        }
+    const handleDeleteRecibo = (id) => {
+        showConfirm('¿Eliminar este recibo?', async () => {
+            try {
+                await recibosApi.remove(id);
+                notify('Recibo eliminado', 'success');
+                fetchAll();
+            } catch (err) {
+                notify(err.message || 'Error al eliminar', 'error');
+            }
+        });
     };
 
     const handlePrintCobro = (c) => {
@@ -1176,24 +1313,25 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
         }
     };
 
-    const handleCancelLiga = async (id) => {
-        if (!window.confirm('¿Seguro que desea cancelar esta liga?')) return;
-        try {
-            const res = await fetch(`${API_URL}/ligas/${id}`, { method: 'DELETE' });
-            if (res.ok) {
-                setMessage('Liga cancelada');
-                fetchAll();
-                if (selectedLigaId === id) {
-                    setSelectedLigaId(null);
-                    setLigaDetails(null);
+    const handleCancelLiga = (id) => {
+        showConfirm('¿Seguro que desea cancelar esta liga?', async () => {
+            try {
+                const res = await fetch(`${API_URL}/ligas/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    setMessage('Liga cancelada');
+                    fetchAll();
+                    if (selectedLigaId === id) {
+                        setSelectedLigaId(null);
+                        setLigaDetails(null);
+                    }
+                } else {
+                    const txt = await res.text();
+                    setMessage('Error al cancelar liga: ' + txt);
                 }
-            } else {
-                const txt = await res.text();
-                setMessage('Error al cancelar liga: ' + txt);
+            } catch (error) {
+                setMessage('Error: ' + error.message);
             }
-        } catch (error) {
-            setMessage('Error: ' + error.message);
-        }
+        });
     };
 
     const handleInscribirEquipoLiga = async () => {
@@ -1264,24 +1402,25 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
         }
     };
 
-    const handleCancelTorneo = async (id) => {
-        if (!window.confirm('¿Seguro que desea cancelar este torneo?')) return;
-        try {
-            const res = await fetch(`${API_URL}/torneos/${id}`, { method: 'DELETE' });
-            if (res.ok) {
-                setMessage('Torneo cancelado');
-                fetchAll();
-                if (selectedTorneoId === id) {
-                    setSelectedTorneoId(null);
-                    setTorneoDetails(null);
+    const handleCancelTorneo = (id) => {
+        showConfirm('¿Seguro que desea cancelar este torneo?', async () => {
+            try {
+                const res = await fetch(`${API_URL}/torneos/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    setMessage('Torneo cancelado');
+                    fetchAll();
+                    if (selectedTorneoId === id) {
+                        setSelectedTorneoId(null);
+                        setTorneoDetails(null);
+                    }
+                } else {
+                    const txt = await res.text();
+                    setMessage('Error al cancelar torneo: ' + txt);
                 }
-            } else {
-                const txt = await res.text();
-                setMessage('Error al cancelar torneo: ' + txt);
+            } catch (error) {
+                setMessage('Error: ' + error.message);
             }
-        } catch (error) {
-            setMessage('Error: ' + error.message);
-        }
+        });
     };
 
     const handleInscribirEquipoTorneo = async () => {
@@ -1953,24 +2092,25 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
         }
     };
 
-    const handleCancelarClase = async (id) => {
-        if (!window.confirm('¿Seguro que desea cancelar esta clase?')) return;
-        try {
-            const res = await fetch(`${API_URL}/clases/${id}`, { method: 'DELETE' });
-            if (res.ok) {
-                setMessage('Clase cancelada');
-                fetchAll();
-                if (selectedClaseId === id) {
-                    setSelectedClaseId(null);
-                    setClaseDetails(null);
+    const handleCancelarClase = (id) => {
+        showConfirm('¿Seguro que desea cancelar esta clase?', async () => {
+            try {
+                const res = await fetch(`${API_URL}/clases/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    setMessage('Clase cancelada');
+                    fetchAll();
+                    if (selectedClaseId === id) {
+                        setSelectedClaseId(null);
+                        setClaseDetails(null);
+                    }
+                } else {
+                    const txt = await res.text();
+                    setMessage('Error al cancelar: ' + txt);
                 }
-            } else {
-                const txt = await res.text();
-                setMessage('Error al cancelar: ' + txt);
+            } catch (error) {
+                setMessage('Error: ' + error.message);
             }
-        } catch (error) {
-            setMessage('Error: ' + error.message);
-        }
+        });
     };
 
     const handleToggleAsistencia = async (usuarioId, currentPresent) => {
@@ -2266,6 +2406,13 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
                     </div>
                 </div>
             )}
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(c => ({ ...c, isOpen: false }))}
+            />
         </section>
     );
 }

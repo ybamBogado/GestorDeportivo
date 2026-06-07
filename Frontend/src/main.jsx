@@ -15,6 +15,7 @@ import Pago from './views/Pago.jsx'
 import EmployeePanel from './views/EmployeePanel.jsx'
 import TrainerPanel from './views/TrainerPanel.jsx'
 import UserPortal from './views/UserPortal.jsx'
+import SelectCancha from './views/SelectCancha.jsx'
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
@@ -33,6 +34,7 @@ createRoot(document.getElementById('root')).render(
               <Route path="/employee"          element={<EmployeePanel />} />
               <Route path="/trainer"           element={<TrainerPanel />} />
               <Route path="/my-portal"         element={<UserPortal />} />
+              <Route path="/select-cancha"     element={<SelectCancha />} />
               <Route path="/pago/:cobroId"     element={<Pago />} />
             </Routes>
           </BrowserRouter>

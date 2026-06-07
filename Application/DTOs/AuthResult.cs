@@ -8,5 +8,9 @@ public record AuthResult(
     string Rol,
     int Legajo,
     int Dni,
+    string? FotoPerfil,
+    string? Direccion,
+    string? Telefono,
+    string? CertificadoPdf,
     string Token
 );

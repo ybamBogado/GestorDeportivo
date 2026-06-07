@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { canchas as canchasApi, reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi } from '../services/api.js';
 import { useToast } from '../components/Toast.jsx';
+import ConfirmModal from '../components/ConfirmModal.jsx';
 import './EmployeePanel.css';
 
 const todayInput = () => new Date().toISOString().split('T')[0];
@@ -25,6 +26,20 @@ export default function EmployeePanel() {
     const { theme, toggleTheme } = useTheme();
     const navigate               = useNavigate();
     const { notify }             = useToast();
+
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+
+    const showConfirm = (message, onConfirm, title = 'Confirmación') => {
+        setConfirmConfig({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmConfig(c => ({ ...c, isOpen: false }));
+            }
+        });
+    };
 
     const [activeSection, setActiveSection] = useState('reservas');
     const [selectedDate,  setSelectedDate]  = useState(todayInput());
@@ -112,11 +127,27 @@ export default function EmployeePanel() {
     };
 
     const handleRemoveAvatar = () => {
-        if (window.confirm('¿Deseas quitar tu foto de perfil?')) {
-            const updatedUser = { ...user, fotoPerfil: null };
-            login(updatedUser);
-            notify('Foto de perfil eliminada', 'success');
-        }
+        showConfirm('¿Deseas quitar tu foto de perfil?', async () => {
+            try {
+                await usersApi.update(user.id, {
+                    id: user.id,
+                    email: user.email,
+                    rol: user.rol || 'Empleado',
+                    nombre: user.nombre,
+                    apellido: user.apellido,
+                    dni: Number(user.dni || 0),
+                    legajo: Number(user.legajo || 0),
+                    fotoPerfil: 'REMOVE',
+                    direccion: user.direccion || '',
+                    telefono: user.telefono || ''
+                });
+                const updatedUser = { ...user, fotoPerfil: null };
+                login(updatedUser);
+                notify('Foto de perfil eliminada', 'success');
+            } catch (err) {
+                notify('Error al eliminar foto de perfil: ' + err.message, 'error');
+            }
+        });
     };
 
     const handleApplyCrop = () => {
@@ -352,37 +383,36 @@ export default function EmployeePanel() {
         }
     };
 
-    const handleKycAction = async (targetUser, newRol, isApprove) => {
+    const handleKycAction = (targetUser, newRol, isApprove) => {
         const actionLabel = isApprove ? `aprobar como ${newRol}` : 'rechazar';
-        if (!window.confirm(`¿Estás seguro de que deseas ${actionLabel} la solicitud de ${targetUser.nombre} ${targetUser.apellido}?`)) {
-            return;
-        }
+        showConfirm(`¿Estás seguro de que deseas ${actionLabel} la solicitud de ${targetUser.nombre} ${targetUser.apellido}?`, async () => {
+            const nextYear = new Date();
+            nextYear.setFullYear(nextYear.getFullYear() + 1);
 
-        const nextYear = new Date();
-        nextYear.setFullYear(nextYear.getFullYear() + 1);
+            const payload = {
+                id: targetUser.id,
+                nombre: targetUser.nombre,
+                apellido: targetUser.apellido,
+                dni: targetUser.dni,
+                email: targetUser.email,
+                rol: isApprove ? newRol : 'Usuario',
+                legajo: targetUser.legajo || 0,
+                direccion: targetUser.direccion || '',
+                telefono: targetUser.telefono || '',
+                fotoPerfil: targetUser.fotoPerfil || null,
+                certificacion: isApprove,
+                fechaVencimientoCertificacion: isApprove ? nextYear.toISOString() : null,
+                certificadoPdf: isApprove ? targetUser.certificadoPdf : null
+            };
 
-        const payload = {
-            id: targetUser.id,
-            nombre: targetUser.nombre,
-            apellido: targetUser.apellido,
-            dni: targetUser.dni,
-            email: targetUser.email,
-            rol: isApprove ? newRol : 'Usuario',
-            legajo: targetUser.legajo || 0,
-            direccion: targetUser.direccion || '',
-            telefono: targetUser.telefono || '',
-            certificacion: isApprove,
-            fechaVencimientoCertificacion: isApprove ? nextYear.toISOString() : null,
-            certificadoPdf: isApprove ? targetUser.certificadoPdf : null
-        };
-
-        try {
-            await usersApi.update(targetUser.id, payload);
-            notify(isApprove ? `Usuario aprobado como ${newRol} con éxito` : 'Solicitud rechazada con éxito', 'success');
-            fetchAll();
-        } catch (error) {
-            notify(`Error al procesar solicitud: ${error.message}`, 'error');
-        }
+            try {
+                await usersApi.update(targetUser.id, payload);
+                notify(isApprove ? `Usuario aprobado como ${newRol} con éxito` : 'Solicitud rechazada con éxito', 'success');
+                fetchAll();
+            } catch (error) {
+                notify(`Error al procesar solicitud: ${error.message}`, 'error');
+            }
+        });
     };
 
     const handleSaveCobro = async (e) => {
@@ -401,15 +431,16 @@ export default function EmployeePanel() {
         }
     };
 
-    const handlePagarCobro = async (c) => {
-        if (!window.confirm(`¿Registrar pago de ${moneyFmt.format(c.montoFinal)} para el cobro #${c.id}?`)) return;
-        try {
-            await cobrosApi.pagar(c.id, { monto: c.montoFinal, metodoPago: 'Efectivo', aprobado: true });
-            notify('Pago registrado y recibo generado', 'success');
-            fetchAll();
-        } catch (err) {
-            notify(err.message || 'Error al procesar', 'error');
-        }
+    const handlePagarCobro = (c) => {
+        showConfirm(`¿Registrar pago de ${moneyFmt.format(c.montoFinal)} para el cobro #${c.id}?`, async () => {
+            try {
+                await cobrosApi.pagar(c.id, { monto: c.montoFinal, metodoPago: 'Efectivo', aprobado: true });
+                notify('Pago registrado y recibo generado', 'success');
+                fetchAll();
+            } catch (err) {
+                notify(err.message || 'Error al procesar', 'error');
+            }
+        });
     };
 
     const handlePrintCobro = (c) => {
@@ -1009,6 +1040,13 @@ export default function EmployeePanel() {
                     </div>
                 )}
             </section>
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(c => ({ ...c, isOpen: false }))}
+            />
         </main>
     );
 }

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../components/Toast.jsx';
 import { reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi } from '../services/api.js';
+import ConfirmModal from '../components/ConfirmModal.jsx';
 import './UserPortal.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5071/api/v1';
@@ -16,6 +17,24 @@ export default function UserPortal() {
     const { notify }             = useToast();
 
     const [activeTab, setActiveTab] = useState('reservas');
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+
+    // Postulation states
+    const [postularRol, setPostularRol] = useState('Profesor');
+    const [pdfBase64, setPdfBase64] = useState(null);
+    const [sendingPostulation, setSendingPostulation] = useState(false);
+
+    const showConfirm = (message, onConfirm, title = 'Confirmación') => {
+        setConfirmConfig({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmConfig(c => ({ ...c, isOpen: false }));
+            }
+        });
+    };
     const [loading, setLoading]     = useState(true);
 
     const [reservas, setReservas] = useState([]);
@@ -101,10 +120,81 @@ export default function UserPortal() {
     };
 
     const handleRemoveAvatar = () => {
-        if (window.confirm('¿Deseas quitar tu foto de perfil?')) {
-            const updatedUser = { ...user, fotoPerfil: null };
-            login(updatedUser);
-            notify('Foto de perfil eliminada', 'success');
+        showConfirm('¿Deseas quitar tu foto de perfil?', async () => {
+            try {
+                await usersApi.update(user.id, {
+                    id: user.id,
+                    email: user.email,
+                    rol: user.rol || 'Usuario',
+                    nombre: user.nombre,
+                    apellido: user.apellido,
+                    dni: Number(user.dni || 0),
+                    legajo: Number(user.legajo || 0),
+                    fotoPerfil: 'REMOVE',
+                    direccion: user.direccion || '',
+                    telefono: user.telefono || '',
+                    certificadoPdf: user.certificadoPdf
+                });
+                const updatedUser = { ...user, fotoPerfil: null };
+                login(updatedUser);
+                notify('Foto de perfil eliminada', 'success');
+            } catch (err) {
+                notify('Error al eliminar foto de perfil: ' + err.message, 'error');
+            }
+        });
+    };
+
+    const handlePdfFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.type !== 'application/pdf') {
+                notify('Por favor, selecciona un archivo PDF válido', 'error');
+                e.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+                setPdfBase64(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handlePostularSubmit = async (e) => {
+        e.preventDefault();
+        if (!pdfBase64) {
+            notify('Por favor, sube tu certificado PDF', 'error');
+            return;
+        }
+
+        setSendingPostulation(true);
+        try {
+            await usersApi.update(user.id, {
+                id: user.id,
+                email: user.email,
+                rol: user.rol || 'Usuario',
+                nombre: user.nombre,
+                apellido: user.apellido,
+                dni: Number(user.dni || 0),
+                legajo: Number(user.legajo || 0),
+                fotoPerfil: user.fotoPerfil,
+                direccion: user.direccion || '',
+                telefono: user.telefono || '',
+                certificadoPdf: pdfBase64
+            });
+
+            notify('Postulación enviada con éxito. Un empleado la revisará pronto.', 'success');
+            
+            // Re-fetch user details to get the exact saved PDF url and update context
+            const freshUser = await usersApi.getAll();
+            const me = freshUser.find(u => u.id === user.id);
+            if (me) {
+                login(me);
+            }
+        } catch (err) {
+            notify('Error al enviar la postulación: ' + err.message, 'error');
+        } finally {
+            setSendingPostulation(false);
         }
     };
 
@@ -149,9 +239,18 @@ export default function UserPortal() {
 
             const croppedDataUrl = canvas.toDataURL('image/jpeg');
             const updatedUser = { ...user, fotoPerfil: croppedDataUrl };
-            login(updatedUser);
-            setShowCropModal(false);
-            notify('Foto de perfil actualizada', 'success');
+            
+            // Persist base64 data to backend database & static folder
+            usersApi.update(user.id, {
+                ...updatedUser,
+                dni: Number(user.dni)
+            }).then(() => {
+                login(updatedUser);
+                setShowCropModal(false);
+                notify('Foto de perfil actualizada', 'success');
+            }).catch(err => {
+                notify('Error al guardar foto de perfil: ' + err.message, 'error');
+            });
         };
     };
 
@@ -744,6 +843,64 @@ export default function UserPortal() {
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {user?.rol === 'Usuario' && (
+                                            <div className="profile-premium-card" style={{ marginTop: '24px' }}>
+                                                <h3 className="text-success fw-bold" style={{ fontSize: '1.2rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}>
+                                                    Postulación Profesional
+                                                </h3>
+                                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '24px' }}>
+                                                    ¿Quieres ser profesor o entrenador en Gol Ahora? Sube tu certificación correspondiente en formato PDF para iniciar el proceso de verificación.
+                                                </p>
+                                                
+                                                {user?.certificadoPdf ? (
+                                                    <div className="alert alert-success d-flex align-items-center gap-2" role="alert" style={{ background: 'rgba(49, 217, 79, 0.1)', border: '1px solid rgba(49, 217, 79, 0.2)', color: '#31d94f', borderRadius: '12px' }}>
+                                                        <i className="bi bi-clock-history"></i>
+                                                        <div>
+                                                            Ya tienes una postulación pendiente de revisión. 
+                                                            <a href={user.certificadoPdf} target="_blank" rel="noopener noreferrer" style={{ color: '#31d94f', textDecoration: 'underline', marginLeft: '6px', fontWeight: 'bold' }}>
+                                                                Ver certificado enviado
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <form onSubmit={handlePostularSubmit} style={{ display: 'grid', gap: '16px', maxWidth: '500px' }}>
+                                                        <div>
+                                                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 'bold', marginBottom: '6px', textTransform: 'uppercase' }}>Puesto al que te postulas</label>
+                                                            <select 
+                                                                value={postularRol} 
+                                                                onChange={e => setPostularRol(e.target.value)}
+                                                                style={{ width: '100%', padding: '10px', background: 'var(--bg-input)', border: '1px solid var(--border-base)', borderRadius: '10px', color: 'var(--text-primary)' }}
+                                                                required
+                                                            >
+                                                                <option value="Profesor">Profesor</option>
+                                                                <option value="Entrenador">Entrenador</option>
+                                                            </select>
+                                                        </div>
+
+                                                        <div>
+                                                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 'bold', marginBottom: '6px', textTransform: 'uppercase' }}>Certificación Deportiva (PDF)</label>
+                                                            <input 
+                                                                type="file" 
+                                                                accept="application/pdf"
+                                                                onChange={handlePdfFileChange}
+                                                                style={{ width: '100%', padding: '10px', background: 'var(--bg-input)', border: '1px solid var(--border-base)', borderRadius: '10px', color: 'var(--text-primary)' }}
+                                                                required
+                                                            />
+                                                        </div>
+
+                                                        <button 
+                                                            type="submit" 
+                                                            className="btn btn-success" 
+                                                            style={{ backgroundColor: '#28a745', border: 'none', padding: '12px', borderRadius: '50px', fontWeight: 'bold', cursor: 'pointer', marginTop: '8px' }}
+                                                            disabled={sendingPostulation}
+                                                        >
+                                                            {sendingPostulation ? 'Enviando postulación...' : 'Enviar Postulación'}
+                                                        </button>
+                                                    </form>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
@@ -812,6 +969,13 @@ export default function UserPortal() {
                         )}
                     </section>
                 </div>
+                <ConfirmModal
+                    isOpen={confirmConfig.isOpen}
+                    title={confirmConfig.title}
+                    message={confirmConfig.message}
+                    onConfirm={confirmConfig.onConfirm}
+                    onCancel={() => setConfirmConfig(c => ({ ...c, isOpen: false }))}
+                />
             </main>
         </div>
     );
