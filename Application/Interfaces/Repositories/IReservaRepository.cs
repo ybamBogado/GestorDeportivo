@@ -10,4 +10,5 @@ public interface IReservaRepository
     Task<Reserva?> GetByIdAsync(int id);
     Task AddAsync(Reserva reserva);
     Task UpdateAsync(Reserva reserva);
+    Task<bool> IsAvailableAsync(int canchaId, DateTime fecha, TimeSpan horaInicio, TimeSpan horaFin, int? excludeReservaId = null);
 }

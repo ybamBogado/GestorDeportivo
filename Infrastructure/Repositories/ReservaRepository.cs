@@ -59,5 +59,36 @@ namespace Infrastructure.Repositories
             _context.Reservas.Update(reserva);
             await Task.CompletedTask;
         }
+
+        /// <summary>
+        /// Verifica que no haya reservas activas ni bloqueos que se superpongan con el horario solicitado.
+        /// </summary>
+        public async Task<bool> IsAvailableAsync(int canchaId, DateTime fecha, TimeSpan horaInicio, TimeSpan horaFin, int? excludeReservaId = null)
+        {
+            // Comprobar superposición con otras reservas activas
+            var hasConflict = await _context.Reservas
+                .Where(r => r.CanchaId == canchaId
+                         && r.Fecha == fecha.Date
+                         && r.Estado != "Cancelada"
+                         && (excludeReservaId == null || r.Id != excludeReservaId)
+                         && r.HoraInicio < horaFin
+                         && r.HoraFin   > horaInicio)
+                .AnyAsync();
+
+            if (hasConflict) return false;
+
+            // Comprobar bloqueos de mantenimiento
+            var fechaHoraInicio = fecha.Date + horaInicio;
+            var fechaHoraFin    = fecha.Date + horaFin;
+
+            var hasBloqueo = await _context.CanchaBloqueos
+                .Where(b => b.CanchaId == canchaId
+                         && b.Estado   != "Cancelado"
+                         && b.FechaHoraInicio < fechaHoraFin
+                         && b.FechaHoraFin    > fechaHoraInicio)
+                .AnyAsync();
+
+            return !hasBloqueo;
+        }
     }
 }

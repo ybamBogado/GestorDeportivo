@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { canchas as canchasApi, reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi, auth as authApi, clases as clasesApi } from '../services/api.js';
+import { canchas as canchasApi, reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi, auth as authApi, clases as clasesApi, descuentos as descuentosApi, reportes as reportesApi } from '../services/api.js';
 import { useToast } from '../components/Toast.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import './AdminPanel.css';
@@ -20,6 +20,7 @@ const menuItems = [
     { id: 'pagos', label: 'Pagos y recibos', icon: 'bi bi-credit-card' },
     { id: 'ligas', label: 'Ligas y torneos', icon: 'bi bi-trophy' },
     { id: 'clases', label: 'Clases y entren.', icon: 'bi bi-journal-text' },
+    { id: 'descuentos', label: 'Descuentos', icon: 'bi bi-tag-fill' },
     { id: 'reportes', label: 'Reportes', icon: 'bi bi-bar-chart-line' }
 ];
 
@@ -223,6 +224,26 @@ export default function AdminPanel() {
         } catch (err) {
             notify(err.message || 'Error al actualizar', 'error');
         }
+    };
+
+    // RF-19/RF-20: Cancelar reserva con cálculo de penalidad
+    const cancelarReserva = (id) => {
+        showConfirm(
+            'Si la reserva comienza en menos de 6 horas se aplicará una penalidad del 50%. ¿Confirmar cancelación?',
+            async () => {
+                try {
+                    const res = await reservasApi.cancelar(id);
+                    const msg = res.aplicaPenalidad
+                        ? `Reserva cancelada. Penalidad del 50%: se retiene ${moneyFmt.format(res.montoFinal)}`
+                        : 'Reserva cancelada sin penalidad.';
+                    notify(msg, res.aplicaPenalidad ? 'info' : 'success');
+                    fetchAll();
+                } catch (err) {
+                    notify(err.message || 'Error al cancelar', 'error');
+                }
+            },
+            'Cancelar reserva'
+        );
     };
 
     const handleEditUser = (selectedUser) => {
@@ -496,7 +517,7 @@ export default function AdminPanel() {
                                                 </dl>
                                                 <div className="reservation-actions">
                                                     {r.estado !== 'Confirmada' && <button onClick={() => updateReservaEstado(r.id, 'Confirmada')}>Confirmar</button>}
-                                                    {r.estado !== 'Cancelada' && <button className="danger" onClick={() => updateReservaEstado(r.id, 'Cancelada')}>Cancelar</button>}
+                                                    {r.estado !== 'Cancelada' && <button className="danger" onClick={() => cancelarReserva(r.id)}>Cancelar</button>}
                                                 </div>
                                             </article>
                                         ))}
@@ -531,14 +552,33 @@ export default function AdminPanel() {
                         )}
                         <div className="data-table">
                             <table>
-                                <thead><tr><th>ID</th><th>Superficie</th><th>Capacidad</th><th>Estado</th></tr></thead>
+                                <thead><tr><th>ID</th><th>Superficie</th><th>Capacidad</th><th>Estado</th><th>Acciones</th></tr></thead>
                                 <tbody>
                                     {canchas.map(c => (
                                         <tr key={c.id}>
                                             <td>#{c.id}</td>
                                             <td>{c.superficie}</td>
                                             <td>{c.capacidad} jugadores</td>
-                                            <td><span className="pill success">{c.estado}</span></td>
+                                            <td><span className={`pill ${c.estado === 'Disponible' ? 'success' : c.estado === 'Inactiva' ? 'danger' : 'warning'}`}>{c.estado}</span></td>
+                                            <td>
+                                                <button
+                                                    style={{ fontSize: '0.78rem', padding: '3px 8px', marginRight: 4, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+                                                    onClick={() => {
+                                                        const nuevoEstado = prompt('Nuevo estado (Disponible / Mantenimiento / Inactiva):', c.estado);
+                                                        if (nuevoEstado) canchasApi.update(c.id, { superficie: c.superficie, capacidad: c.capacidad, estado: nuevoEstado }).then(() => { notify('Cancha actualizada', 'success'); fetchAll(); }).catch(e => notify(e.message, 'error'));
+                                                    }}>
+                                                    Editar
+                                                </button>
+                                                {c.estado !== 'Inactiva' && (
+                                                    <button
+                                                        style={{ fontSize: '0.78rem', padding: '3px 8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+                                                        onClick={() => {
+                                                            if (confirm(`¿Desactivar cancha #${c.id}?`)) canchasApi.remove(c.id).then(() => { notify('Cancha desactivada', 'success'); fetchAll(); }).catch(e => notify(e.message, 'error'));
+                                                        }}>
+                                                        Desactivar
+                                                    </button>
+                                                )}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -1107,11 +1147,12 @@ export default function AdminPanel() {
                     <ClasesEntrenamientosPanel setMessage={setMessage} API_URL={API_URL} canchas={canchas} />
                 )}
 
+                {activeSection === 'descuentos' && (
+                    <DescuentosPanel notify={notify} moneyFmt={moneyFmt} />
+                )}
+
                 {activeSection === 'reportes' && (
-                    <section className="admin-panel placeholder-panel">
-                        <h2>Reportes</h2>
-                        <p>Módulo en desarrollo. Aquí se mostrarán métricas, gráficos y exportaciones.</p>
-                    </section>
+                    <ReportesPanel notify={notify} moneyFmt={moneyFmt} />
                 )}
             </section>
             <ConfirmModal
@@ -2388,6 +2429,384 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
 }
 
 // ─── Módulo Clases y Entrenamientos ───────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// RF-33: Panel de Descuentos
+// ═══════════════════════════════════════════════════════════════════════════
+function DescuentosPanel({ notify, moneyFmt }) {
+    const [items, setItems]       = useState([]);
+    const [loading, setLoading]   = useState(true);
+    const [showForm, setShowForm] = useState(false);
+    const [editing, setEditing]   = useState(null);
+    const [form, setForm]         = useState({ nombre: '', tipoServicio: 'Reserva', porcentaje: 10, activo: true });
+
+    const TIPOS = ['Reserva', 'Liga', 'Torneo', 'Clase', 'Entrenamiento', 'Otro'];
+
+    useEffect(() => {
+        setLoading(true);
+        descuentosApi.getAll()
+            .then(setItems)
+            .catch(() => notify('Error cargando descuentos', 'error'))
+            .finally(() => setLoading(false));
+    }, []);
+
+    const handleSave = async () => {
+        try {
+            if (editing) {
+                const updated = await descuentosApi.update(editing.id, form);
+                setItems(prev => prev.map(d => d.id === editing.id ? updated : d));
+                notify('Descuento actualizado', 'success');
+            } else {
+                const created = await descuentosApi.create(form);
+                setItems(prev => [...prev, created]);
+                notify('Descuento creado', 'success');
+            }
+            setShowForm(false);
+            setEditing(null);
+            setForm({ nombre: '', tipoServicio: 'Reserva', porcentaje: 10, activo: true });
+        } catch (e) {
+            notify(e.message || 'Error guardando', 'error');
+        }
+    };
+
+    const handleDelete = async (id) => {
+        try {
+            await descuentosApi.remove(id);
+            setItems(prev => prev.map(d => d.id === id ? { ...d, activo: false } : d));
+            notify('Descuento desactivado', 'success');
+        } catch (e) {
+            notify(e.message, 'error');
+        }
+    };
+
+    const startEdit = (d) => {
+        setEditing(d);
+        setForm({ nombre: d.nombre, tipoServicio: d.tipoServicio, porcentaje: d.porcentaje, activo: d.activo });
+        setShowForm(true);
+    };
+
+    const panelStyle  = { padding: '1.5rem' };
+    const cardStyle   = { background: 'var(--bg-card)', borderRadius: 12, padding: '1rem', marginBottom: '0.75rem', border: '1px solid var(--border-base)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' };
+    const inputStyle  = { background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-base)', borderRadius: 8, padding: '0.4rem 0.7rem', width: '100%' };
+    const btnStyle    = (c) => ({ background: c, color: '#fff', border: 'none', borderRadius: 8, padding: '0.4rem 0.9rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' });
+
+    return (
+        <section style={panelStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>Descuentos configurables</h2>
+                <button style={btnStyle('var(--accent)')} onClick={() => { setShowForm(true); setEditing(null); setForm({ nombre: '', tipoServicio: 'Reserva', porcentaje: 10, activo: true }); }}>
+                    <i className="bi bi-plus-lg me-1" /> Nuevo
+                </button>
+            </div>
+
+            {showForm && (
+                <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 12, padding: '1.25rem', marginBottom: '1.25rem' }}>
+                    <h4 style={{ marginTop: 0, color: 'var(--text-primary)' }}>{editing ? 'Editar descuento' : 'Nuevo descuento'}</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '0.75rem' }}>
+                        <label style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                            Nombre<br />
+                            <input style={inputStyle} value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Ej: Socio habitual" />
+                        </label>
+                        <label style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                            Tipo de servicio<br />
+                            <select style={inputStyle} value={form.tipoServicio} onChange={e => setForm(f => ({ ...f, tipoServicio: e.target.value }))}>
+                                {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        </label>
+                        <label style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                            Porcentaje (%)<br />
+                            <input style={inputStyle} type="number" min={0} max={100} value={form.porcentaje} onChange={e => setForm(f => ({ ...f, porcentaje: Number(e.target.value) }))} />
+                        </label>
+                        <label style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            Activo<br />
+                            <input type="checkbox" checked={form.activo} onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} style={{ width: 18, height: 18 }} />
+                        </label>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: '1rem' }}>
+                        <button style={btnStyle('var(--accent)')} onClick={handleSave}>Guardar</button>
+                        <button style={btnStyle('#6b7280')} onClick={() => { setShowForm(false); setEditing(null); }}>Cancelar</button>
+                    </div>
+                </div>
+            )}
+
+            {loading ? <p>Cargando...</p> : items.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>No hay descuentos registrados.</p> : items.map(d => (
+                <div key={d.id} style={{ ...cardStyle, opacity: d.activo ? 1 : 0.5 }}>
+                    <div>
+                        <strong style={{ color: 'var(--text-primary)' }}>{d.nombre}</strong>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{d.tipoServicio}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                        <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent)' }}>{d.porcentaje}%</span>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>descuento</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ padding: '2px 10px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700, background: d.activo ? 'rgba(49,217,79,0.12)' : 'rgba(239,68,68,0.12)', color: d.activo ? '#31d94f' : '#ef4444' }}>
+                            {d.activo ? 'ACTIVO' : 'INACTIVO'}
+                        </span>
+                        <button style={btnStyle('#3b82f6')} onClick={() => startEdit(d)}>Editar</button>
+                        {d.activo && <button style={btnStyle('#ef4444')} onClick={() => handleDelete(d.id)}>Desactivar</button>}
+                    </div>
+                </div>
+            ))}
+        </section>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RF-35/55..58: Panel de Reportes
+// ═══════════════════════════════════════════════════════════════════════════
+function ReportesPanel({ notify, moneyFmt }) {
+    const today     = new Date().toISOString().split('T')[0];
+    const monthAgo  = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+
+    const [tab,   setTab]   = useState('ingresos');
+    const [desde, setDesde] = useState(monthAgo);
+    const [hasta, setHasta] = useState(today);
+    const [data,  setData]  = useState(null);
+    const [loading, setLoading] = useState(false);
+
+    const fetchReport = async () => {
+        setLoading(true);
+        setData(null);
+        try {
+            const params = { desde, hasta };
+            let result;
+            if (tab === 'ingresos')   result = await reportesApi.ingresos(params);
+            if (tab === 'reservas')   result = await reportesApi.reservas(params);
+            if (tab === 'asistencia') result = await reportesApi.asistencia(params);
+            if (tab === 'canchas')    result = await reportesApi.canchas(params);
+            setData(result);
+        } catch (e) {
+            notify(e.message || 'Error al generar reporte', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const downloadCsv = async () => {
+        try {
+            const params = { desde, hasta };
+            let blob;
+            let filename;
+            if (tab === 'ingresos')   { blob = await reportesApi.exportIngresos(params);   filename = `ingresos_${desde}_${hasta}.csv`; }
+            if (tab === 'reservas')   { blob = await reportesApi.exportReservas(params);   filename = `reservas_${desde}_${hasta}.csv`; }
+            if (tab === 'asistencia') { blob = await reportesApi.exportAsistencia(params); filename = `asistencia_${desde}_${hasta}.csv`; }
+            if (tab === 'canchas')    { blob = await reportesApi.exportCobros(params);     filename = `cobros_${desde}_${hasta}.csv`; }
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+            URL.revokeObjectURL(url);
+            notify('Descarga iniciada', 'success');
+        } catch (e) {
+            notify(e.message, 'error');
+        }
+    };
+
+    const downloadAll = async (type) => {
+        try {
+            let blob, filename;
+            if (type === 'usuarios') { blob = await reportesApi.exportUsuarios(); filename = 'usuarios.csv'; }
+            if (type === 'recibos')  { blob = await reportesApi.exportRecibos();  filename = 'recibos.csv'; }
+            const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+            notify('Descarga iniciada', 'success');
+        } catch (e) { notify(e.message, 'error'); }
+    };
+
+    const tabBtn  = (id, label) => (
+        <button key={id} onClick={() => { setTab(id); setData(null); }}
+            style={{ background: tab === id ? 'var(--accent)' : 'var(--bg-card)', color: tab === id ? '#fff' : 'var(--text-secondary)', border: '1px solid var(--border-base)', borderRadius: 8, padding: '0.4rem 1rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>
+            {label}
+        </button>
+    );
+
+    const metricCard = (label, value, sub) => (
+        <div key={label} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-base)', borderRadius: 12, padding: '1rem 1.25rem', flex: '1 1 160px', minWidth: 150 }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
+            <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent)', margin: '4px 0' }}>{value}</div>
+            {sub && <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{sub}</div>}
+        </div>
+    );
+
+    return (
+        <section style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>Reportes y exportaciones</h2>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => downloadAll('usuarios')} style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-base)', borderRadius: 8, padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.82rem' }}>
+                        <i className="bi bi-download me-1" /> Usuarios CSV
+                    </button>
+                    <button onClick={() => downloadAll('recibos')} style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-base)', borderRadius: 8, padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.82rem' }}>
+                        <i className="bi bi-download me-1" /> Recibos CSV
+                    </button>
+                </div>
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap' }}>
+                {tabBtn('ingresos',   '💰 Ingresos')}
+                {tabBtn('reservas',   '📅 Reservas')}
+                {tabBtn('asistencia', '📋 Asistencia')}
+                {tabBtn('canchas',    '⚽ Canchas')}
+            </div>
+
+            {/* Filtros de fecha */}
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                <label style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    Desde<br />
+                    <input type="date" value={desde} onChange={e => setDesde(e.target.value)}
+                        style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-base)', borderRadius: 8, padding: '0.35rem 0.6rem' }} />
+                </label>
+                <label style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    Hasta<br />
+                    <input type="date" value={hasta} onChange={e => setHasta(e.target.value)}
+                        style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-base)', borderRadius: 8, padding: '0.35rem 0.6rem' }} />
+                </label>
+                <button onClick={fetchReport} disabled={loading}
+                    style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, padding: '0.45rem 1.1rem', cursor: 'pointer', fontWeight: 700 }}>
+                    {loading ? 'Cargando...' : 'Generar'}
+                </button>
+                {data && (
+                    <button onClick={downloadCsv}
+                        style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-base)', borderRadius: 8, padding: '0.45rem 0.9rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}>
+                        <i className="bi bi-download me-1" /> Exportar CSV
+                    </button>
+                )}
+            </div>
+
+            {/* Resultados */}
+            {!data && !loading && (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '2rem' }}>
+                    Seleccioná un rango de fechas y hacé clic en "Generar" para ver el reporte.
+                </p>
+            )}
+
+            {data && tab === 'ingresos' && (
+                <>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                        {metricCard('Total ingresos', moneyFmt.format(data.totalIngresos), `${data.cantidadCobros} cobros`)}
+                        {metricCard('Ticket promedio', moneyFmt.format(data.promedioTicket))}
+                    </div>
+                    <h4 style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Por método de pago</h4>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                        {(data.porMetodoPago || []).map(m => metricCard(m.metodo, moneyFmt.format(m.total), `${m.cantidad} cobros`))}
+                    </div>
+                    {(data.evolucionDiaria || []).length > 0 && (
+                        <>
+                            <h4 style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Evolución diaria</h4>
+                            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-base)', borderRadius: 12, padding: '1rem', overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                    <thead><tr>
+                                        <th style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--text-muted)' }}>Fecha</th>
+                                        <th style={{ textAlign: 'right', padding: '4px 8px', color: 'var(--text-muted)' }}>Total</th>
+                                    </tr></thead>
+                                    <tbody>
+                                        {data.evolucionDiaria.map(d => (
+                                            <tr key={d.fecha} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                                                <td style={{ padding: '4px 8px', color: 'var(--text-primary)' }}>{d.fecha}</td>
+                                                <td style={{ padding: '4px 8px', textAlign: 'right', color: 'var(--accent)', fontWeight: 700 }}>{moneyFmt.format(d.total)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
+                </>
+            )}
+
+            {data && tab === 'reservas' && (
+                <>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                        {metricCard('Total reservas', data.total)}
+                        {metricCard('Pagadas', data.pagadas)}
+                        {metricCard('Tasa ocupación', `${data.tasaOcupacion}%`)}
+                    </div>
+                    <h4 style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Por estado</h4>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                        {(data.porEstado || []).map(e => metricCard(e.estado, e.cantidad))}
+                    </div>
+                    <h4 style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Por cancha</h4>
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-base)', borderRadius: 12, padding: '1rem', overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                            <thead><tr>
+                                {['ID', 'Tipo', 'Total', 'Confirmadas', 'Canceladas'].map(h => <th key={h} style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--text-muted)' }}>{h}</th>)}
+                            </tr></thead>
+                            <tbody>
+                                {(data.porCancha || []).map(c => (
+                                    <tr key={c.canchaId} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                                        <td style={{ padding: '4px 8px' }}>{c.canchaId}</td>
+                                        <td style={{ padding: '4px 8px' }}>{c.tipCancha}</td>
+                                        <td style={{ padding: '4px 8px', fontWeight: 700 }}>{c.cantidad}</td>
+                                        <td style={{ padding: '4px 8px', color: '#31d94f' }}>{c.confirmadas}</td>
+                                        <td style={{ padding: '4px 8px', color: '#ef4444' }}>{c.canceladas}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            )}
+
+            {data && tab === 'asistencia' && (
+                <>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                        {metricCard('Total registros', data.totalRegistros)}
+                        {metricCard('Presentes', data.totalPresentes)}
+                    </div>
+                    <h4 style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Por clase</h4>
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-base)', borderRadius: 12, padding: '1rem', overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                            <thead><tr>
+                                {['Clase', 'Tipo', 'Total', 'Presentes', 'Ausentes', 'Tasa'].map(h => <th key={h} style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--text-muted)' }}>{h}</th>)}
+                            </tr></thead>
+                            <tbody>
+                                {(data.porClase || []).map(c => (
+                                    <tr key={c.claseId} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                                        <td style={{ padding: '4px 8px' }}>{c.claseId}</td>
+                                        <td style={{ padding: '4px 8px' }}>{c.nombreClase}</td>
+                                        <td style={{ padding: '4px 8px', fontWeight: 700 }}>{c.total}</td>
+                                        <td style={{ padding: '4px 8px', color: '#31d94f' }}>{c.presentes}</td>
+                                        <td style={{ padding: '4px 8px', color: '#ef4444' }}>{c.ausentes}</td>
+                                        <td style={{ padding: '4px 8px', color: 'var(--accent)', fontWeight: 700 }}>{c.tasaAsistencia}%</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            )}
+
+            {data && tab === 'canchas' && (
+                <>
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-base)', borderRadius: 12, padding: '1rem', overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                            <thead><tr>
+                                {['ID', 'Tipo', 'Superficie', 'Estado', 'Dur. máx', 'Reservas', 'Confirmadas', 'Canceladas', 'Ingresos'].map(h => (
+                                    <th key={h} style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--text-muted)' }}>{h}</th>
+                                ))}
+                            </tr></thead>
+                            <tbody>
+                                {(data.canchas || []).map(c => (
+                                    <tr key={c.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                                        <td style={{ padding: '4px 8px' }}>{c.id}</td>
+                                        <td style={{ padding: '4px 8px' }}>{c.tipo}</td>
+                                        <td style={{ padding: '4px 8px' }}>{c.superficie}</td>
+                                        <td style={{ padding: '4px 8px' }}>{c.estado}</td>
+                                        <td style={{ padding: '4px 8px' }}>{c.duracionMaxima} min</td>
+                                        <td style={{ padding: '4px 8px', fontWeight: 700 }}>{c.totalReservas}</td>
+                                        <td style={{ padding: '4px 8px', color: '#31d94f' }}>{c.confirmadas}</td>
+                                        <td style={{ padding: '4px 8px', color: '#ef4444' }}>{c.canceladas}</td>
+                                        <td style={{ padding: '4px 8px', color: 'var(--accent)', fontWeight: 700 }}>{moneyFmt.format(c.ingresoTotal)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            )}
+        </section>
+    );
+}
+
 function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
     const [clases, setClases] = useState([]);
     const [users, setUsers] = useState([]);

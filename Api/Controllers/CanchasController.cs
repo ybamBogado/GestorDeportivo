@@ -3,8 +3,10 @@ using Application.Interfaces;
 using Application.Queries;
 using Application.Handlers;
 using Application.Commands;
+using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -15,10 +17,14 @@ namespace Api.Controllers
     public class CanchasController : ControllerBase
     {
         private readonly IGetCanchaCatalogQueryHandler _getCanchaCatalogQueryHandler;
+        private readonly AppDbContext _context;
 
-        public CanchasController(IGetCanchaCatalogQueryHandler getCanchaCatalogQueryHandler)
+        public CanchasController(
+            IGetCanchaCatalogQueryHandler getCanchaCatalogQueryHandler,
+            AppDbContext context)
         {
             _getCanchaCatalogQueryHandler = getCanchaCatalogQueryHandler;
+            _context = context;
         }
 
         /// <summary>
@@ -57,5 +63,44 @@ namespace Api.Controllers
             var id = await handler.HandleAsync(command);
             return CreatedAtAction(nameof(GetById), new { id }, "Cancha creada con éxito");
         }
+
+        /// <summary>
+        /// RF-08: Modifica los datos de una cancha existente.
+        /// </summary>
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateCanchaRequest request)
+        {
+            var cancha = await _context.Canchas.FindAsync(id);
+            if (cancha == null) return NotFound("Cancha no encontrada");
+
+            cancha.Superficie = request.Superficie ?? cancha.Superficie;
+            cancha.Capacidad  = request.Capacidad > 0 ? request.Capacidad : cancha.Capacidad;
+            cancha.Estado     = request.Estado ?? cancha.Estado;
+
+            await _context.SaveChangesAsync();
+            return Ok(cancha);
+        }
+
+        /// <summary>
+        /// RF-10: Elimina (soft-delete) una cancha. La marca como "Inactiva" en lugar de borrarla.
+        /// </summary>
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var cancha = await _context.Canchas.FindAsync(id);
+            if (cancha == null) return NotFound("Cancha no encontrada");
+
+            // Soft-delete: marcar como Inactiva para preservar historial de reservas
+            cancha.Estado = "Inactiva";
+            await _context.SaveChangesAsync();
+            return Ok("Cancha desactivada correctamente.");
+        }
+    }
+
+    public class UpdateCanchaRequest
+    {
+        public string? Superficie { get; set; }
+        public int     Capacidad  { get; set; }
+        public string? Estado     { get; set; }
     }
 }
