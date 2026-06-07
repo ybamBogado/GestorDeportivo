@@ -139,6 +139,7 @@ builder.Services.AddScoped<UpdateReservaEstadoCommandHandler>();
 builder.Services.AddScoped<IGetCanchaCatalogQueryHandler, GetCanchaCatalogQueryHandler>();
 builder.Services.AddScoped<GetCanchaByIdQueryHandler>();
 builder.Services.AddScoped<CreateCanchaCommandHandler>();
+builder.Services.AddScoped<GetReservasQueryHandler>();
 
 // ─────────────────────────────────────────────────────────────────────────────
 var app = builder.Build();

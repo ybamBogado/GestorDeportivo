@@ -5,16 +5,25 @@ const AuthContext = createContext();
 const STORAGE_KEY = 'ticket_user';
 
 export const AuthProvider = ({ children }) => {
-    const [user,    setUser]    = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
+    const [user, setUser] = useState(() => {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
-            try { setUser(JSON.parse(saved)); } catch { /* corrupt data */ }
+            try {
+                const parsed = JSON.parse(saved);
+                if (parsed && typeof parsed === 'object' && parsed.email) {
+                    return parsed;
+                }
+                localStorage.removeItem(STORAGE_KEY);
+                return null;
+            } catch {
+                localStorage.removeItem(STORAGE_KEY);
+                return null;
+            }
         }
-        setLoading(false);
-    }, []);
+        return null;
+    });
+    const [loading, setLoading] = useState(false);
+
 
     const login = (userData) => {
         setUser(userData);

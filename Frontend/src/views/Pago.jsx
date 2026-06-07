@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import Loader from '../components/Loader';
@@ -26,6 +27,13 @@ function formatExpiry(value) {
 export default function Pago() {
     const { cobroId } = useParams();
     const navigate    = useNavigate();
+    const { user, loading: authLoading } = useAuth();
+
+    useEffect(() => {
+        if (!authLoading && user?.rol === 'Administrador') {
+            navigate('/admin');
+        }
+    }, [user, authLoading, navigate]);
 
     const [cobro, setCobro]         = useState(null);
     const [loading, setLoading]     = useState(true);

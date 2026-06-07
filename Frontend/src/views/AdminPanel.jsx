@@ -10,23 +10,30 @@ const todayInput = () => new Date().toISOString().split('T')[0];
 
 const moneyFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5071/api/v1';
+
 const menuItems = [
-    { id: 'usuarios', label: 'Gestión de usuarios' },
-    { id: 'canchas', label: 'Gestión de canchas' },
-    { id: 'reservas', label: 'Reservas y turnos' },
-    { id: 'pagos', label: 'Pagos y recibos' },
-    { id: 'ligas', label: 'Ligas y torneos' },
-    { id: 'clases', label: 'Clases y entren.' },
-    { id: 'reportes', label: 'Reportes' }
+    { id: 'usuarios', label: 'Gestión de usuarios', icon: 'bi bi-people-fill' },
+    { id: 'canchas', label: 'Gestión de canchas', icon: 'bi bi-grid-3x3-gap' },
+    { id: 'reservas', label: 'Reservas y turnos', icon: 'bi bi-calendar-check' },
+    { id: 'pagos', label: 'Pagos y recibos', icon: 'bi bi-credit-card' },
+    { id: 'ligas', label: 'Ligas y torneos', icon: 'bi bi-trophy' },
+    { id: 'clases', label: 'Clases y entren.', icon: 'bi bi-journal-text' },
+    { id: 'reportes', label: 'Reportes', icon: 'bi bi-bar-chart-line' }
 ];
 
 const statusFilters = ['Todas', 'Pendiente', 'Confirmada', 'Cancelada'];
 
 export default function AdminPanel() {
-    const { user, logout }       = useAuth();
+    const { user, logout, loading: authLoading }       = useAuth();
     const { theme, toggleTheme } = useTheme();
     const navigate               = useNavigate();
     const { notify }             = useToast();
+
+    const setMessage = (msg) => {
+        if (!msg) return;
+        notify(msg, msg.toLowerCase().includes('error') ? 'error' : 'success');
+    };
 
     const [activeSection, setActiveSection] = useState('reservas');
     const [selectedDate,  setSelectedDate]  = useState(todayInput());
@@ -95,8 +102,9 @@ export default function AdminPanel() {
     }, [selectedDate, statusFilter]);
 
     useEffect(() => {
+        if (authLoading) return;
         if (!user || user.rol !== 'Administrador') navigate('/');
-    }, [user, navigate]);
+    }, [user, authLoading, navigate]);
 
     useEffect(() => {
         fetchAll();
@@ -350,7 +358,7 @@ export default function AdminPanel() {
                             className={activeSection === item.id ? 'active' : ''}
                             onClick={() => setActiveSection(item.id)}
                         >
-                            <span className="menu-icon">{item.icon}</span> {item.label}
+                            <i className={`${item.icon} me-2`}></i> {item.label}
                         </button>
                     ))}
                 </nav>
@@ -825,7 +833,7 @@ export default function AdminPanel() {
                 {activeSection === 'pagos'    && <PagosPanel moneyFmt={moneyFmt} notify={notify} />}
 
                 {activeSection === 'ligas' && (
-                    <LigasTorneosPanel moneyFormatter={moneyFormatter} setMessage={setMessage} API_URL={API_URL} />
+                    <LigasTorneosPanel moneyFormatter={moneyFmt} setMessage={setMessage} API_URL={API_URL} />
                 )}
 
                 {activeSection === 'clases' && (

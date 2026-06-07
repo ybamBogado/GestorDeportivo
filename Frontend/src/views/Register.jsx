@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 import { auth } from '../services/api.js';
 import { isValidEmail, validatePassword } from '../utils/validation.js';
 import { useToast } from '../components/Toast.jsx';
@@ -19,6 +20,16 @@ export default function Register() {
 
     const navigate = useNavigate();
     const { notify } = useToast();
+    const { user, loading: authLoading } = useAuth();
+
+    useEffect(() => {
+        if (!authLoading && user) {
+            if (user.rol === 'Administrador') navigate('/admin');
+            else if (user.rol === 'Empleado') navigate('/employee');
+            else if (user.rol === 'Profesor' || user.rol === 'Entrenador') navigate('/trainer');
+            else navigate('/');
+        }
+    }, [user, authLoading, navigate]);
 
     const validate = () => {
         const errs = {};

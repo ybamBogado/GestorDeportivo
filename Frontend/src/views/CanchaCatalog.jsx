@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
 import Loader from '../components/Loader.jsx';
@@ -18,9 +19,17 @@ function getCanchaImage(tipo) {
 }
 
 export default function CanchaCatalog() {
+    const { user, loading: authLoading } = useAuth();
+    const navigate = useNavigate();
     const [canchas, setCanchas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    useEffect(() => {
+        if (!authLoading && user?.rol === 'Administrador') {
+            navigate('/admin');
+        }
+    }, [user, authLoading, navigate]);
 
     useEffect(() => {
         canchasApi.getAll()

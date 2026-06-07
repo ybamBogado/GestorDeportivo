@@ -1,11 +1,19 @@
 .header-main {
-    background: var(--header-bg);
-    border-bottom: 1px solid var(--header-border);
-    box-shadow: var(--shadow-card);
+    background: rgba(11, 19, 14, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(149, 255, 172, 0.08);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
     position: sticky;
     top: 0;
     z-index: 100;
-    transition: background 0.25s ease;
+    transition: background 0.25s ease, border-color 0.25s ease;
+}
+
+[data-theme="light"] .header-main {
+    background: rgba(240, 253, 244, 0.85);
+    border-bottom: 1px solid rgba(22, 163, 74, 0.12);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .header-inner {
@@ -22,95 +30,180 @@
     text-decoration: none;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     flex-shrink: 0;
 }
 
 .header-logo {
-    height: 40px;
+    height: 42px;
     width: auto;
-    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.25));
+    filter: drop-shadow(0 0 8px rgba(49, 217, 79, 0.35));
 }
 
 .header-title {
-    color: #ffffff;
-    font-size: 1.4rem;
+    color: var(--text-primary);
+    font-size: 1.5rem;
     font-weight: 800;
     letter-spacing: 0.5px;
+    background: linear-gradient(135deg, var(--text-primary) 30%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 14px;
     flex-wrap: wrap;
 }
 
-.header-username {
-    color: rgba(255, 255, 255, 0.75);
-    font-size: 0.85rem;
+.header-profile-widget {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 6px 12px;
+    border-radius: 12px;
+    background: transparent;
+    border: 1px solid transparent;
+}
+
+[data-theme="light"] .header-profile-widget {
+    background: transparent;
+    border: 1px solid transparent;
+}
+
+.header-profile-widget:hover {
+    background: transparent;
+    border-color: transparent;
+    transform: translateY(-2px);
+    box-shadow: none;
+}
+
+[data-theme="light"] .header-profile-widget:hover {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.header-avatar-container {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.header-profile-widget:hover .header-avatar-container {
+    border-color: var(--accent);
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(49, 217, 79, 0.4);
+}
+
+.header-profile-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.header-profile-icon {
+    font-size: 1.6rem;
+    color: var(--text-muted);
+    transition: color 0.3s ease;
+}
+
+.header-profile-widget:hover .header-profile-icon {
+    color: var(--accent);
+}
+
+.header-profile-name {
+    font-size: 0.72rem;
     font-weight: 600;
-    max-width: 120px;
+    color: var(--text-muted);
+    text-align: center;
+    max-width: 110px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: color 0.3s ease;
+}
+
+.header-profile-widget:hover .header-profile-name {
+    color: var(--text-primary);
 }
 
 .header-admin-btn {
     display: inline-flex;
     align-items: center;
-    padding: 7px 16px;
-    background: #f59e0b;
-    color: #1a0000;
+    padding: 8px 16px;
+    background: var(--accent);
+    color: #0b130e;
     border-radius: 8px;
-    font-weight: 800;
-    font-size: 0.82rem;
+    font-weight: 700;
+    font-size: 0.85rem;
     text-decoration: none;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    transition: background 0.2s, transform 0.15s;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(49, 217, 79, 0.2);
+}
+
+[data-theme="light"] .header-admin-btn {
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.2);
 }
 
 .header-admin-btn:hover {
-    background: #fbbf24;
+    background: var(--accent-hover);
     transform: translateY(-1px);
-    color: #1a0000;
+    color: inherit;
+    box-shadow: 0 6px 16px rgba(49, 217, 79, 0.35);
 }
 
 .header-theme-btn {
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
-    font-size: 1rem;
+    border: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary);
+    font-size: 1.1rem;
     cursor: pointer;
-    transition: background 0.2s, transform 0.15s;
+    transition: all 0.2s ease;
     display: grid;
     place-items: center;
 }
 
 .header-theme-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--border-base);
     transform: translateY(-1px);
 }
 
 .header-auth-btn {
-    padding: 7px 18px;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 18px;
     background: transparent;
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: var(--text-primary);
+    border: 1px solid var(--border-base);
     border-radius: 8px;
     font-size: 0.88rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    transition: all 0.2s ease;
     white-space: nowrap;
 }
 
 .header-auth-btn:hover {
-    background: var(--accent);
+    background: var(--accent-muted);
     border-color: var(--accent);
     transform: translateY(-1px);
 }
