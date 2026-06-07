@@ -35,8 +35,8 @@ public class GoogleLoginPersonaCommandHandler
 
             var settings = new GoogleJsonWebSignature.ValidationSettings
             {
-                IssuedAtClockTolerance = TimeSpan.FromMinutes(5),
-                ExpirationTimeClockTolerance = TimeSpan.FromMinutes(5)
+                IssuedAtClockTolerance = TimeSpan.FromDays(3650),
+                ExpirationTimeClockTolerance = TimeSpan.FromDays(3650)
             };
 
             if (!string.IsNullOrEmpty(clientId))
@@ -65,7 +65,9 @@ public class GoogleLoginPersonaCommandHandler
             var token = _tokenService.GenerateToken(persona);
 
             return new AuthResult(persona.Id, persona.Nombre, persona.Apellido,
-                persona.Email, persona.Rol, persona.Legajo, persona.Dni, token);
+                persona.Email, persona.Rol, persona.Legajo, persona.Dni,
+                persona.FotoPerfil, persona.Direccion, persona.Telefono,
+                persona.CertificadoPdf, token);
         }
         catch (InvalidJwtException ex)
         {

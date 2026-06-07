@@ -167,6 +167,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseStaticFiles();
 app.UseCors("FrontendPolicy");
 app.UseRateLimiter();
 app.UseAuthentication();

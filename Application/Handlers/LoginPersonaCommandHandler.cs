@@ -30,6 +30,8 @@ public class LoginPersonaCommandHandler
         var token = _tokenService.GenerateToken(persona);
 
         return new AuthResult(persona.Id, persona.Nombre, persona.Apellido,
-            persona.Email, persona.Rol, persona.Legajo, persona.Dni, token);
+            persona.Email, persona.Rol, persona.Legajo, persona.Dni,
+            persona.FotoPerfil, persona.Direccion, persona.Telefono,
+            persona.CertificadoPdf, token);
     }
 }

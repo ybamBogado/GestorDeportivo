@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../components/Toast.jsx';
 import { users as usersApi } from '../services/api.js';
+import ConfirmModal from '../components/ConfirmModal.jsx';
 import './TrainerPanel.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5071/api/v1';
@@ -13,6 +14,20 @@ export default function TrainerPanel() {
     const { theme, toggleTheme } = useTheme();
     const navigate               = useNavigate();
     const { notify }             = useToast();
+
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+
+    const showConfirm = (message, onConfirm, title = 'Confirmación') => {
+        setConfirmConfig({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmConfig(c => ({ ...c, isOpen: false }));
+            }
+        });
+    };
 
     const [activeSection, setActiveSection] = useState('clases');
     const [savingProfile, setSavingProfile] = useState(false);
@@ -82,11 +97,27 @@ export default function TrainerPanel() {
     };
 
     const handleRemoveAvatar = () => {
-        if (window.confirm('¿Deseas quitar tu foto de perfil?')) {
-            const updatedUser = { ...user, fotoPerfil: null };
-            login(updatedUser);
-            notify('Foto de perfil eliminada', 'success');
-        }
+        showConfirm('¿Deseas quitar tu foto de perfil?', async () => {
+            try {
+                await usersApi.update(user.id, {
+                    id: user.id,
+                    email: user.email,
+                    rol: user.rol || 'Entrenador',
+                    nombre: user.nombre,
+                    apellido: user.apellido,
+                    dni: Number(user.dni || 0),
+                    legajo: Number(user.legajo || 0),
+                    fotoPerfil: 'REMOVE',
+                    direccion: user.direccion || '',
+                    telefono: user.telefono || ''
+                });
+                const updatedUser = { ...user, fotoPerfil: null };
+                login(updatedUser);
+                notify('Foto de perfil eliminada', 'success');
+            } catch (err) {
+                notify('Error al eliminar foto de perfil: ' + err.message, 'error');
+            }
+        });
     };
 
     const handleApplyCrop = () => {
@@ -672,6 +703,13 @@ export default function TrainerPanel() {
                         </div>
                     )}
                 </section>
+                <ConfirmModal
+                    isOpen={confirmConfig.isOpen}
+                    title={confirmConfig.title}
+                    message={confirmConfig.message}
+                    onConfirm={confirmConfig.onConfirm}
+                    onCancel={() => setConfirmConfig(c => ({ ...c, isOpen: false }))}
+                />
             </section>
         </main>
     );
