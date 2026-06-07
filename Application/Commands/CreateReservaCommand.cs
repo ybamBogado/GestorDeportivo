@@ -9,5 +9,7 @@ namespace Application.Commands
         public string HoraFin { get; set; } = string.Empty;
         public decimal Precio { get; set; }
         public bool Pago { get; set; }
+        /// <summary>tarjeta | transferencia | efectivo</summary>
+        public string? MetodoPago { get; set; }
     }
 }

@@ -60,7 +60,12 @@ export default function AdminPanel() {
     const [users, setUsers] = useState([]);
 
     const [showCanchaForm, setShowCanchaForm] = useState(false);
-    const [canchaForm, setCanchaForm] = useState({ superficie: '', capacidad: 10, tipoCancha: 'Futbol5' });
+    const [canchaForm, setCanchaForm] = useState({ superficie: '', capacidad: 10, tipoCancha: 'Futbol5', duracionMaximaMinutos: 60, precioHora: 4500 });
+
+    // Simulador de pago externo (Rapipago / demo)
+    const [codigoRapipago, setCodigoRapipago] = useState('');
+    const [simulandoPago, setSimulandoPago] = useState(false);
+    const [resultadoSimulacion, setResultadoSimulacion] = useState(null);
 
     const [showReservaForm, setShowReservaForm] = useState(false);
     const [reservaForm, setReservaForm] = useState({
@@ -190,10 +195,37 @@ export default function AdminPanel() {
             await canchasApi.create(canchaForm);
             notify('Cancha creada con éxito', 'success');
             setShowCanchaForm(false);
-            setCanchaForm({ superficie: '', capacidad: 10, tipoCancha: 'Futbol5' });
+            setCanchaForm({ superficie: '', capacidad: 10, tipoCancha: 'Futbol5', duracionMaximaMinutos: 60, precioHora: 4500 });
             fetchAll();
         } catch (err) {
             notify(err.message || 'No se pudo crear la cancha', 'error');
+        }
+    };
+
+    const handleSimularPagoExterno = async () => {
+        if (!codigoRapipago.trim()) {
+            notify('Ingresá el código de pago', 'warning');
+            return;
+        }
+        setSimulandoPago(true);
+        setResultadoSimulacion(null);
+        try {
+            const res = await fetch(`${API_URL}/reservas/simular-pago-externo`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigoPago: codigoRapipago.trim() })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.title || data || 'Error al simular pago');
+            setResultadoSimulacion({ ok: true, mensaje: data.mensaje });
+            notify('✅ Pago simulado con éxito. Reserva confirmada.', 'success');
+            setCodigoRapipago('');
+            fetchAll();
+        } catch (err) {
+            setResultadoSimulacion({ ok: false, mensaje: err.message });
+            notify(err.message, 'error');
+        } finally {
+            setSimulandoPago(false);
         }
     };
 
@@ -510,6 +542,7 @@ export default function AdminPanel() {
                 {/* ── CANCHAS ── */}
                 {activeSection === 'canchas' && (
                     <section className="admin-panel">
+                        {/* Formulario nueva cancha */}
                         <div className="section-actions">
                             <button className="primary-action" onClick={() => setShowCanchaForm(v => !v)}>
                                 {showCanchaForm ? 'Cancelar' : '+ Nueva cancha'}
@@ -517,32 +550,109 @@ export default function AdminPanel() {
                         </div>
                         {showCanchaForm && (
                             <form className="admin-form" onSubmit={handleCreateCancha}>
-                                <input type="text" placeholder="Superficie" value={canchaForm.superficie}
-                                    onChange={e => setCanchaForm(f => ({ ...f, superficie: e.target.value }))} required />
-                                <select value={canchaForm.tipoCancha} onChange={e => setCanchaForm(f => ({ ...f, tipoCancha: e.target.value }))}>
-                                    <option value="Futbol5">Fútbol 5</option>
-                                    <option value="Futbol7">Fútbol 7</option>
-                                    <option value="Futbol11">Fútbol 11</option>
-                                </select>
-                                <input type="number" value={canchaForm.capacidad}
-                                    onChange={e => setCanchaForm(f => ({ ...f, capacidad: parseInt(e.target.value) }))} />
-                                <button type="submit" className="primary-action">Guardar cancha</button>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '12px' }}>
+                                    <div>
+                                        <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Superficie / Nombre</label>
+                                        <input type="text" placeholder="Ej: Cancha Techada Norte" value={canchaForm.superficie}
+                                            onChange={e => setCanchaForm(f => ({ ...f, superficie: e.target.value }))} required />
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Tipo de cancha</label>
+                                        <select value={canchaForm.tipoCancha} onChange={e => setCanchaForm(f => ({ ...f, tipoCancha: e.target.value }))}>
+                                            <option value="Futbol5">Fútbol 5</option>
+                                            <option value="Futbol7">Fútbol 7</option>
+                                            <option value="Futbol11">Fútbol 11</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Capacidad (jugadores)</label>
+                                        <input type="number" min="2" max="30" value={canchaForm.capacidad}
+                                            onChange={e => setCanchaForm(f => ({ ...f, capacidad: parseInt(e.target.value) }))} />
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>⏱ Duración máxima (minutos)</label>
+                                        <input type="number" min="30" max="240" step="15" value={canchaForm.duracionMaximaMinutos}
+                                            onChange={e => setCanchaForm(f => ({ ...f, duracionMaximaMinutos: parseInt(e.target.value) }))}
+                                            placeholder="60" />
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>💰 Precio por hora (ARS)</label>
+                                        <input type="number" min="0" step="100" value={canchaForm.precioHora}
+                                            onChange={e => setCanchaForm(f => ({ ...f, precioHora: parseFloat(e.target.value) }))}
+                                            placeholder="4500" />
+                                    </div>
+                                </div>
+                                <button type="submit" className="primary-action" style={{ marginTop: 8 }}>Guardar cancha</button>
                             </form>
                         )}
+
+                        {/* Tabla de canchas */}
                         <div className="data-table">
                             <table>
-                                <thead><tr><th>ID</th><th>Superficie</th><th>Capacidad</th><th>Estado</th></tr></thead>
+                                <thead><tr><th>ID</th><th>Superficie</th><th>Tipo</th><th>Capacidad</th><th>Duración máx.</th><th>Precio/h</th><th>Estado</th></tr></thead>
                                 <tbody>
                                     {canchas.map(c => (
                                         <tr key={c.id}>
                                             <td>#{c.id}</td>
                                             <td>{c.superficie}</td>
+                                            <td>{c.tipoCancha || '—'}</td>
                                             <td>{c.capacidad} jugadores</td>
+                                            <td>{c.duracionMaximaMinutos || 60} min</td>
+                                            <td>{moneyFmt.format(c.precioHora || 4500)}</td>
                                             <td><span className="pill success">{c.estado}</span></td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+
+                        {/* Simulador de pago externo (Rapipago) — herramienta de demo */}
+                        <div style={{
+                            marginTop: 32, background: 'rgba(234,179,8,0.07)', border: '1px dashed rgba(234,179,8,0.35)',
+                            borderRadius: 16, padding: '24px'
+                        }}>
+                            <h3 style={{ margin: '0 0 4px', color: '#eab308', fontSize: '1rem', fontWeight: 800 }}>
+                                🧪 Herramienta de Demo: Simular Pago Externo (Rapipago)
+                            </h3>
+                            <p style={{ color: '#8ca092', fontSize: '0.85rem', margin: '0 0 16px' }}>
+                                Cuando un usuario elige &quot;Efectivo&quot;, el sistema genera un código de pago (ej. <code>RP-59281</code>).
+                                Ingresá ese código aquí para simular que Rapipago envió la confirmación de cobro y la reserva pase a &quot;Confirmada&quot;.
+                            </p>
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <input
+                                    id="input-codigo-rapipago"
+                                    type="text"
+                                    placeholder="Código Rapipago (ej: RP-59281)"
+                                    value={codigoRapipago}
+                                    onChange={e => setCodigoRapipago(e.target.value.toUpperCase())}
+                                    style={{
+                                        padding: '10px 14px', background: '#0a100c', border: '1px solid rgba(234,179,8,0.4)',
+                                        borderRadius: 10, color: '#eab308', fontWeight: 700, fontSize: '0.95rem',
+                                        letterSpacing: 1, minWidth: 220
+                                    }}
+                                />
+                                <button
+                                    id="btn-simular-pago-externo"
+                                    onClick={handleSimularPagoExterno}
+                                    disabled={simulandoPago}
+                                    style={{
+                                        padding: '10px 20px', background: simulandoPago ? '#444' : '#eab308',
+                                        color: '#0a0a00', border: 'none', borderRadius: 10,
+                                        fontWeight: 800, cursor: simulandoPago ? 'not-allowed' : 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    {simulandoPago ? 'Procesando...' : '⚡ Confirmar Pago'}
+                                </button>
+                            </div>
+                            {resultadoSimulacion && (
+                                <p style={{
+                                    marginTop: 12, fontSize: '0.88rem', fontWeight: 700,
+                                    color: resultadoSimulacion.ok ? '#31d94f' : '#ef4444'
+                                }}>
+                                    {resultadoSimulacion.ok ? '✅' : '❌'} {resultadoSimulacion.mensaje}
+                                </p>
+                            )}
                         </div>
                     </section>
                 )}
@@ -1351,12 +1461,23 @@ function PagosPanel({ moneyFmt, notify }) {
     const [editingCobro, setEditingCobro] = useState(null);
     const [cobroForm, setCobroForm] = useState({ concepto: '', monto: '', descuento: 0, estado: 'Pendiente', metodoPago: '' });
 
+    // Descuentos (solo Admin configura)
+    const [descuentos, setDescuentos] = useState([]);
+    const [showDescuentoForm, setShowDescuentoForm] = useState(false);
+    const [descuentoForm, setDescuentoForm] = useState({ nombre: '', porcentaje: 10, condicion: '', codigoPromocional: '', tipoServicio: 'Cancha', activo: true });
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5071/api/v1';
+
     const fetchAll = async () => {
         setLoading(true);
         try {
-            const [c, r] = await Promise.all([cobrosApi.getAll(), recibosApi.getAll()]);
+            const [c, r, d] = await Promise.all([
+                cobrosApi.getAll(),
+                recibosApi.getAll(),
+                fetch(`${API_URL}/descuentos`).then(res => res.ok ? res.json() : []).catch(() => [])
+            ]);
             setCobros(c);
             setRecibos(r);
+            setDescuentos(d);
         } finally {
             setLoading(false);
         }
@@ -1464,6 +1585,7 @@ function PagosPanel({ moneyFmt, notify }) {
             <div className="pagos-tabs">
                 <button className={tab === 'cobros' ? 'active' : ''} onClick={() => setTab('cobros')}>📋 Cobros</button>
                 <button className={tab === 'recibos' ? 'active' : ''} onClick={() => setTab('recibos')}>🧾 Recibos</button>
+                <button className={tab === 'descuentos' ? 'active' : ''} onClick={() => setTab('descuentos')}>🏷️ Descuentos</button>
             </div>
 
             {tab === 'cobros' && (
@@ -1553,6 +1675,104 @@ function PagosPanel({ moneyFmt, notify }) {
                                 </table>
                             </div>
                         )
+            )}
+
+            {tab === 'descuentos' && (
+                <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0' }}>
+                        <h3 style={{ margin: 0, color: 'var(--text-primary)', fontWeight: 800 }}>Descuentos del Club</h3>
+                        <button className="primary-action" onClick={() => setShowDescuentoForm(v => !v)}>
+                            {showDescuentoForm ? 'Cancelar' : '+ Nuevo Descuento'}
+                        </button>
+                    </div>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 16 }}>
+                        El Empleado puede aplicar estos descuentos al atender clientes en el mostrador. Solo el Administrador puede crearlos o desactivarlos.
+                    </p>
+                    {showDescuentoForm && (
+                        <form className="admin-form" style={{ gridTemplateColumns: 'repeat(2,1fr)', marginBottom: 20 }}
+                            onSubmit={async (e) => {
+                                e.preventDefault();
+                                try {
+                                    const res = await fetch(`${API_URL}/descuentos`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ ...descuentoForm, porcentaje: Number(descuentoForm.porcentaje) })
+                                    });
+                                    if (!res.ok) throw new Error(await res.text());
+                                    notify('Descuento creado con exito', 'success');
+                                    setShowDescuentoForm(false);
+                                    setDescuentoForm({ nombre: '', porcentaje: 10, condicion: '', codigoPromocional: '', tipoServicio: 'Cancha', activo: true });
+                                    fetchAll();
+                                } catch (err) { notify(err.message, 'error'); }
+                            }}
+                        >
+                            <div>
+                                <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Nombre del descuento</label>
+                                <input placeholder="Ej: Equipos de Liga" value={descuentoForm.nombre} onChange={e => setDescuentoForm(f => ({ ...f, nombre: e.target.value }))} required />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Porcentaje (%)</label>
+                                <input type="number" min="1" max="100" value={descuentoForm.porcentaje} onChange={e => setDescuentoForm(f => ({ ...f, porcentaje: e.target.value }))} required />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Condicion</label>
+                                <input placeholder="Ej: Escuelas de futbol afiliadas" value={descuentoForm.condicion} onChange={e => setDescuentoForm(f => ({ ...f, condicion: e.target.value }))} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Codigo Promo (opcional)</label>
+                                <input placeholder="Ej: LIGA2025" value={descuentoForm.codigoPromocional} onChange={e => setDescuentoForm(f => ({ ...f, codigoPromocional: e.target.value.toUpperCase() }))} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Tipo de servicio</label>
+                                <select value={descuentoForm.tipoServicio} onChange={e => setDescuentoForm(f => ({ ...f, tipoServicio: e.target.value }))}>
+                                    <option value="Cancha">Cancha</option>
+                                    <option value="Clase">Clase / Entrenamiento</option>
+                                    <option value="Liga">Liga / Torneo</option>
+                                    <option value="General">General</option>
+                                </select>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                                <button type="submit" className="primary-action" style={{ width: '100%' }}>Guardar descuento</button>
+                            </div>
+                        </form>
+                    )}
+                    <div className="data-table">
+                        <table>
+                            <thead><tr><th>ID</th><th>Nombre</th><th>%</th><th>Servicio</th><th>Condicion</th><th>Codigo Promo</th><th>Estado</th><th>Acciones</th></tr></thead>
+                            <tbody>
+                                {descuentos.length === 0 && (
+                                    <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px 0' }}>No hay descuentos. Crea el primero con el boton de arriba.</td></tr>
+                                )}
+                                {descuentos.map(d => (
+                                    <tr key={d.id}>
+                                        <td>#{d.id}</td>
+                                        <td style={{ fontWeight: 700 }}>{d.nombre}</td>
+                                        <td style={{ color: '#31d94f', fontWeight: 700 }}>{d.porcentaje}%</td>
+                                        <td>{d.tipoServicio || 'General'}</td>
+                                        <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{d.condicion || '\u2014'}</td>
+                                        <td>{d.codigoPromocional ? <code style={{ background: 'rgba(234,179,8,0.12)', color: '#eab308', padding: '2px 6px', borderRadius: 4 }}>{d.codigoPromocional}</code> : '\u2014'}</td>
+                                        <td><span className={`pill ${d.activo ? 'success' : 'neutral'}`}>{d.activo ? 'Activo' : 'Inactivo'}</span></td>
+                                        <td className="table-actions">
+                                            <button
+                                                className={d.activo ? 'danger' : ''}
+                                                onClick={async () => {
+                                                    try {
+                                                        const res = await fetch(`${API_URL}/descuentos/${d.id}/toggle`, { method: 'PUT' });
+                                                        if (!res.ok) throw new Error(await res.text());
+                                                        notify(d.activo ? 'Descuento desactivado' : 'Descuento activado', 'success');
+                                                        fetchAll();
+                                                    } catch(err) { notify(err.message, 'error'); }
+                                                }}
+                                            >
+                                                {d.activo ? 'Desactivar' : 'Activar'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
             )}
         </section>
     );
