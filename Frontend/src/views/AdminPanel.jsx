@@ -943,13 +943,24 @@ export default function AdminPanel() {
                                                                 <button
                                                                     title="Ver ficha detallada"
                                                                     onClick={() => setUserDetailPanel(selectedUser)}
-                                                                    style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(49,217,79,0.15)', border: '1px solid rgba(49,217,79,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.8rem', color: '#31d94f', flexShrink: 0, cursor: 'pointer', transition: 'all 0.2s' }}
-                                                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(49,217,79,0.35)'; e.currentTarget.style.transform = 'scale(1.1)'; }}
-                                                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(49,217,79,0.15)'; e.currentTarget.style.transform = 'scale(1)'; }}
+                                                                    style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(49,217,79,0.15)', border: '2px solid rgba(49,217,79,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.85rem', color: '#31d94f', flexShrink: 0, cursor: 'pointer', transition: 'all 0.2s', overflow: 'hidden', padding: 0 }}
+                                                                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#31d94f'; e.currentTarget.style.transform = 'scale(1.1)'; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(49,217,79,0.3)'; e.currentTarget.style.transform = 'scale(1)'; }}
                                                                 >
-                                                                    {selectedUser.nombre?.[0]?.toUpperCase()}
+                                                                    {selectedUser.fotoPerfil
+                                                                        ? <img src={`http://localhost:5071${selectedUser.fotoPerfil}`} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                                                        : selectedUser.nombre?.[0]?.toUpperCase()
+                                                                    }
                                                                 </button>
-                                                                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{selectedUser.nombre} {selectedUser.apellido}</span>
+                                                                <span
+                                                                    onClick={() => setUserDetailPanel(selectedUser)}
+                                                                    style={{ fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', transition: 'color 0.15s' }}
+                                                                    onMouseEnter={e => e.currentTarget.style.color = '#31d94f'}
+                                                                    onMouseLeave={e => e.currentTarget.style.color = ''}
+                                                                    title="Ver ficha detallada"
+                                                                >
+                                                                    {selectedUser.nombre} {selectedUser.apellido}
+                                                                </span>
                                                             </div>
                                                         </td>
                                                         <td style={{ color: '#a0b4a8', fontSize: '0.85rem' }}>{selectedUser.dni || '—'}</td>
@@ -1146,8 +1157,16 @@ export default function AdminPanel() {
                             <div style={{ padding: '28px 24px 22px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(49,217,79,0.04)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                                     <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                                        <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(49,217,79,0.3), rgba(49,217,79,0.08))', border: '2px solid rgba(49,217,79,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 900, color: '#31d94f', flexShrink: 0 }}>
-                                            {userDetailPanel.nombre?.[0]?.toUpperCase()}
+                                        <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(49,217,79,0.3), rgba(49,217,79,0.08))', border: '2px solid rgba(49,217,79,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 900, color: '#31d94f', flexShrink: 0, overflow: 'hidden' }}>
+                                             {userDetailPanel.fotoPerfil
+                                                 ? <img
+                                                     src={`http://localhost:5071${userDetailPanel.fotoPerfil}`}
+                                                     alt={`${userDetailPanel.nombre} ${userDetailPanel.apellido}`}
+                                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                     onError={e => { e.target.style.display = 'none'; e.target.parentElement.textContent = userDetailPanel.nombre?.[0]?.toUpperCase(); }}
+                                                 />
+                                                 : userDetailPanel.nombre?.[0]?.toUpperCase()
+                                             }
                                         </div>
                                         <div>
                                             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>{userDetailPanel.nombre} {userDetailPanel.apellido}</h3>
