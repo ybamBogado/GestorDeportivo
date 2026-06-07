@@ -158,9 +158,9 @@ namespace Api.Controllers
             {
                 expiracion = metodoPago switch
                 {
-                    "transferencia" => DateTime.Now.AddHours(2),
-                    "efectivo"      => DateTime.Now.AddHours(12),
-                    _               => DateTime.Now.AddMinutes(5),   // tarjeta: 5 mins
+                    "transferencia" => DateTime.UtcNow.AddHours(2),
+                    "efectivo"      => DateTime.UtcNow.AddHours(12),
+                    _               => DateTime.UtcNow.AddMinutes(5),   // tarjeta: 5 mins
                 };
             }
 
@@ -194,7 +194,7 @@ namespace Api.Controllers
                 MontoFinal = precio,
                 Estado = "Pendiente",
                 MetodoPago = string.Empty,
-                Fecha = DateTime.Now
+                Fecha = DateTime.UtcNow
             };
 
             _context.Cobros.Add(cobro);
