@@ -145,13 +145,24 @@ namespace Api.Controllers
                 return Conflict("La cancha está bloqueada por mantenimiento en ese horario.");
 
             // ── Crear la reserva (estado Pendiente + soft-lock) ────────────────
-            var metodoPago = command.MetodoPago ?? "Tarjeta";
-            DateTime expiracion = metodoPago switch
+            var metodoPago = command.MetodoPago ?? "tarjeta";
+            var persona = await _context.Personas.FindAsync(command.PersonaId);
+            var rol = persona?.Rol ?? "Usuario";
+
+            DateTime expiracion;
+            if (rol == "Administrador" || rol == "Empleado")
             {
-                "transferencia" => DateTime.UtcNow.AddHours(2),
-                "efectivo"      => DateTime.UtcNow.AddHours(12),
-                _               => DateTime.UtcNow.AddMinutes(15),   // tarjeta
-            };
+                expiracion = DateTime.MaxValue; // Sin vencimiento automático
+            }
+            else
+            {
+                expiracion = metodoPago switch
+                {
+                    "transferencia" => DateTime.UtcNow.AddHours(2),
+                    "efectivo"      => DateTime.UtcNow.AddHours(12),
+                    _               => DateTime.UtcNow.AddMinutes(5),   // tarjeta: 5 mins
+                };
+            }
 
             string? codigoPago = null;
             if (metodoPago == "efectivo")
@@ -319,11 +330,110 @@ namespace Api.Controllers
             if (vencidas.Any())
                 await _context.SaveChangesAsync();
         }
+        [HttpPut("{id}/metodo-pago")]
+        public async Task<IActionResult> UpdateMetodoPago(int id, [FromBody] UpdateMetodoPagoRequest request)
+        {
+            var reserva = await _context.Reservas.FindAsync(id);
+            if (reserva == null) return NotFound("Reserva no encontrada");
+
+            // Si ya no está pendiente, no deberíamos cambiarlo
+            if (reserva.Estado != "Pendiente") return BadRequest("La reserva no está en estado Pendiente");
+
+            var persona = await _context.Personas.FindAsync(reserva.PersonaId);
+            var rol = persona?.Rol ?? "Usuario";
+
+            reserva.MetodoPago = request.MetodoPago;
+
+            if (rol == "Administrador" || rol == "Empleado")
+            {
+                reserva.FechaExpiracion = DateTime.MaxValue; // Sin vencimiento automático
+            }
+            else
+            {
+                reserva.FechaExpiracion = request.MetodoPago switch
+                {
+                    "transferencia" => DateTime.UtcNow.AddHours(24),
+                    "efectivo"      => DateTime.UtcNow.AddHours(3),
+                    _               => DateTime.UtcNow.AddMinutes(5),
+                };
+            }
+
+            if (request.MetodoPago == "efectivo" && string.IsNullOrEmpty(reserva.CodigoPagoExterno))
+            {
+                reserva.CodigoPagoExterno = $"RP-{new Random().Next(10000, 99999)}";
+            }
+            else if (request.MetodoPago != "efectivo")
+            {
+                reserva.CodigoPagoExterno = null;
+            }
+
+            // Procesar comprobante si es transferencia
+            if (request.MetodoPago == "transferencia" && !string.IsNullOrEmpty(request.ComprobantePdf))
+            {
+                var base64Data = request.ComprobantePdf;
+                if (base64Data.Contains(","))
+                {
+                    base64Data = base64Data.Split(',')[1];
+                }
+
+                try
+                {
+                    var fileBytes = Convert.FromBase64String(base64Data);
+                    var uploadsFolder = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "wwwroot", "uploads", "receipts");
+                    if (!System.IO.Directory.Exists(uploadsFolder))
+                    {
+                        System.IO.Directory.CreateDirectory(uploadsFolder);
+                    }
+
+                    string extension = ".pdf";
+                    if (request.ComprobantePdf.StartsWith("data:image/png")) extension = ".png";
+                    else if (request.ComprobantePdf.StartsWith("data:image/jpeg")) extension = ".jpg";
+                    else if (request.ComprobantePdf.StartsWith("data:image/webp")) extension = ".webp";
+
+                    var fileName = $"comprobante_{reserva.Id}{extension}";
+                    var filePath = System.IO.Path.Combine(uploadsFolder, fileName);
+                    await System.IO.File.WriteAllBytesAsync(filePath, fileBytes);
+
+                    reserva.ComprobantePdf = $"/uploads/receipts/{fileName}";
+                    reserva.Estado = "PendienteVerificacion";
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Error al guardar comprobante: {ex.Message}");
+                    return BadRequest($"Error al procesar el archivo comprobante: {ex.Message}");
+                }
+            }
+
+            // También actualizar el cobro pendiente asociado
+            var cobro = await _context.Cobros.FirstOrDefaultAsync(c => c.ReservaId == id && c.Estado == "Pendiente");
+            if (cobro != null)
+            {
+                cobro.MetodoPago = request.MetodoPago;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                reservaId = reserva.Id,
+                estado = reserva.Estado,
+                metodoPago = reserva.MetodoPago,
+                fechaExpiracion = reserva.FechaExpiracion,
+                codigoPagoExterno = reserva.CodigoPagoExterno,
+                comprobantePdf = reserva.ComprobantePdf
+            });
+        }
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
     public class SimularPagoExternoRequest
     {
         public string CodigoPago { get; set; } = string.Empty;
+    }
+
+    public class UpdateMetodoPagoRequest
+    {
+        public string MetodoPago { get; set; } = "tarjeta";
+        public string? ComprobantePdf { get; set; }
     }
 }

@@ -95,6 +95,50 @@ export default function SelectCancha() {
             .finally(() => setLoading(false));
     }, []);
 
+    const [activeCheckoutCobroId, setActiveCheckoutCobroId] = useState(null);
+
+    useEffect(() => {
+        if (!user) {
+            setActiveCheckoutCobroId(null);
+            return;
+        }
+
+        const checkActiveCheckout = async () => {
+            try {
+                const allReservas = await reservasApi.getAll();
+                const nowMs = new Date().getTime();
+                
+                const pending = allReservas.find(r => {
+                    if (r.personaId !== user.id || r.estado !== 'Pendiente') return false;
+                    const expDate = r.fechaExpiracion;
+                    if (!expDate) return false;
+                    const exp = new Date(expDate + (expDate.endsWith('Z') ? '' : 'Z')).getTime();
+                    return exp > nowMs && (exp - nowMs) <= 15 * 60 * 1000;
+                });
+
+                if (pending) {
+                    const response = await fetch(`http://localhost:5071/api/v1/cobros`);
+                    if (response.ok) {
+                        const allCobros = await response.json();
+                        const cobro = allCobros.find(c => c.reservaId === pending.id);
+                        if (cobro) {
+                            setActiveCheckoutCobroId(cobro.id);
+                            return;
+                        }
+                    }
+                }
+                setActiveCheckoutCobroId(null);
+            } catch (e) {
+                console.error("Error checking active checkout", e);
+            }
+        };
+
+        checkActiveCheckout();
+        const handleUpdate = () => checkActiveCheckout();
+        window.addEventListener('reservaUpdate', handleUpdate);
+        return () => window.removeEventListener('reservaUpdate', handleUpdate);
+    }, [user]);
+
     // Cada vez que cambia la cancha o la fecha, consulta disponibilidad
     useEffect(() => {
         if (!selectedCancha) { setDisponibilidad(null); return; }
@@ -175,6 +219,7 @@ export default function SelectCancha() {
                 pago:       false,
                 metodoPago: 'tarjeta', // default; Pago.jsx puede cambiarlo
             });
+            window.dispatchEvent(new Event('reservaUpdate'));
             navigate(`/pago/${data.cobroId}`);
         } catch (err) {
             setBookingError(err?.message || 'La reserva no pudo procesarse. Intentá de nuevo.');
@@ -276,70 +321,91 @@ export default function SelectCancha() {
 
                                         {bookingError && <div className="booking-detail-error" role="alert">{bookingError}</div>}
 
-                                        <div className="booking-detail-section">
-                                            <label className="booking-detail-label">1. SELECCIONÁ EL DÍA</label>
-                                            <input
-                                                type="date"
-                                                className="booking-detail-date-input"
-                                                value={selectedDate}
-                                                min={todayISO()}
-                                                max={maxDateISO()}
-                                                onChange={e => setSelectedDate(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className="booking-detail-section">
-                                            <label className="booking-detail-label">2. SELECCIONÁ EL HORARIO</label>
-                                            {loadingDisp ? (
-                                                <p style={{color:'#aaa', fontSize:'0.85rem'}}>Cargando horarios disponibles...</p>
-                                            ) : (
-                                            <div className="booking-time-slots">
-                                                {(disponibilidad
-                                                    ? generateTimeSlots(disponibilidad.duracionMaximaMinutos)
-                                                    : generateTimeSlots(60)
-                                                ).map(slot => {
-                                                    const time = slot.start;
-                                                    const ocupado = isSlotOcupado(time);
-                                                    return (
-                                                        <button
-                                                            key={time}
-                                                            type="button"
-                                                            title={ocupado ? 'Este horario ya está reservado' : `Reservar de ${slot.start} a ${slot.end}`}
-                                                            className={[
-                                                                'booking-time-slot',
-                                                                selectedTime === time ? 'booking-time-slot--active' : '',
-                                                                ocupado ? 'booking-time-slot--ocupado' : '',
-                                                            ].join(' ')}
-                                                            onClick={() => !ocupado && setSelectedTime(time)}
-                                                            disabled={ocupado}
-                                                        >
-                                                            {slot.start} - {slot.end}{ocupado ? ' 🔒' : ''}
-                                                        </button>
-                                                    );
-                                                })}
+                                        {activeCheckoutCobroId ? (
+                                            <div className="booking-detail-error" style={{ background: 'rgba(242, 184, 75, 0.1)', border: '1px solid #f2b84b', color: '#f2b84b', padding: '20px', borderRadius: '12px', marginTop: '20px', textAlign: 'center' }}>
+                                                <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: '2rem', display: 'block', marginBottom: '10px' }}></i>
+                                                <h4 style={{ fontWeight: 'bold', margin: '0 0 10px 0' }}>¡Pago Pendiente Activo!</h4>
+                                                <p style={{ fontSize: '0.95rem', margin: '0 0 20px 0', color: 'var(--text-secondary)' }}>Tienes una reserva en proceso de pago. Debes completar la reserva anterior o cancelarla antes de poder seleccionar un nuevo horario.</p>
+                                                <button 
+                                                    type="button" 
+                                                    className="booking-detail-reserve-btn" 
+                                                    style={{ width: '100%', background: '#f2b84b', color: '#000', fontWeight: 'bold' }} 
+                                                    onClick={() => navigate(`/pago/${activeCheckoutCobroId}`)}
+                                                >
+                                                    ⏳ Completar Reserva Activa
+                                                </button>
                                             </div>
-                                            )}
-                                        </div>
+                                        ) : (
+                                            <>
+                                                <div className="booking-detail-section">
+                                                    <label className="booking-detail-label">1. SELECCIONÁ EL DÍA</label>
+                                                    <div className="booking-detail-date-wrapper">
+                                                        <i className="bi bi-calendar-event"></i>
+                                                        <input
+                                                            type="date"
+                                                            className="booking-detail-date-input"
+                                                            value={selectedDate}
+                                                            min={todayISO()}
+                                                            max={maxDateISO()}
+                                                            onChange={e => setSelectedDate(e.target.value)}
+                                                        />
+                                                    </div>
+                                                </div>
 
-                                        <div className="booking-detail-summary">
-                                            <div className="booking-detail-price-row">
-                                                <span>Total a pagar</span>
-                                                <strong className="booking-detail-price">
-                                                    ${(disponibilidad?.precioHora || 4500).toLocaleString('es-AR')}
-                                                </strong>
-                                            </div>
-                                            <button
-                                                className="booking-detail-reserve-btn"
-                                                onClick={handleConfirmReserva}
-                                                disabled={submitting}
-                                            >
-                                                {submitting
-                                                    ? 'Procesando...'
-                                                    : selectedTime
-                                                        ? `RESERVAR PARA LAS ${selectedTime}`
-                                                        : 'ELEGÍ UN HORARIO'}
-                                            </button>
-                                        </div>
+                                                <div className="booking-detail-section">
+                                                    <label className="booking-detail-label">2. SELECCIONÁ EL HORARIO</label>
+                                                    {loadingDisp ? (
+                                                        <p style={{color:'#aaa', fontSize:'0.85rem'}}>Cargando horarios disponibles...</p>
+                                                    ) : (
+                                                    <div className="booking-time-slots">
+                                                        {(disponibilidad
+                                                            ? generateTimeSlots(disponibilidad.duracionMaximaMinutos)
+                                                            : generateTimeSlots(60)
+                                                        ).map(slot => {
+                                                            const time = slot.start;
+                                                            const ocupado = isSlotOcupado(time);
+                                                            return (
+                                                                <button
+                                                                    key={time}
+                                                                    type="button"
+                                                                    title={ocupado ? 'Este horario ya está reservado' : `Reservar de ${slot.start} a ${slot.end}`}
+                                                                    className={[
+                                                                        'booking-time-slot',
+                                                                        selectedTime === time ? 'booking-time-slot--active' : '',
+                                                                        ocupado ? 'booking-time-slot--ocupado' : '',
+                                                                    ].join(' ')}
+                                                                    onClick={() => !ocupado && setSelectedTime(time)}
+                                                                    disabled={ocupado}
+                                                                >
+                                                                    {slot.start} - {slot.end}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="booking-detail-summary">
+                                                    <div className="booking-detail-price-row">
+                                                        <span>Total a pagar</span>
+                                                        <strong className="booking-detail-price">
+                                                            ${(disponibilidad?.precioHora || 4500).toLocaleString('es-AR')}
+                                                        </strong>
+                                                    </div>
+                                                    <button
+                                                        className="booking-detail-reserve-btn"
+                                                        onClick={handleConfirmReserva}
+                                                        disabled={submitting}
+                                                    >
+                                                        {submitting
+                                                            ? 'Procesando...'
+                                                            : selectedTime
+                                                                ? `RESERVAR PARA LAS ${selectedTime}`
+                                                                : 'ELEGÍ UN HORARIO'}
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>

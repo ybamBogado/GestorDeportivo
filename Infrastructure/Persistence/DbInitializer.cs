@@ -16,6 +16,10 @@ public static class DbInitializer
             context.Database.ExecuteSqlRaw(
                 "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PERSONA') AND name = 'CertificadoPdf') " +
                 "ALTER TABLE PERSONA ADD CertificadoPdf NVARCHAR(MAX) NULL;");
+
+            context.Database.ExecuteSqlRaw(
+                "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('RESERVA') AND name = 'ComprobantePdf') " +
+                "ALTER TABLE RESERVA ADD ComprobantePdf NVARCHAR(MAX) NULL;");
         }
         catch (System.Exception ex)
         {

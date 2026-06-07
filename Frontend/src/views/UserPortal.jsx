@@ -17,6 +17,7 @@ export default function UserPortal() {
     const { notify }             = useToast();
 
     const [activeTab, setActiveTab] = useState('reservas');
+    const [selectedReservaEfectivo, setSelectedReservaEfectivo] = useState(null);
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
 
     // Postulation states
@@ -498,6 +499,7 @@ export default function UserPortal() {
                                                             <th>Horario</th>
                                                             <th>Precio</th>
                                                             <th>Estado</th>
+                                                            <th>Método</th>
                                                             <th>Pago</th>
                                                             <th>Acciones</th>
                                                         </tr>
@@ -513,9 +515,12 @@ export default function UserPortal() {
                                                                     <td>{r.horaInicio} – {r.horaFin}</td>
                                                                     <td>{moneyFmt.format(r.precio)}</td>
                                                                     <td>
-                                                                        <span className={`pill ${r.estado === 'Confirmada' ? 'success' : r.estado === 'Pendiente' ? 'pending' : 'danger'}`}>
-                                                                            {r.estado}
+                                                                        <span className={`pill ${r.estado === 'Confirmada' ? 'success' : (r.estado === 'Pendiente' || r.estado === 'PendienteVerificacion') ? 'pending' : 'danger'}`}>
+                                                                            {r.estado === 'PendienteVerificacion' ? 'Pendiente Verificación' : r.estado}
                                                                         </span>
+                                                                    </td>
+                                                                    <td style={{ textTransform: 'capitalize' }}>
+                                                                        {r.metodoPago || '—'}
                                                                     </td>
                                                                     <td>
                                                                         <span className={`pill ${r.pago ? 'success' : 'danger'}`}>
@@ -523,13 +528,16 @@ export default function UserPortal() {
                                                                         </span>
                                                                     </td>
                                                                     <td className="table-actions">
-                                                                        {!r.pago && cobroAsociado && (
-                                                                            <button onClick={() => navigate(`/pago/${cobroAsociado.id}`)} style={{ background: '#31d94f', color: '#000' }}>
-                                                                                💳 Pagar
+                                                                        {!r.pago && cobroAsociado && r.metodoPago === 'efectivo' && (
+                                                                            <button onClick={() => setSelectedReservaEfectivo(r)} style={{ background: '#f2b84b', color: '#000' }}>
+                                                                                💵 Ver Comprobante
                                                                             </button>
                                                                         )}
-                                                                        {r.pago && cobroAsociado && (
-                                                                            <span style={{ fontSize: '0.85rem', color: '#8ca092' }}>Completado</span>
+                                                                        {!r.pago && r.estado === 'PendienteVerificacion' && (
+                                                                            <span style={{ fontSize: '0.85rem', color: '#f2b84b', fontWeight: 'bold' }}>⏳ En verificación</span>
+                                                                        )}
+                                                                        {r.pago && (
+                                                                            <span style={{ fontSize: '0.85rem', color: '#8ca092' }}>Completado ✓</span>
                                                                         )}
                                                                     </td>
                                                                 </tr>
@@ -976,6 +984,38 @@ export default function UserPortal() {
                     onConfirm={confirmConfig.onConfirm}
                     onCancel={() => setConfirmConfig(c => ({ ...c, isOpen: false }))}
                 />
+
+                {/* MODAL DE COMPROBANTE EFECTIVO */}
+                {selectedReservaEfectivo && (
+                    <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                        <div className="modal-content" style={{ background: 'var(--bg-card)', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '400px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                            <h3 style={{ marginBottom: '15px', color: 'var(--text-primary)' }}>💵 Comprobante de Pago</h3>
+                            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
+                                Muestra este código en mostrador o en cualquier sucursal Rapipago / PagoFácil.
+                            </p>
+                            
+                            <div style={{ background: 'var(--bg-app)', padding: '20px', borderRadius: '8px', border: '1px dashed var(--accent)', marginBottom: '20px' }}>
+                                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '5px' }}>Código de Pago</div>
+                                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--accent)', letterSpacing: '2px' }}>
+                                    {selectedReservaEfectivo.codigoPagoExterno || 'Generando...'}
+                                </div>
+                            </div>
+                            
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '1rem', color: 'var(--text-primary)' }}>
+                                <span>Total a pagar:</span>
+                                <strong style={{ color: 'var(--accent)' }}>{moneyFmt.format(selectedReservaEfectivo.precio)}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                <span>Vence:</span>
+                                <span>{new Date(selectedReservaEfectivo.fechaExpiracion).toLocaleString('es-AR')}</span>
+                            </div>
+
+                            <button onClick={() => setSelectedReservaEfectivo(null)} style={{ background: 'transparent', border: '1px solid var(--text-secondary)', color: 'var(--text-primary)', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', width: '100%', fontWeight: 'bold' }}>
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

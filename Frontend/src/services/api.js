@@ -54,6 +54,8 @@ export const reservas = {
     },
     create:       (data)        => request('/reservas',             { method: 'POST', body: JSON.stringify(data) }),
     updateEstado: (id, estado)  => request(`/reservas/${id}/estado`, { method: 'PUT',  body: JSON.stringify({ id, estado }) }),
+    updateMetodoPago: (id, metodoPago, comprobantePdf) => request(`/reservas/${id}/metodo-pago`, { method: 'PUT', body: JSON.stringify({ metodoPago, comprobantePdf }) }),
+    cancelar:     (id)          => request(`/reservas/${id}/cancelar`, { method: 'POST' }),
 };
 
 // ─── Cobros ────────────────────────────────────────────────────────────────────
