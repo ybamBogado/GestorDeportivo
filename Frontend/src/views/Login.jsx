@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { GoogleLogin } from '@react-oauth/google';
@@ -12,11 +12,23 @@ export default function Login() {
     const [loading, setLoading]   = useState(false);
 
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { user, login, loading: authLoading } = useAuth();
+
+    useEffect(() => {
+        if (!authLoading && user) {
+            if (user.rol === 'Administrador') navigate('/admin');
+            else if (user.rol === 'Empleado') navigate('/employee');
+            else if (user.rol === 'Profesor' || user.rol === 'Entrenador') navigate('/trainer');
+            else navigate('/');
+        }
+    }, [user, authLoading, navigate]);
 
     const redirectAfterLogin = (userData) => {
         login(userData);
-        navigate(userData.rol === 'Administrador' ? '/admin' : '/');
+        if (userData.rol === 'Administrador') navigate('/admin');
+        else if (userData.rol === 'Empleado') navigate('/employee');
+        else if (userData.rol === 'Profesor' || userData.rol === 'Entrenador') navigate('/trainer');
+        else navigate('/');
     };
 
     const handleSubmit = async (e) => {

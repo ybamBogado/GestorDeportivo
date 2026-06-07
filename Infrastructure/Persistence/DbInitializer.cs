@@ -52,6 +52,48 @@ public static class DbInitializer
                 Rol = "Administrador"
             });
 
+            personas.Add(new Empleado
+            {
+                Nombre = "Carlos",
+                Apellido = "Empleado",
+                Email = "empleado@wil.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123", 12),
+                Rol = "Empleado",
+                Area = "Administración",
+                Turno = "Mañana"
+            });
+
+            personas.Add(new Profesor
+            {
+                Nombre = "Martin",
+                Apellido = "Profesor",
+                Email = "profesor@wil.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123", 12),
+                Rol = "Profesor",
+                Certificacion = true,
+                FechaVencimientoCertificacion = System.DateTime.UtcNow.AddYears(1)
+            });
+
+            personas.Add(new Entrenador
+            {
+                Nombre = "Roman",
+                Apellido = "Entrenador",
+                Email = "entrenador@wil.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123", 12),
+                Rol = "Entrenador",
+                Certificado = true,
+                FechaVencimientoCertificacion = System.DateTime.UtcNow.AddYears(1)
+            });
+
+            personas.Add(new Usuario
+            {
+                Nombre = "Diego",
+                Apellido = "Usuario",
+                Email = "usuario@wil.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123", 12),
+                Rol = "Usuario"
+            });
+
             context.Personas.AddRange(personas);
             context.SaveChanges();
         }

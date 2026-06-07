@@ -22,7 +22,13 @@ function todayISO() {
 export default function CanchaDetail() {
     const { canchaId } = useParams();
     const navigate     = useNavigate();
-    const { user }     = useAuth();
+    const { user, loading: authLoading } = useAuth();
+
+    useEffect(() => {
+        if (!authLoading && user?.rol === 'Administrador') {
+            navigate('/admin');
+        }
+    }, [user, authLoading, navigate]);
 
     const [cancha, setCancha]           = useState(null);
     const [loading, setLoading]         = useState(true);

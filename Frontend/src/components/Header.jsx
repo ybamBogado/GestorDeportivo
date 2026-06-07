@@ -17,6 +17,12 @@ export default function Header() {
         }
     };
 
+    const displayUsername = user && typeof user === 'object'
+        ? (user.nombre && user.nombre !== 'None' && user.nombre !== 'None2'
+            ? `${user.nombre} ${user.apellido || ''}`
+            : (user.email ? user.email.split('@')[0] : ''))
+        : '';
+
     return (
         <header className="header-main">
             <div className="header-inner">
@@ -24,18 +30,25 @@ export default function Header() {
                     <img src="/logo.png" alt="Gol Ahora Logo" className="header-logo" />
                     <span className="header-title">Gol Ahora</span>
                 </Link>
-
                 <div className="header-actions">
-                    {user && user.rol === 'Administrador' && (
-                        <Link to="/admin" className="header-admin-btn">
-                            Panel Admin
-                        </Link>
-                    )}
-
                     {user && (
-                        <span className="header-username" title={user.email}>
-                            {user.nombre}
-                        </span>
+                        <Link to={
+                            user.rol === 'Administrador' ? '/admin' :
+                            user.rol === 'Empleado' ? '/employee' :
+                            (user.rol === 'Profesor' || user.rol === 'Entrenador') ? '/trainer' :
+                            '/my-portal'
+                        } className="header-profile-widget" title="Ir a mi panel/portal">
+                            <div className="header-avatar-container">
+                                {user.fotoPerfil ? (
+                                    <img src={user.fotoPerfil} alt="Avatar" className="header-profile-avatar" />
+                                ) : (
+                                    <i className="bi bi-person-circle header-profile-icon"></i>
+                                )}
+                            </div>
+                            <span className="header-profile-name">
+                                {displayUsername}
+                            </span>
+                        </Link>
                     )}
 
                     <button
@@ -44,11 +57,25 @@ export default function Header() {
                         aria-label={`Cambiar a modo ${theme === 'dark' ? 'claro' : 'oscuro'}`}
                         title={`Modo ${theme === 'dark' ? 'claro' : 'oscuro'}`}
                     >
-                        {theme === 'dark' ? '☀' : '☾'}
+                        {theme === 'dark' ? (
+                            <i className="bi bi-sun-fill" style={{ color: '#fbbf24' }}></i>
+                        ) : (
+                            <i className="bi bi-moon-stars-fill" style={{ color: '#3b82f6' }}></i>
+                        )}
                     </button>
 
                     <button className="header-auth-btn" onClick={handleAuthClick}>
-                        {user ? 'Cerrar Sesión' : 'Iniciar Sesión'}
+                        {user ? (
+                            <>
+                                <i className="bi bi-box-arrow-right me-2"></i>
+                                Cerrar Sesión
+                            </>
+                        ) : (
+                            <>
+                                <i className="bi bi-box-arrow-in-right me-2"></i>
+                                Iniciar Sesión
+                            </>
+                        )}
                     </button>
                 </div>
             </div>
