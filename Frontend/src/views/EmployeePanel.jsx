@@ -258,7 +258,60 @@ export default function EmployeePanel() {
     };
 
     const [showCanchaForm, setShowCanchaForm] = useState(false);
-    const [canchaForm, setCanchaForm] = useState({ superficie: '', capacidad: 10, tipoCancha: 'Futbol5' });
+    const [canchaForm, setCanchaForm] = useState({ superficie: '', capacidad: 10, tipoCancha: 'Futbol5', duracionMaximaMinutos: 60, precioHora: 4500 });
+
+    // Bloqueos de mantenimiento
+    const [bloqueos, setBloqueos] = useState([]);
+    const [loadingBloqueos, setLoadingBloqueos] = useState(false);
+    const [showBloqueoForm, setShowBloqueoForm] = useState(false);
+    const [bloqueoForm, setBloqueoForm] = useState({ canchaId: '', fechaHoraInicio: '', fechaHoraFin: '', motivo: '' });
+
+    const fetchBloqueos = async () => {
+        setLoadingBloqueos(true);
+        try {
+            const res = await fetch(`${API_URL}/canchas/bloqueos`);
+            if (res.ok) setBloqueos(await res.json());
+        } catch { /* silencioso */ }
+        finally { setLoadingBloqueos(false); }
+    };
+
+    const handleCrearBloqueo = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await fetch(`${API_URL}/canchas/${bloqueoForm.canchaId}/bloquear`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fechaHoraInicio: new Date(bloqueoForm.fechaHoraInicio).toISOString(),
+                    fechaHoraFin:    new Date(bloqueoForm.fechaHoraFin).toISOString(),
+                    motivo:          bloqueoForm.motivo || 'Mantenimiento'
+                })
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.title || 'Error al crear bloqueo');
+            }
+            notify('Bloqueo de mantenimiento creado', 'success');
+            setShowBloqueoForm(false);
+            setBloqueoForm({ canchaId: '', fechaHoraInicio: '', fechaHoraFin: '', motivo: '' });
+            await Promise.all([fetchAll(), fetchBloqueos()]);
+        } catch (err) {
+            notify(err.message, 'error');
+        }
+    };
+
+    const handleDesactivarBloqueo = (bloqueoId) => {
+        showConfirm('Desactivar este bloqueo? La cancha volvera a estar disponible en ese horario.', async () => {
+            try {
+                const res = await fetch(`${API_URL}/canchas/bloqueos/${bloqueoId}/desactivar`, { method: 'PUT' });
+                if (!res.ok) throw new Error('No se pudo desactivar');
+                notify('Bloqueo desactivado', 'success');
+                fetchBloqueos();
+            } catch (err) {
+                notify(err.message, 'error');
+            }
+        });
+    };
 
     const [showReservaForm, setShowReservaForm] = useState(false);
     const [reservaForm, setReservaForm] = useState({
@@ -308,6 +361,7 @@ export default function EmployeePanel() {
 
     useEffect(() => {
         fetchAll();
+        fetchBloqueos();
     }, [fetchAll]);
 
     const reservasByCancha = useMemo(() => {
@@ -346,9 +400,9 @@ export default function EmployeePanel() {
         e.preventDefault();
         try {
             await canchasApi.create(canchaForm);
-            notify('Cancha creada con éxito', 'success');
+            notify('Cancha creada con exito', 'success');
             setShowCanchaForm(false);
-            setCanchaForm({ superficie: '', capacidad: 10, tipoCancha: 'Futbol5' });
+            setCanchaForm({ superficie: '', capacidad: 10, tipoCancha: 'Futbol5', duracionMaximaMinutos: 60, precioHora: 4500 });
             fetchAll();
         } catch (err) {
             notify(err.message || 'No se pudo crear la cancha', 'error');
@@ -629,39 +683,129 @@ export default function EmployeePanel() {
                 {/* ── CANCHAS ── */}
                 {activeSection === 'canchas' && (
                     <section className="admin-panel">
-                        <div className="section-actions">
-                            <button className="primary-action" onClick={() => setShowCanchaForm(v => !v)}>
-                                {showCanchaForm ? 'Cancelar' : '+ Nueva cancha'}
-                            </button>
-                        </div>
-                        {showCanchaForm && (
-                            <form className="admin-form" onSubmit={handleCreateCancha}>
-                                <input type="text" placeholder="Superficie" value={canchaForm.superficie}
-                                    onChange={e => setCanchaForm(f => ({ ...f, superficie: e.target.value }))} required />
-                                <select value={canchaForm.tipoCancha} onChange={e => setCanchaForm(f => ({ ...f, tipoCancha: e.target.value }))}>
-                                    <option value="Futbol5">Fútbol 5</option>
-                                    <option value="Futbol7">Fútbol 7</option>
-                                    <option value="Futbol11">Fútbol 11</option>
-                                </select>
-                                <input type="number" value={canchaForm.capacidad}
-                                    onChange={e => setCanchaForm(f => ({ ...f, capacidad: parseInt(e.target.value) }))} />
-                                <button type="submit" className="primary-action">Guardar cancha</button>
-                            </form>
-                        )}
-                        <div className="data-table">
+                        {/* Vista operacional de canchas */}
+                        <div className="data-table" style={{ marginBottom: 32 }}>
+                            <h3 style={{ margin: '0 0 16px', color: 'var(--text-primary)', fontWeight: 800 }}>Estado de canchas</h3>
                             <table>
-                                <thead><tr><th>ID</th><th>Superficie</th><th>Capacidad</th><th>Estado</th></tr></thead>
+                                <thead><tr><th>ID</th><th>Nombre</th><th>Tipo</th><th>Duración máx.</th><th>Precio/h</th><th>Estado</th></tr></thead>
                                 <tbody>
                                     {canchas.map(c => (
                                         <tr key={c.id}>
                                             <td>#{c.id}</td>
                                             <td>{c.superficie}</td>
-                                            <td>{c.capacidad} jugadores</td>
-                                            <td><span className="pill success">{c.estado}</span></td>
+                                            <td>{c.tipoCancha || '—'}</td>
+                                            <td>{c.duracionMaximaMinutos || 60} min</td>
+                                            <td>{moneyFmt.format(c.precioHora || 4500)}</td>
+                                            <td><span className={`pill ${c.estado === 'Disponible' ? 'success' : 'danger'}`}>{c.estado}</span></td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+
+                        {/* Panel de bloqueos de mantenimiento */}
+                        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 24 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                <h3 style={{ margin: 0, color: 'var(--text-primary)', fontWeight: 800 }}>
+                                    Bloqueos de Mantenimiento
+                                </h3>
+                                <button
+                                    id="btn-nuevo-bloqueo"
+                                    className="primary-action"
+                                    onClick={() => { setShowBloqueoForm(v => !v); fetchBloqueos(); }}
+                                >
+                                    {showBloqueoForm ? 'Cancelar' : '+ Bloquear horario'}
+                                </button>
+                            </div>
+
+                            {showBloqueoForm && (
+                                <form className="admin-form" onSubmit={handleCrearBloqueo} style={{ marginBottom: 24 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
+                                        <div>
+                                            <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Cancha</label>
+                                            <select
+                                                id="select-cancha-bloqueo"
+                                                value={bloqueoForm.canchaId}
+                                                onChange={e => setBloqueoForm(f => ({ ...f, canchaId: e.target.value }))}
+                                                required
+                                            >
+                                                <option value="">Selecciona la cancha...</option>
+                                                {canchas.map(c => (
+                                                    <option key={c.id} value={c.id}>{c.superficie} ({c.tipoCancha || 'Cancha'})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Motivo</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Ej: Reparacion del cesped"
+                                                value={bloqueoForm.motivo}
+                                                onChange={e => setBloqueoForm(f => ({ ...f, motivo: e.target.value }))}
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Inicio del bloqueo</label>
+                                            <input
+                                                id="input-bloqueo-inicio"
+                                                type="datetime-local"
+                                                value={bloqueoForm.fechaHoraInicio}
+                                                onChange={e => setBloqueoForm(f => ({ ...f, fechaHoraInicio: e.target.value }))}
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Fin del bloqueo</label>
+                                            <input
+                                                id="input-bloqueo-fin"
+                                                type="datetime-local"
+                                                value={bloqueoForm.fechaHoraFin}
+                                                onChange={e => setBloqueoForm(f => ({ ...f, fechaHoraFin: e.target.value }))}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <button type="submit" className="primary-action" style={{ marginTop: 8 }}>
+                                        Crear bloqueo de mantenimiento
+                                    </button>
+                                </form>
+                            )}
+
+                            {loadingBloqueos ? (
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Cargando bloqueos...</p>
+                            ) : (
+                                <div className="data-table">
+                                    <table>
+                                        <thead><tr><th>ID</th><th>Cancha</th><th>Inicio</th><th>Fin</th><th>Motivo</th><th>Estado</th><th>Acciones</th></tr></thead>
+                                        <tbody>
+                                            {bloqueos.length === 0 && (
+                                                <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px 0' }}>No hay bloqueos registrados.</td></tr>
+                                            )}
+                                            {bloqueos.map(b => (
+                                                <tr key={b.id}>
+                                                    <td>#{b.id}</td>
+                                                    <td>{canchas.find(c => c.id === b.canchaId)?.superficie || `#${b.canchaId}`}</td>
+                                                    <td>{new Date(b.fechaHoraInicio).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                                    <td>{new Date(b.fechaHoraFin).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                                    <td>{b.motivo}</td>
+                                                    <td><span className={`pill ${b.estado === 'Activo' ? 'danger' : 'neutral'}`}>{b.estado}</span></td>
+                                                    <td className="table-actions">
+                                                        {b.estado === 'Activo' && (
+                                                            <button
+                                                                className="danger"
+                                                                onClick={() => handleDesactivarBloqueo(b.id)}
+                                                            >
+                                                                Liberar
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     </section>
                 )}
