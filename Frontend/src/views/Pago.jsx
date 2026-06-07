@@ -60,16 +60,37 @@ export default function Pago() {
     const [cardErrors, setCardErrors] = useState({});
 
     useEffect(() => {
-        cobrosApi.getById(cobroId)
-            .then(data => {
-                setCobro(data);
-                if (data?.reserva?.metodoPago) {
-                    setMetodoPago(data.reserva.metodoPago);
-                }
-            })
-            .catch(e => setError(e.message ?? 'Error de conexión'))
-            .finally(() => setLoading(false));
-    }, [cobroId]);
+        const fetchCobro = () => {
+            cobrosApi.getById(cobroId)
+                .then(data => {
+                    if (data?.reserva?.estado !== 'Pendiente' && data?.estado !== 'Aprobado') {
+                        navigate('/');
+                        return;
+                    }
+                    setCobro(data);
+                    if (data?.reserva?.metodoPago) {
+                        setMetodoPago(data.reserva.metodoPago);
+                    }
+                })
+                .catch(e => {
+                    if (e.message?.includes('Pendiente') || e.message?.includes('encontrada')) {
+                        navigate('/');
+                    } else {
+                        setError(e.message ?? 'Error de conexión');
+                    }
+                })
+                .finally(() => setLoading(false));
+        };
+
+        fetchCobro();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchCobro();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [cobroId, navigate]);
 
     useEffect(() => {
         if (!cobro?.reserva?.fechaExpiracion || expired || recibo) return;
@@ -115,7 +136,8 @@ export default function Pago() {
             window.dispatchEvent(new Event('reservaUpdate'));
             setFinalizedEfectivo(res);
         } catch (e) {
-            setError(e.message);
+            if (e.message?.includes('Pendiente')) navigate('/');
+            else setError(e.message);
         } finally {
             setPaying(false);
         }
@@ -141,7 +163,8 @@ export default function Pago() {
                     window.dispatchEvent(new Event('reservaUpdate'));
                     setFinalizedTransferencia(true);
                 } catch (e) {
-                    setError(e.message);
+                    if (e.message?.includes('Pendiente')) navigate('/');
+                    else setError(e.message);
                     setPaying(false);
                 }
             };
@@ -150,7 +173,8 @@ export default function Pago() {
                 setPaying(false);
             };
         } catch (e) {
-            setError(e.message);
+            if (e.message?.includes('Pendiente')) navigate('/');
+            else setError(e.message);
             setPaying(false);
         }
     };
@@ -217,7 +241,8 @@ export default function Pago() {
             });
             setCobro(updated);
         } catch (e) {
-            setError(e.message);
+            if (e.message?.includes('Pendiente')) navigate('/');
+            else setError(e.message);
         } finally {
             setPaying(false);
         }

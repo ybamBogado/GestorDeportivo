@@ -36,7 +36,8 @@ namespace Application.Handlers
                 MetodoPago = r.MetodoPago,
                 FechaExpiracion = r.FechaExpiracion,
                 CodigoPagoExterno = r.CodigoPagoExterno,
-                ComprobantePdf = r.ComprobantePdf
+                ComprobantePdf = r.ComprobantePdf,
+                FechaCreacion = r.FechaCreacion
             });
         }
     }

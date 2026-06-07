@@ -1454,6 +1454,7 @@ export default function AdminPanel() {
 function PagosPanel({ moneyFmt, notify }) {
     const [tab, setTab] = useState('cobros');
     const [cobros, setCobros] = useState([]);
+    const [reservasByCobro, setReservasByCobro] = useState({});
     const [recibosList, setRecibos] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -1470,14 +1471,22 @@ function PagosPanel({ moneyFmt, notify }) {
     const fetchAll = async () => {
         setLoading(true);
         try {
-            const [c, r, d] = await Promise.all([
+            const [c, r, allReservas, d] = await Promise.all([
                 cobrosApi.getAll(),
                 recibosApi.getAll(),
+                reservasApi.getAll(),
                 fetch(`${API_URL}/descuentos`).then(res => res.ok ? res.json() : []).catch(() => [])
             ]);
             setCobros(c);
             setRecibos(r);
             setDescuentos(d);
+            // Build a map cobro.id -> reserva for quick lookup
+            const byCobroId = {};
+            allReservas.forEach(rv => {
+                const linked = c.find(cb => cb.reservaId === rv.id);
+                if (linked) byCobroId[linked.id] = rv;
+            });
+            setReservasByCobro(byCobroId);
         } finally {
             setLoading(false);
         }
@@ -1502,16 +1511,35 @@ function PagosPanel({ moneyFmt, notify }) {
     };
 
     const handlePagarCobro = (c) => {
-        if (!window.confirm(`¿Registrar pago de ${moneyFmt.format(c.montoFinal)} para el cobro #${c.id}?`)) return;
+        const reserva = reservasByCobro[c.id];
+        const metodoPago = reserva?.metodoPago || c.metodoPago || 'Efectivo';
+        if (!window.confirm(`¿Confirmar pago de ${moneyFmt.format(c.montoFinal)} para cobro #${c.id}?\nMétodo: ${metodoPago}`)) return;
         (async () => {
             try {
-                await cobrosApi.pagar(c.id, { monto: c.montoFinal, metodoPago: 'Efectivo', aprobado: true });
-                notify('Pago registrado y recibo generado', 'success');
+                await cobrosApi.pagar(c.id, { monto: c.montoFinal, metodoPago, aprobado: true });
+                notify('Pago confirmado y recibo generado ✅', 'success');
                 fetchAll();
             } catch (err) {
                 notify(err.message || 'Error al procesar', 'error');
             }
         })();
+    };
+
+    const handleVerComprobante = (c) => {
+        const reserva = reservasByCobro[c.id];
+        const path = reserva?.comprobantePdf;
+        if (!path) {
+            notify('Este cobro no tiene comprobante adjunto.', 'warning');
+            return;
+        }
+
+        const baseUrl = API_URL.replace('/api/v1', '');
+        if (path.startsWith('http') || path.startsWith('data:')) {
+            window.open(path, '_blank');
+        } else {
+            const fullUrl = `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+            window.open(fullUrl, '_blank');
+        }
     };
 
     const handleDeleteCobro = (id) => {
@@ -1636,7 +1664,12 @@ function PagosPanel({ moneyFmt, notify }) {
                                                     <td>{c.metodoPago || '—'}</td>
                                                     <td><span className={`pill ${estadoPill(c.estado)}`}>{c.estado}</span></td>
                                                     <td className="table-actions">
-                                                        {c.estado === 'Pendiente' && <button onClick={() => handlePagarCobro(c)}>💳 Pagar</button>}
+                                                        {c.estado === 'Pendiente' && <button onClick={() => handlePagarCobro(c)} style={{ background: 'rgba(49,217,79,0.15)', color: '#31d94f', border: '1px solid rgba(49,217,79,0.3)' }}><i className="bi bi-check-circle me-1"></i>Confirmar Pago</button>}
+                                                        {reservasByCobro[c.id]?.comprobantePdf && (
+                                                            <button onClick={() => handleVerComprobante(c)} style={{ background: 'rgba(242,184,75,0.12)', color: '#f2b84b', border: '1px solid rgba(242,184,75,0.3)' }}>
+                                                                <i className="bi bi-file-earmark-pdf me-1"></i>Ver Comprobante
+                                                            </button>
+                                                        )}
                                                         <button onClick={() => { setEditingCobro(c.id); setCobroForm({ concepto: c.concepto, monto: c.monto, descuento: c.descuento, estado: c.estado, metodoPago: c.metodoPago }); setShowCobroForm(true); }}>Editar</button>
                                                         <button onClick={() => handlePrintCobro(c)}>🖨️</button>
                                                         <button className="danger" onClick={() => handleDeleteCobro(c.id)}>Borrar</button>

@@ -15,6 +15,7 @@ namespace Domain.Entities
     {
         public int Id { get; set; }
 
+        public DateTime FechaCreacion { get; set; } = DateTime.Now;
         public DateTime Fecha { get; set; }
         public TimeSpan HoraInicio { get; set; }
         public TimeSpan HoraFin { get; set; }

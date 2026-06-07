@@ -57,8 +57,17 @@ export default function Header() {
 
         checkPending();
         const handleUpdate = () => checkPending();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                checkPending();
+            }
+        };
         window.addEventListener('reservaUpdate', handleUpdate);
-        return () => window.removeEventListener('reservaUpdate', handleUpdate);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            window.removeEventListener('reservaUpdate', handleUpdate);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, [user, location.pathname]);
 
     useEffect(() => {

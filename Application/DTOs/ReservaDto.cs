@@ -17,5 +17,6 @@ namespace Application.DTOs
         public DateTime? FechaExpiracion { get; set; }
         public string? CodigoPagoExterno { get; set; }
         public string? ComprobantePdf { get; set; }
+        public DateTime? FechaCreacion { get; set; }
     }
 }

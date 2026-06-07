@@ -158,9 +158,9 @@ namespace Api.Controllers
             {
                 expiracion = metodoPago switch
                 {
-                    "transferencia" => DateTime.UtcNow.AddHours(2),
-                    "efectivo"      => DateTime.UtcNow.AddHours(12),
-                    _               => DateTime.UtcNow.AddMinutes(5),   // tarjeta: 5 mins
+                    "transferencia" => DateTime.Now.AddHours(2),
+                    "efectivo"      => DateTime.Now.AddHours(12),
+                    _               => DateTime.Now.AddMinutes(5),   // tarjeta: 5 mins
                 };
             }
 
@@ -194,7 +194,7 @@ namespace Api.Controllers
                 MontoFinal = precio,
                 Estado = "Pendiente",
                 MetodoPago = string.Empty,
-                Fecha = DateTime.UtcNow
+                Fecha = DateTime.Now
             };
 
             _context.Cobros.Add(cobro);
@@ -390,7 +390,12 @@ namespace Api.Controllers
                     else if (request.ComprobantePdf.StartsWith("data:image/jpeg")) extension = ".jpg";
                     else if (request.ComprobantePdf.StartsWith("data:image/webp")) extension = ".webp";
 
-                    var fileName = $"comprobante_{reserva.Id}{extension}";
+                    var nombreBase = (persona?.Nombre + "_" + persona?.Apellido).Replace(" ", "_");
+                    foreach (var c in System.IO.Path.GetInvalidFileNameChars())
+                        nombreBase = nombreBase.Replace(c.ToString(), "");
+                    
+                    var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmm");
+                    var fileName = $"comp_res{reserva.Id}_{nombreBase}_{timestamp}{extension}".ToLower();
                     var filePath = System.IO.Path.Combine(uploadsFolder, fileName);
                     await System.IO.File.WriteAllBytesAsync(filePath, fileBytes);
 

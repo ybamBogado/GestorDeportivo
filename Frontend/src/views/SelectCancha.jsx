@@ -135,8 +135,17 @@ export default function SelectCancha() {
 
         checkActiveCheckout();
         const handleUpdate = () => checkActiveCheckout();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                checkActiveCheckout();
+            }
+        };
         window.addEventListener('reservaUpdate', handleUpdate);
-        return () => window.removeEventListener('reservaUpdate', handleUpdate);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            window.removeEventListener('reservaUpdate', handleUpdate);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, [user]);
 
     // Cada vez que cambia la cancha o la fecha, consulta disponibilidad
