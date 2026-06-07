@@ -186,7 +186,16 @@ export default function SelectCancha() {
             return slotIni < bFinMin && slotFin > bIniMin;
         });
 
-        return ocupadoPorReserva || ocupadoPorBloqueo;
+        let isPast = false;
+        if (selectedDate === todayISO()) {
+            const now = new Date();
+            const currentMin = now.getHours() * 60 + now.getMinutes();
+            if (slotIni <= currentMin) {
+                isPast = true;
+            }
+        }
+
+        return ocupadoPorReserva || ocupadoPorBloqueo || isPast;
     }
 
     const handleSelectCancha = (cancha) => {
