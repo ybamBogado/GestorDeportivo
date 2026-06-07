@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { canchas as canchasApi, reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi, auth as authApi } from '../services/api.js';
+import { canchas as canchasApi, reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi, auth as authApi, clases as clasesApi } from '../services/api.js';
 import { useToast } from '../components/Toast.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import './AdminPanel.css';
@@ -26,10 +26,10 @@ const menuItems = [
 const statusFilters = ['Todas', 'Pendiente', 'Confirmada', 'Cancelada'];
 
 export default function AdminPanel() {
-    const { user, logout, loading: authLoading }       = useAuth();
+    const { user, logout, loading: authLoading } = useAuth();
     const { theme, toggleTheme } = useTheme();
-    const navigate               = useNavigate();
-    const { notify }             = useToast();
+    const navigate = useNavigate();
+    const { notify } = useToast();
 
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
 
@@ -51,13 +51,13 @@ export default function AdminPanel() {
     };
 
     const [activeSection, setActiveSection] = useState('reservas');
-    const [selectedDate,  setSelectedDate]  = useState(todayInput());
-    const [statusFilter,  setStatusFilter]  = useState('Todas');
-    const [loading,       setLoading]       = useState(true);
+    const [selectedDate, setSelectedDate] = useState(todayInput());
+    const [statusFilter, setStatusFilter] = useState('Todas');
+    const [loading, setLoading] = useState(true);
 
     const [reservas, setReservas] = useState([]);
-    const [canchas,  setCanchas]  = useState([]);
-    const [users,    setUsers]    = useState([]);
+    const [canchas, setCanchas] = useState([]);
+    const [users, setUsers] = useState([]);
 
     const [showCanchaForm, setShowCanchaForm] = useState(false);
     const [canchaForm, setCanchaForm] = useState({ superficie: '', capacidad: 10, tipoCancha: 'Futbol5' });
@@ -75,8 +75,12 @@ export default function AdminPanel() {
         apellido: '',
         email: '',
         password: '',
-        rol: 'Usuario'
+        rol: 'Usuario',
+        certificacion: true,
+        fechaVencimientoCertificacion: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
     });
+
+    const [userDetailPanel, setUserDetailPanel] = useState(null); // user object shown in detail panel
 
     const [usuariosSubTab, setUsuariosSubTab] = useState('lista');
     const [searchTerm, setSearchTerm] = useState('');
@@ -99,7 +103,7 @@ export default function AdminPanel() {
         setLoading(true);
         try {
             const params = {};
-            if (selectedDate)             params.fecha  = selectedDate;
+            if (selectedDate) params.fecha = selectedDate;
             if (statusFilter !== 'Todas') params.estado = statusFilter;
 
             const [r, c, u] = await Promise.all([
@@ -198,9 +202,9 @@ export default function AdminPanel() {
         try {
             await reservasApi.create({
                 ...reservaForm,
-                canchaId:  Number(reservaForm.canchaId),
+                canchaId: Number(reservaForm.canchaId),
                 personaId: Number(reservaForm.personaId),
-                precio:    Number(reservaForm.precio),
+                precio: Number(reservaForm.precio),
             });
             notify('Reserva creada con éxito', 'success');
             setShowReservaForm(false);
@@ -236,8 +240,8 @@ export default function AdminPanel() {
             fotoPerfil: selectedUser.fotoPerfil || null,
             certificadoPdf: selectedUser.certificadoPdf || null,
             certificacion: selectedUser.certificacion ?? selectedUser.certificado ?? true,
-            fechaVencimientoCertificacion: selectedUser.fechaVencimientoCertificacion 
-                ? new Date(selectedUser.fechaVencimientoCertificacion).toISOString().split('T')[0] 
+            fechaVencimientoCertificacion: selectedUser.fechaVencimientoCertificacion
+                ? new Date(selectedUser.fechaVencimientoCertificacion).toISOString().split('T')[0]
                 : new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
         });
     };
@@ -250,11 +254,11 @@ export default function AdminPanel() {
                 ...userFormData,
                 direccion: userFormData.direccion,
                 telefono: userFormData.telefono,
-                certificacion: userFormData.rol === 'Profesor' || userFormData.rol === 'Entrenador' 
-                    ? Boolean(userFormData.certificacion) 
+                certificacion: userFormData.rol === 'Profesor' || userFormData.rol === 'Entrenador'
+                    ? Boolean(userFormData.certificacion)
                     : null,
-                fechaVencimientoCertificacion: userFormData.rol === 'Profesor' || userFormData.rol === 'Entrenador' 
-                    ? new Date(userFormData.fechaVencimientoCertificacion).toISOString() 
+                fechaVencimientoCertificacion: userFormData.rol === 'Profesor' || userFormData.rol === 'Entrenador'
+                    ? new Date(userFormData.fechaVencimientoCertificacion).toISOString()
                     : null
             };
 
@@ -318,7 +322,11 @@ export default function AdminPanel() {
             await authApi.register(createUserFormData);
             notify('Usuario creado con éxito', 'success');
             setShowCreateUserForm(false);
-            setCreateUserFormData({ nombre: '', apellido: '', email: '', password: '', rol: 'Usuario' });
+            setCreateUserFormData({
+                nombre: '', apellido: '', email: '', password: '', rol: 'Usuario',
+                certificacion: true,
+                fechaVencimientoCertificacion: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
+            });
             fetchAll();
         } catch (error) {
             notify(`Error al crear usuario: ${error.message}`, 'error');
@@ -454,7 +462,7 @@ export default function AdminPanel() {
                                 </select>
                                 <input type="date" value={reservaForm.fecha} onChange={e => setReservaForm(f => ({ ...f, fecha: e.target.value }))} required />
                                 <input type="time" value={reservaForm.horaInicio} onChange={e => setReservaForm(f => ({ ...f, horaInicio: e.target.value }))} required />
-                                <input type="time" value={reservaForm.horaFin}    onChange={e => setReservaForm(f => ({ ...f, horaFin: e.target.value }))} required />
+                                <input type="time" value={reservaForm.horaFin} onChange={e => setReservaForm(f => ({ ...f, horaFin: e.target.value }))} required />
                                 <input type="number" min="0" value={reservaForm.precio} onChange={e => setReservaForm(f => ({ ...f, precio: e.target.value }))} required />
                                 <label className="check-field">
                                     <input type="checkbox" checked={reservaForm.pago} onChange={e => setReservaForm(f => ({ ...f, pago: e.target.checked }))} />
@@ -488,7 +496,7 @@ export default function AdminPanel() {
                                                 </dl>
                                                 <div className="reservation-actions">
                                                     {r.estado !== 'Confirmada' && <button onClick={() => updateReservaEstado(r.id, 'Confirmada')}>Confirmar</button>}
-                                                    {r.estado !== 'Cancelada'  && <button className="danger" onClick={() => updateReservaEstado(r.id, 'Cancelada')}>Cancelar</button>}
+                                                    {r.estado !== 'Cancelada' && <button className="danger" onClick={() => updateReservaEstado(r.id, 'Cancelada')}>Cancelar</button>}
                                                 </div>
                                             </article>
                                         ))}
@@ -596,7 +604,7 @@ export default function AdminPanel() {
                                     <h3 style={{ margin: 0, color: '#31d94f', fontWeight: 'bold', fontSize: '1.4rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
                                         Editar Perfil de Usuario
                                     </h3>
-                                    
+
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                             <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>Nombre</label>
@@ -772,56 +780,138 @@ export default function AdminPanel() {
                                 </div>
 
                                 {showCreateUserForm && (
-                                    <form className="admin-form user-form" onSubmit={handleCreateUser} style={{ display: 'grid', gap: '16px', marginBottom: '24px' }}>
-                                        <h3 className="text-success fw-bold" style={{ fontSize: '1.1rem', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>Crear Nuevo Usuario</h3>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                                            <input
-                                                type="text"
-                                                placeholder="Nombre"
-                                                value={createUserFormData.nombre}
-                                                onChange={(e) => setCreateUserFormData({ ...createUserFormData, nombre: e.target.value })}
-                                                required
-                                            />
-                                            <input
-                                                type="text"
-                                                placeholder="Apellido"
-                                                value={createUserFormData.apellido}
-                                                onChange={(e) => setCreateUserFormData({ ...createUserFormData, apellido: e.target.value })}
-                                                required
-                                            />
-                                            <input
-                                                type="email"
-                                                placeholder="Email"
-                                                value={createUserFormData.email}
-                                                onChange={(e) => setCreateUserFormData({ ...createUserFormData, email: e.target.value })}
-                                                required
-                                            />
-                                            <input
-                                                type="password"
-                                                placeholder="Contraseña"
-                                                value={createUserFormData.password}
-                                                onChange={(e) => setCreateUserFormData({ ...createUserFormData, password: e.target.value })}
-                                                required
-                                            />
-                                            <select
-                                                value={createUserFormData.rol}
-                                                onChange={(e) => setCreateUserFormData({ ...createUserFormData, rol: e.target.value })}
-                                            >
-                                                <option value="Usuario">Cliente / Usuario</option>
-                                                <option value="Empleado">Empleado</option>
-                                                <option value="Profesor">Profesor</option>
-                                                <option value="Entrenador">Entrenador</option>
-                                                <option value="Administrador">Administrador</option>
-                                            </select>
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                                            <button type="button" className="ghost-button" onClick={() => {
-                                                setShowCreateUserForm(false);
-                                                setCreateUserFormData({ nombre: '', apellido: '', email: '', password: '', rol: 'Usuario' });
-                                            }}>Cancelar</button>
-                                            <button type="submit" className="primary-action">Crear Usuario</button>
-                                        </div>
-                                    </form>
+                                    <div className="admin-modal-overlay" style={{
+                                        position: 'fixed',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        height: '100%',
+                                        background: 'rgba(0,0,0,0.65)',
+                                        backdropFilter: 'blur(8px)',
+                                        zIndex: 1050,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        padding: '20px'
+                                    }}>
+                                        <form className="admin-modal-card" onSubmit={handleCreateUser} style={{
+                                            background: '#111d13',
+                                            border: '1px solid rgba(49, 217, 79, 0.2)',
+                                            borderRadius: '16px',
+                                            padding: '30px',
+                                            width: '100%',
+                                            maxWidth: '500px',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '20px',
+                                            boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+                                        }}>
+                                            <h3 style={{ margin: 0, color: '#31d94f', fontWeight: 'bold', fontSize: '1.4rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
+                                                Crear Nuevo Usuario
+                                            </h3>
+
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                    <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>Nombre</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Nombre"
+                                                        value={createUserFormData.nombre}
+                                                        onChange={(e) => setCreateUserFormData({ ...createUserFormData, nombre: e.target.value })}
+                                                        required
+                                                        style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                                    />
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                    <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>Apellido</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Apellido"
+                                                        value={createUserFormData.apellido}
+                                                        onChange={(e) => setCreateUserFormData({ ...createUserFormData, apellido: e.target.value })}
+                                                        required
+                                                        style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                                    />
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                    <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>Email</label>
+                                                    <input
+                                                        type="email"
+                                                        placeholder="Email"
+                                                        value={createUserFormData.email}
+                                                        onChange={(e) => setCreateUserFormData({ ...createUserFormData, email: e.target.value })}
+                                                        required
+                                                        style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                                    />
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                    <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>Contraseña</label>
+                                                    <input
+                                                        type="password"
+                                                        placeholder="Contraseña"
+                                                        value={createUserFormData.password}
+                                                        onChange={(e) => setCreateUserFormData({ ...createUserFormData, password: e.target.value })}
+                                                        required
+                                                        style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                                    />
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                    <label style={{ fontSize: '0.8rem', color: '#8ca092', fontWeight: 'bold' }}>Rol</label>
+                                                    <select
+                                                        value={createUserFormData.rol}
+                                                        onChange={(e) => setCreateUserFormData({ ...createUserFormData, rol: e.target.value })}
+                                                        style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                                    >
+                                                        <option value="Usuario">Cliente / Usuario</option>
+                                                        <option value="Empleado">Empleado</option>
+                                                        <option value="Profesor">Profesor</option>
+                                                        <option value="Entrenador">Entrenador</option>
+                                                        <option value="Administrador">Administrador</option>
+                                                    </select>
+                                                </div>
+
+                                                {(createUserFormData.rol === 'Profesor' || createUserFormData.rol === 'Entrenador') && (
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(149,255,172,0.15)', marginTop: '8px' }}>
+                                                        <label className="check-field" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={createUserFormData.certificacion}
+                                                                onChange={(e) => setCreateUserFormData({ ...createUserFormData, certificacion: e.target.checked })}
+                                                                style={{ width: 18, height: 18, cursor: 'pointer' }}
+                                                            />
+                                                            Certificación Deportiva Vigente
+                                                        </label>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                            <span style={{ fontSize: '0.8rem', color: '#8ca092', textTransform: 'uppercase', fontWeight: 'bold' }}>Vencimiento:</span>
+                                                            <input
+                                                                type="date"
+                                                                value={createUserFormData.fechaVencimientoCertificacion}
+                                                                onChange={(e) => setCreateUserFormData({ ...createUserFormData, fechaVencimientoCertificacion: e.target.value })}
+                                                                style={{ minHeight: 36, padding: '0 8px', background: '#080c0a', color: '#fff', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 6 }}
+                                                                required
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px', marginTop: '8px' }}>
+                                                <button type="button" className="btn btn-secondary" style={{ borderRadius: '8px', padding: '10px 20px' }} onClick={() => {
+                                                    setShowCreateUserForm(false);
+                                                    setCreateUserFormData({
+                                                        nombre: '',
+                                                        apellido: '',
+                                                        email: '',
+                                                        password: '',
+                                                        rol: 'Usuario',
+                                                        certificacion: true,
+                                                        fechaVencimientoCertificacion: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
+                                                    });
+                                                }}>Cancelar</button>
+                                                <button type="submit" className="btn btn-success" style={{ backgroundColor: '#31d94f', border: 'none', borderRadius: '8px', padding: '10px 20px', fontWeight: 'bold', color: '#000' }}>Crear Usuario</button>
+                                            </div>
+                                        </form>
+                                    </div>
                                 )}
 
                                 <div className="data-table">
@@ -834,7 +924,7 @@ export default function AdminPanel() {
                                                 <th>Contacto</th>
                                                 <th>Email</th>
                                                 <th>Rol / Certif.</th>
-                                                <th>Acciones</th>
+                                                <th style={{ width: 120 }}>Acciones</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -847,16 +937,29 @@ export default function AdminPanel() {
                                             ) : (
                                                 filteredUsers.map(selectedUser => (
                                                     <tr key={selectedUser.id}>
-                                                        <td>#{selectedUser.id}</td>
-                                                        <td style={{ fontWeight: 'bold' }}>{selectedUser.nombre} {selectedUser.apellido}</td>
-                                                        <td>{selectedUser.dni}</td>
+                                                        <td><span style={{ color: '#8ca092', fontSize: '0.78rem', fontWeight: 700 }}>#{selectedUser.id}</span></td>
+                                                        <td>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                                <button
+                                                                    title="Ver ficha detallada"
+                                                                    onClick={() => setUserDetailPanel(selectedUser)}
+                                                                    style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(49,217,79,0.15)', border: '1px solid rgba(49,217,79,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.8rem', color: '#31d94f', flexShrink: 0, cursor: 'pointer', transition: 'all 0.2s' }}
+                                                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(49,217,79,0.35)'; e.currentTarget.style.transform = 'scale(1.1)'; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(49,217,79,0.15)'; e.currentTarget.style.transform = 'scale(1)'; }}
+                                                                >
+                                                                    {selectedUser.nombre?.[0]?.toUpperCase()}
+                                                                </button>
+                                                                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{selectedUser.nombre} {selectedUser.apellido}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ color: '#a0b4a8', fontSize: '0.85rem' }}>{selectedUser.dni || '—'}</td>
                                                         <td>
                                                             <div style={{ fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
                                                                 <span><i className="bi bi-telephone-fill text-success me-1"></i> {selectedUser.telefono || '—'}</span>
                                                                 <span style={{ color: '#8ca092' }}><i className="bi bi-geo-alt-fill text-success me-1"></i> {selectedUser.direccion || '—'}</span>
                                                             </div>
                                                         </td>
-                                                        <td>{selectedUser.email}</td>
+                                                        <td style={{ fontSize: '0.85rem', color: '#c5d8ca' }}>{selectedUser.email}</td>
                                                         <td>
                                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
                                                                 <span className="pill neutral">{selectedUser.rol}</span>
@@ -867,10 +970,36 @@ export default function AdminPanel() {
                                                                 )}
                                                             </div>
                                                         </td>
-                                                        <td className="table-actions">
-                                                            <button onClick={() => handleEditUser(selectedUser)}>Editar</button>
-                                                            <button onClick={() => handlePrintUser(selectedUser)}>Imprimir</button>
-                                                            <button className="danger" onClick={() => handleDeleteUser(selectedUser.id)}>Borrar</button>
+                                                        <td>
+                                                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                                                <button
+                                                                    title="Editar usuario"
+                                                                    onClick={() => handleEditUser(selectedUser)}
+                                                                    style={{ width: 34, height: 34, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(49,217,79,0.25)', background: 'rgba(49,217,79,0.08)', color: '#31d94f', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
+                                                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(49,217,79,0.2)'; e.currentTarget.style.borderColor = '#31d94f'; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(49,217,79,0.08)'; e.currentTarget.style.borderColor = 'rgba(49,217,79,0.25)'; }}
+                                                                >
+                                                                    <i className="bi bi-pencil-fill" style={{ fontSize: '0.8rem' }}></i>
+                                                                </button>
+                                                                <button
+                                                                    title="Imprimir credencial"
+                                                                    onClick={() => handlePrintUser(selectedUser)}
+                                                                    style={{ width: 34, height: 34, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: '#a0b4a8', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
+                                                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#fff'; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#a0b4a8'; }}
+                                                                >
+                                                                    <i className="bi bi-printer-fill" style={{ fontSize: '0.8rem' }}></i>
+                                                                </button>
+                                                                <button
+                                                                    title="Eliminar usuario"
+                                                                    onClick={() => handleDeleteUser(selectedUser.id)}
+                                                                    style={{ width: 34, height: 34, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
+                                                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)'; }}
+                                                                >
+                                                                    <i className="bi bi-trash3-fill" style={{ fontSize: '0.8rem' }}></i>
+                                                                </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))
@@ -916,9 +1045,9 @@ export default function AdminPanel() {
                                                     </td>
                                                     <td>{selectedUser.email}</td>
                                                     <td>
-                                                        <a 
-                                                            href={`http://localhost:5071${selectedUser.certificadoPdf}`} 
-                                                            target="_blank" 
+                                                        <a
+                                                            href={`http://localhost:5071${selectedUser.certificadoPdf}`}
+                                                            target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="pill success text-decoration-none"
                                                             style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'inline-block', fontWeight: 'bold' }}
@@ -927,20 +1056,20 @@ export default function AdminPanel() {
                                                         </a>
                                                     </td>
                                                     <td className="table-actions">
-                                                        <button 
+                                                        <button
                                                             onClick={() => handleKycAction(selectedUser, 'Profesor', true)}
                                                             style={{ backgroundColor: '#1b4332', borderColor: '#2d6a4f', color: '#52b788', padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold' }}
                                                         >
                                                             Aprobar Profesor
                                                         </button>
-                                                        <button 
+                                                        <button
                                                             onClick={() => handleKycAction(selectedUser, 'Entrenador', true)}
                                                             style={{ backgroundColor: '#0f2c3b', borderColor: '#1b4d66', color: '#3ca6d8', padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold' }}
                                                         >
                                                             Aprobar Entrenador
                                                         </button>
-                                                        <button 
-                                                            className="danger" 
+                                                        <button
+                                                            className="danger"
                                                             onClick={() => handleKycAction(selectedUser, 'Usuario', false)}
                                                             style={{ padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold' }}
                                                         >
@@ -957,7 +1086,7 @@ export default function AdminPanel() {
                     </section>
                 )}
 
-                {activeSection === 'pagos'    && <PagosPanel moneyFmt={moneyFmt} notify={notify} />}
+                {activeSection === 'pagos' && <PagosPanel moneyFmt={moneyFmt} notify={notify} />}
 
                 {activeSection === 'ligas' && (
                     <LigasTorneosPanel moneyFormatter={moneyFmt} setMessage={setMessage} API_URL={API_URL} />
@@ -981,19 +1110,226 @@ export default function AdminPanel() {
                 onConfirm={confirmConfig.onConfirm}
                 onCancel={() => setConfirmConfig(c => ({ ...c, isOpen: false }))}
             />
+
+            {/* ── User Detail Side Panel ── */}
+            {userDetailPanel && (() => {
+                // Compute stats from already-loaded reservas state
+                const userReservas = reservas.filter(r => r.personaId === userDetailPanel.id || r.persona?.id === userDetailPanel.id);
+                const activeReservas = userReservas.filter(r => r.estado === 'Confirmada' || r.estado === 'Pendiente');
+                const totalGasto = userReservas.filter(r => r.pago === true || r.pago === 'Pagado').reduce((s, r) => s + (r.precio || 0), 0);
+                const pendingPago = userReservas.filter(r => r.pago === false || r.pago === 'Pendiente').length;
+                const recentReservas = [...userReservas].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).slice(0, 4);
+
+                const moneyFmt = (n) => `$ ${Number(n).toLocaleString('es-AR')}`;
+                const fmtDate = (d) => new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
+
+                return (
+                    <>
+                        {/* Backdrop */}
+                        <div
+                            onClick={() => setUserDetailPanel(null)}
+                            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', zIndex: 1100 }}
+                        />
+                        {/* Panel */}
+                        <aside style={{
+                            position: 'fixed', top: 0, right: 0,
+                            width: 420, height: '100vh',
+                            background: 'linear-gradient(180deg, #0b1410 0%, #080c0a 100%)',
+                            borderLeft: '1px solid rgba(49,217,79,0.2)',
+                            boxShadow: '-12px 0 60px rgba(0,0,0,0.7)',
+                            zIndex: 1101,
+                            display: 'flex', flexDirection: 'column',
+                            overflowY: 'auto',
+                            animation: 'slideInRight 0.25s cubic-bezier(0.16,1,0.3,1)'
+                        }}>
+                            {/* Header con avatar grande */}
+                            <div style={{ padding: '28px 24px 22px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(49,217,79,0.04)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                                    <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                                        <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(49,217,79,0.3), rgba(49,217,79,0.08))', border: '2px solid rgba(49,217,79,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 900, color: '#31d94f', flexShrink: 0 }}>
+                                            {userDetailPanel.nombre?.[0]?.toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>{userDetailPanel.nombre} {userDetailPanel.apellido}</h3>
+                                            <span style={{ fontSize: '0.72rem', color: '#31d94f', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>{userDetailPanel.rol}</span>
+                                            <div style={{ marginTop: 4, fontSize: '0.78rem', color: '#8ca092' }}>{userDetailPanel.email}</div>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setUserDetailPanel(null)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#8ca092', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                                </div>
+
+                                {/* Stats rápidas - solo para Usuarios */}
+                                {userDetailPanel.rol === 'Usuario' && (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 4 }}>
+                                    {[
+                                        { label: 'Reservas', value: userReservas.length, color: '#31d94f' },
+                                        { label: 'Activas', value: activeReservas.length, color: '#f2b84b' },
+                                        { label: 'Gasto total', value: moneyFmt(totalGasto), color: '#31d94f', small: true },
+                                        { label: 'Pend. pago', value: pendingPago, color: pendingPago > 0 ? '#ef4444' : '#31d94f' },
+                                    ].map(({ label, value, color, small }) => (
+                                        <div key={label} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '10px 8px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: small ? '0.75rem' : '1.1rem', fontWeight: 900, color }}>{value}</div>
+                                            <div style={{ fontSize: '0.65rem', color: '#8ca092', fontWeight: 700, textTransform: 'uppercase', marginTop: 2 }}>{label}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                                )}
+                            </div>
+
+                            {/* Body */}
+                            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
+
+                                {/* Información personal */}
+                                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 14 }}>
+                                    <p style={{ margin: '0 0 12px', fontSize: '0.68rem', color: '#31d94f', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                        <i className="bi bi-person-lines-fill" style={{ marginRight: 6 }}></i>Información personal
+                                    </p>
+                                    <div style={{ display: 'grid', gap: 9 }}>
+                                        {[
+                                            { icon: 'bi-person-badge', label: 'ID Sistema', value: `#${userDetailPanel.id}` },
+                                            { icon: 'bi-card-text', label: 'DNI', value: userDetailPanel.dni || '—' },
+                                            { icon: 'bi-hash', label: 'Legajo', value: userDetailPanel.legajo || '—' },
+                                            { icon: 'bi-telephone-fill', label: 'Teléfono', value: userDetailPanel.telefono || '—' },
+                                            { icon: 'bi-geo-alt-fill', label: 'Dirección', value: userDetailPanel.direccion || '—' },
+                                        ].map(({ icon, label, value }) => (
+                                            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#8ca092', fontSize: '0.78rem', fontWeight: 700, flexShrink: 0 }}>
+                                                    <i className={`bi ${icon}`} style={{ color: '#31d94f', fontSize: '0.8rem' }}></i>{label}
+                                                </span>
+                                                <span style={{ fontSize: '0.82rem', color: '#e8f5eb', fontWeight: 600, textAlign: 'right', wordBreak: 'break-all' }}>{value}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Info por rol: Empleado */}
+                                {userDetailPanel.rol === 'Empleado' && (
+                                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 14 }}>
+                                        <p style={{ margin: '0 0 12px', fontSize: '0.68rem', color: '#31d94f', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                            <i className="bi bi-briefcase-fill" style={{ marginRight: 6 }}></i>Datos laborales
+                                        </p>
+                                        <div style={{ display: 'grid', gap: 9 }}>
+                                            {[
+                                                { icon: 'bi-building', label: 'Área', value: userDetailPanel.area || '—' },
+                                                { icon: 'bi-clock-fill', label: 'Turno', value: userDetailPanel.turno || '—' },
+                                            ].map(({ icon, label, value }) => (
+                                                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#8ca092', fontSize: '0.78rem', fontWeight: 700 }}>
+                                                        <i className={`bi ${icon}`} style={{ color: '#31d94f' }}></i>{label}
+                                                    </span>
+                                                    <span style={{ fontSize: '0.82rem', color: '#e8f5eb', fontWeight: 600 }}>{value}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Info por rol: Profesor / Entrenador */}
+                                {(userDetailPanel.rol === 'Profesor' || userDetailPanel.rol === 'Entrenador') && (
+                                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 14 }}>
+                                        <p style={{ margin: '0 0 12px', fontSize: '0.68rem', color: '#31d94f', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                            <i className="bi bi-patch-check-fill" style={{ marginRight: 6 }}></i>Documentación
+                                        </p>
+                                        {/* Estado cert */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                            <span style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700 }}>Estado certificado</span>
+                                            {(() => {
+                                                const ok = userDetailPanel.certificacion ?? userDetailPanel.certificado;
+                                                return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', background: ok ? 'rgba(49,217,79,0.12)' : 'rgba(239,68,68,0.12)', color: ok ? '#31d94f' : '#ef4444', border: `1px solid ${ok ? 'rgba(49,217,79,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+                                                    <i className={`bi ${ok ? 'bi-patch-check-fill' : 'bi-exclamation-triangle-fill'}`}></i>
+                                                    {ok ? 'Verificado' : 'Sin certificar'}
+                                                </span>;
+                                            })()}
+                                        </div>
+                                        {/* Vencimiento */}
+                                        {userDetailPanel.fechaVencimientoCertificacion && (
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                                <span style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700 }}>Vencimiento</span>
+                                                <span style={{ fontSize: '0.82rem', color: '#e8f5eb', fontWeight: 600 }}>
+                                                    {fmtDate(userDetailPanel.fechaVencimientoCertificacion)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {/* PDF */}
+                                        {userDetailPanel.certificadoPdf ? (
+                                            <a href={`http://localhost:5071${userDetailPanel.certificadoPdf}`} target="_blank" rel="noopener noreferrer"
+                                                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(49,217,79,0.07)', border: '1px solid rgba(49,217,79,0.2)', borderRadius: 8, color: '#31d94f', textDecoration: 'none', fontWeight: 700, fontSize: '0.82rem' }}
+                                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(49,217,79,0.15)'}
+                                                onMouseLeave={e => e.currentTarget.style.background = 'rgba(49,217,79,0.07)'}
+                                            >
+                                                <i className="bi bi-file-earmark-pdf-fill" style={{ fontSize: '1.1rem', color: '#ef4444' }}></i>
+                                                <div><div>Ver certificado PDF</div><div style={{ fontSize: '0.7rem', color: '#8ca092', fontWeight: 400 }}>Abrir en nueva pestaña</div></div>
+                                                <i className="bi bi-box-arrow-up-right" style={{ marginLeft: 'auto', fontSize: '0.75rem' }}></i>
+                                            </a>
+                                        ) : (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 8, color: '#8ca092', fontSize: '0.8rem' }}>
+                                                <i className="bi bi-file-earmark-x" style={{ color: '#ef4444' }}></i>
+                                                No se subió ningún certificado PDF
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Historial de reservas - solo para rol Usuario */}
+                                {userDetailPanel.rol === 'Usuario' && (
+                                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 14 }}>
+                                    <p style={{ margin: '0 0 12px', fontSize: '0.68rem', color: '#31d94f', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                        <i className="bi bi-calendar2-check-fill" style={{ marginRight: 6 }}></i>Últimas reservas ({userReservas.length} total)
+                                    </p>
+                                    {recentReservas.length === 0 ? (
+                                        <div style={{ color: '#8ca092', fontSize: '0.8rem', textAlign: 'center', padding: '12px 0' }}>Sin reservas registradas</div>
+                                    ) : (
+                                        <div style={{ display: 'grid', gap: 8 }}>
+                                            {recentReservas.map(r => (
+                                                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 7, border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <div>
+                                                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e8f5eb' }}>{fmtDate(r.fecha)}</div>
+                                                        <div style={{ fontSize: '0.72rem', color: '#8ca092', marginTop: 2 }}>{r.horaInicio} – {r.horaFin} · Cancha #{r.canchaId}</div>
+                                                    </div>
+                                                    <div style={{ textAlign: 'right' }}>
+                                                        <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#31d94f' }}>{moneyFmt(r.precio)}</div>
+                                                        <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', padding: '2px 7px', borderRadius: 999, background: r.estado === 'Confirmada' ? 'rgba(49,217,79,0.15)' : r.estado === 'Pendiente' ? 'rgba(242,184,75,0.15)' : 'rgba(239,68,68,0.12)', color: r.estado === 'Confirmada' ? '#31d94f' : r.estado === 'Pendiente' ? '#f2b84b' : '#ef4444' }}>
+                                                            {r.estado}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                )}
+
+                                {/* Acciones */}
+                                <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 4 }}>
+                                    <button onClick={() => { setUserDetailPanel(null); handleEditUser(userDetailPanel); }} style={{ flex: 1, minHeight: 42, borderRadius: 8, border: 'none', background: '#31d94f', color: '#061007', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                        <i className="bi bi-pencil-fill"></i> Editar
+                                    </button>
+                                    <button onClick={() => handlePrintUser(userDetailPanel)} style={{ flex: 1, minHeight: 42, borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: '#c5d8ca', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                        <i className="bi bi-printer-fill"></i> Imprimir
+                                    </button>
+                                    <button onClick={() => { if (window.confirm('¿Eliminar este usuario?')) { handleDeleteUser(userDetailPanel.id); setUserDetailPanel(null); } }} style={{ minHeight: 42, width: 42, borderRadius: 8, border: '1px solid rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <i className="bi bi-trash3-fill"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </aside>
+                        <style>{`@keyframes slideInRight { from { transform: translateX(100%); opacity:0; } to { transform: translateX(0); opacity:1; } }`}</style>
+                    </>
+                );
+            })()}
         </main>
     );
 }
 
 // ─── Módulo Pagos y Recibos ───────────────────────────────────────────────────
 function PagosPanel({ moneyFmt, notify }) {
-    const [tab,     setTab]     = useState('cobros');
-    const [cobros,  setCobros]  = useState([]);
-    const [recibosList, setRecibos]  = useState([]);
+    const [tab, setTab] = useState('cobros');
+    const [cobros, setCobros] = useState([]);
+    const [recibosList, setRecibos] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const [showCobroForm, setShowCobroForm] = useState(false);
-    const [editingCobro,  setEditingCobro]  = useState(null);
+    const [editingCobro, setEditingCobro] = useState(null);
     const [cobroForm, setCobroForm] = useState({ concepto: '', monto: '', descuento: 0, estado: 'Pendiente', metodoPago: '' });
 
     const fetchAll = async () => {
@@ -1014,7 +1350,7 @@ function PagosPanel({ moneyFmt, notify }) {
         const body = { ...cobroForm, monto: Number(cobroForm.monto), descuento: Number(cobroForm.descuento) };
         try {
             if (editingCobro) await cobrosApi.update(editingCobro, body);
-            else              await cobrosApi.create(body);
+            else await cobrosApi.create(body);
             notify(editingCobro ? 'Cobro actualizado' : 'Cobro creado', 'success');
             setShowCobroForm(false);
             setEditingCobro(null);
@@ -1026,7 +1362,8 @@ function PagosPanel({ moneyFmt, notify }) {
     };
 
     const handlePagarCobro = (c) => {
-        showConfirm(`¿Registrar pago de ${moneyFmt.format(c.montoFinal)} para el cobro #${c.id}?`, async () => {
+        if (!window.confirm(`¿Registrar pago de ${moneyFmt.format(c.montoFinal)} para el cobro #${c.id}?`)) return;
+        (async () => {
             try {
                 await cobrosApi.pagar(c.id, { monto: c.montoFinal, metodoPago: 'Efectivo', aprobado: true });
                 notify('Pago registrado y recibo generado', 'success');
@@ -1034,11 +1371,12 @@ function PagosPanel({ moneyFmt, notify }) {
             } catch (err) {
                 notify(err.message || 'Error al procesar', 'error');
             }
-        });
+        })();
     };
 
     const handleDeleteCobro = (id) => {
-        showConfirm('¿Eliminar este cobro?', async () => {
+        if (!window.confirm('¿Eliminar este cobro?')) return;
+        (async () => {
             try {
                 await cobrosApi.remove(id);
                 notify('Cobro eliminado', 'success');
@@ -1046,11 +1384,12 @@ function PagosPanel({ moneyFmt, notify }) {
             } catch (err) {
                 notify(err.message || 'Error al eliminar', 'error');
             }
-        });
+        })();
     };
 
     const handleDeleteRecibo = (id) => {
-        showConfirm('¿Eliminar este recibo?', async () => {
+        if (!window.confirm('¿Eliminar este recibo?')) return;
+        (async () => {
             try {
                 await recibosApi.remove(id);
                 notify('Recibo eliminado', 'success');
@@ -1058,7 +1397,7 @@ function PagosPanel({ moneyFmt, notify }) {
             } catch (err) {
                 notify(err.message || 'Error al eliminar', 'error');
             }
-        });
+        })();
     };
 
     const handlePrintCobro = (c) => {
@@ -1096,7 +1435,7 @@ function PagosPanel({ moneyFmt, notify }) {
         w.document.close();
     };
 
-    const totalCobrado  = cobros.filter(c => c.estado === 'Pagado').reduce((s, c) => s + Number(c.montoFinal), 0);
+    const totalCobrado = cobros.filter(c => c.estado === 'Pagado').reduce((s, c) => s + Number(c.montoFinal), 0);
     const totalPendiente = cobros.filter(c => c.estado === 'Pendiente').reduce((s, c) => s + Number(c.montoFinal), 0);
 
     const estadoPill = (e) => ({ Pagado: 'success', Pendiente: 'pending', Rechazado: 'danger' }[e] ?? 'neutral');
@@ -1104,7 +1443,7 @@ function PagosPanel({ moneyFmt, notify }) {
     return (
         <section className="admin-panel">
             <div className="pagos-tabs">
-                <button className={tab === 'cobros'  ? 'active' : ''} onClick={() => setTab('cobros')}>📋 Cobros</button>
+                <button className={tab === 'cobros' ? 'active' : ''} onClick={() => setTab('cobros')}>📋 Cobros</button>
                 <button className={tab === 'recibos' ? 'active' : ''} onClick={() => setTab('recibos')}>🧾 Recibos</button>
             </div>
 
@@ -1140,26 +1479,54 @@ function PagosPanel({ moneyFmt, notify }) {
 
                     {loading ? <div className="empty-state">Cargando cobros...</div>
                         : cobros.length === 0 ? <div className="empty-state">No hay cobros registrados.</div>
+                            : (
+                                <div className="data-table">
+                                    <table>
+                                        <thead><tr><th>ID</th><th>Fecha</th><th>Concepto</th><th>Monto</th><th>Desc.</th><th>Total</th><th>Método</th><th>Estado</th><th>Acciones</th></tr></thead>
+                                        <tbody>
+                                            {cobros.map(c => (
+                                                <tr key={c.id}>
+                                                    <td>#{c.id}</td>
+                                                    <td>{new Date(c.fecha).toLocaleDateString('es-AR')}</td>
+                                                    <td>{c.concepto}</td>
+                                                    <td>{moneyFmt.format(c.monto)}</td>
+                                                    <td style={{ color: 'var(--warning)' }}>{c.descuento > 0 ? `-${moneyFmt.format(c.descuento)}` : '—'}</td>
+                                                    <td style={{ color: 'var(--accent)', fontWeight: 700 }}>{moneyFmt.format(c.montoFinal)}</td>
+                                                    <td>{c.metodoPago || '—'}</td>
+                                                    <td><span className={`pill ${estadoPill(c.estado)}`}>{c.estado}</span></td>
+                                                    <td className="table-actions">
+                                                        {c.estado === 'Pendiente' && <button onClick={() => handlePagarCobro(c)}>💳 Pagar</button>}
+                                                        <button onClick={() => { setEditingCobro(c.id); setCobroForm({ concepto: c.concepto, monto: c.monto, descuento: c.descuento, estado: c.estado, metodoPago: c.metodoPago }); setShowCobroForm(true); }}>Editar</button>
+                                                        <button onClick={() => handlePrintCobro(c)}>🖨️</button>
+                                                        <button className="danger" onClick={() => handleDeleteCobro(c.id)}>Borrar</button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )
+                    }
+                </>
+            )}
+
+            {tab === 'recibos' && (
+                loading ? <div className="empty-state">Cargando recibos...</div>
+                    : recibosList.length === 0 ? <div className="empty-state">No hay recibos emitidos.</div>
                         : (
-                            <div className="data-table">
+                            <div className="data-table" style={{ marginTop: 16 }}>
                                 <table>
-                                    <thead><tr><th>ID</th><th>Fecha</th><th>Concepto</th><th>Monto</th><th>Desc.</th><th>Total</th><th>Método</th><th>Estado</th><th>Acciones</th></tr></thead>
+                                    <thead><tr><th>N° Recibo</th><th>Cobro</th><th>Fecha Emisión</th><th>Datos</th><th>Acciones</th></tr></thead>
                                     <tbody>
-                                        {cobros.map(c => (
-                                            <tr key={c.id}>
-                                                <td>#{c.id}</td>
-                                                <td>{new Date(c.fecha).toLocaleDateString('es-AR')}</td>
-                                                <td>{c.concepto}</td>
-                                                <td>{moneyFmt.format(c.monto)}</td>
-                                                <td style={{ color: 'var(--warning)' }}>{c.descuento > 0 ? `-${moneyFmt.format(c.descuento)}` : '—'}</td>
-                                                <td style={{ color: 'var(--accent)', fontWeight: 700 }}>{moneyFmt.format(c.montoFinal)}</td>
-                                                <td>{c.metodoPago || '—'}</td>
-                                                <td><span className={`pill ${estadoPill(c.estado)}`}>{c.estado}</span></td>
+                                        {recibosList.map(r => (
+                                            <tr key={r.id}>
+                                                <td style={{ fontWeight: 700, color: 'var(--accent)' }}>{r.numero}</td>
+                                                <td>#{r.cobroId}</td>
+                                                <td>{new Date(r.fechaEmision).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                                <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.datos}</td>
                                                 <td className="table-actions">
-                                                    {c.estado === 'Pendiente' && <button onClick={() => handlePagarCobro(c)}>💳 Pagar</button>}
-                                                    <button onClick={() => { setEditingCobro(c.id); setCobroForm({ concepto: c.concepto, monto: c.monto, descuento: c.descuento, estado: c.estado, metodoPago: c.metodoPago }); setShowCobroForm(true); }}>Editar</button>
-                                                    <button onClick={() => handlePrintCobro(c)}>🖨️</button>
-                                                    <button className="danger" onClick={() => handleDeleteCobro(c.id)}>Borrar</button>
+                                                    <button onClick={() => handlePrintRecibo(r)}>🖨️</button>
+                                                    <button className="danger" onClick={() => handleDeleteRecibo(r.id)}>Borrar</button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -1167,34 +1534,6 @@ function PagosPanel({ moneyFmt, notify }) {
                                 </table>
                             </div>
                         )
-                    }
-                </>
-            )}
-
-            {tab === 'recibos' && (
-                loading ? <div className="empty-state">Cargando recibos...</div>
-                : recibosList.length === 0 ? <div className="empty-state">No hay recibos emitidos.</div>
-                : (
-                    <div className="data-table" style={{ marginTop: 16 }}>
-                        <table>
-                            <thead><tr><th>N° Recibo</th><th>Cobro</th><th>Fecha Emisión</th><th>Datos</th><th>Acciones</th></tr></thead>
-                            <tbody>
-                                {recibosList.map(r => (
-                                    <tr key={r.id}>
-                                        <td style={{ fontWeight: 700, color: 'var(--accent)' }}>{r.numero}</td>
-                                        <td>#{r.cobroId}</td>
-                                        <td>{new Date(r.fechaEmision).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
-                                        <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.datos}</td>
-                                        <td className="table-actions">
-                                            <button onClick={() => handlePrintRecibo(r)}>🖨️</button>
-                                            <button className="danger" onClick={() => handleDeleteRecibo(r.id)}>Borrar</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )
             )}
         </section>
     );
@@ -1213,6 +1552,20 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
 
     const [selectedTorneoId, setSelectedTorneoId] = useState(null);
     const [torneoDetails, setTorneoDetails] = useState(null);
+
+    // Confirm modal state (local to this component)
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+    const showConfirm = (message, onConfirm, title = 'Confirmación') => {
+        setConfirmConfig({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmConfig(c => ({ ...c, isOpen: false }));
+            }
+        });
+    };
 
     // Form states
     const [showLigaForm, setShowLigaForm] = useState(false);
@@ -1465,7 +1818,7 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
 
     // Save match result
     const handleSaveMatchResult = async (partidoId, isLiga) => {
-        const url = isLiga 
+        const url = isLiga
             ? `${API_URL}/ligas/partidos/${partidoId}/resultado`
             : `${API_URL}/torneos/partidos/${partidoId}/resultado`;
         try {
@@ -1636,8 +1989,8 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
 
                                     {ligaDetails.estado === 'Abierta' && (ligaDetails.inscripciones?.length || 0) < ligaDetails.cupoEquipos && (
                                         <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-                                            <select 
-                                                value={inscribirEquipoId} 
+                                            <select
+                                                value={inscribirEquipoId}
                                                 onChange={e => setInscribirEquipoId(e.target.value)}
                                                 style={{ minHeight: 38, background: '#080c0a', color: '#fff', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 8, padding: '0 8px', flex: 1 }}
                                             >
@@ -1649,9 +2002,9 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                                     ))
                                                 }
                                             </select>
-                                            <button 
+                                            <button
                                                 onClick={handleInscribirEquipoLiga}
-                                                className="primary-action" 
+                                                className="primary-action"
                                                 style={{ minHeight: 38, padding: '0 12px', fontSize: '0.85rem' }}
                                                 disabled={!inscribirEquipoId}
                                             >
@@ -1664,13 +2017,13 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                 {/* Right Column: Fixture */}
                                 <div>
                                     <h4 style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8, marginBottom: 12 }}>Fixture y Partidos</h4>
-                                    
+
                                     {(!ligaDetails.partidos || ligaDetails.partidos.length === 0) ? (
                                         <div style={{ padding: 20, textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: 8 }}>
                                             <p style={{ color: '#8ca092', marginBottom: 14, fontSize: '0.9rem' }}>El fixture aún no ha sido generado para esta liga.</p>
                                             {(ligaDetails.inscripciones?.length || 0) >= 2 ? (
                                                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-                                                    <input 
+                                                    <input
                                                         type="date"
                                                         value={fixtureFechaInicio}
                                                         onChange={e => setFixtureFechaInicio(e.target.value)}
@@ -1719,13 +2072,13 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                                                 )}
                                                                 {editingMatchId === p.id && (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                                        <input 
+                                                                        <input
                                                                             type="number" min="0" style={{ width: 45, minHeight: 30, padding: 2, textAlign: 'center' }}
                                                                             value={matchResult.golesLocal}
                                                                             onChange={e => setMatchResult({ ...matchResult, golesLocal: e.target.value })}
                                                                         />
                                                                         <span>-</span>
-                                                                        <input 
+                                                                        <input
                                                                             type="number" min="0" style={{ width: 45, minHeight: 30, padding: 2, textAlign: 'center' }}
                                                                             value={matchResult.golesVisitante}
                                                                             onChange={e => setMatchResult({ ...matchResult, golesVisitante: e.target.value })}
@@ -1893,8 +2246,8 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
 
                                     {torneoDetails.estado === 'Abierto' && (torneoDetails.inscripciones?.length || 0) < torneoDetails.cupoEquipos && (
                                         <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-                                            <select 
-                                                value={inscribirEquipoId} 
+                                            <select
+                                                value={inscribirEquipoId}
                                                 onChange={e => setInscribirEquipoId(e.target.value)}
                                                 style={{ minHeight: 38, background: '#080c0a', color: '#fff', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 8, padding: '0 8px', flex: 1 }}
                                             >
@@ -1906,9 +2259,9 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                                     ))
                                                 }
                                             </select>
-                                            <button 
+                                            <button
                                                 onClick={handleInscribirEquipoTorneo}
-                                                className="primary-action" 
+                                                className="primary-action"
                                                 style={{ minHeight: 38, padding: '0 12px', fontSize: '0.85rem' }}
                                                 disabled={!inscribirEquipoId}
                                             >
@@ -1921,13 +2274,13 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                 {/* Right Column: Fixture */}
                                 <div>
                                     <h4 style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8, marginBottom: 12 }}>Fixture y Partidos</h4>
-                                    
+
                                     {(!torneoDetails.partidos || torneoDetails.partidos.length === 0) ? (
                                         <div style={{ padding: 20, textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: 8 }}>
                                             <p style={{ color: '#8ca092', marginBottom: 14, fontSize: '0.9rem' }}>El fixture aún no ha sido generado para este torneo.</p>
                                             {(torneoDetails.inscripciones?.length || 0) >= 2 ? (
                                                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-                                                    <input 
+                                                    <input
                                                         type="date"
                                                         value={fixtureFechaInicio}
                                                         onChange={e => setFixtureFechaInicio(e.target.value)}
@@ -1976,13 +2329,13 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                                                 )}
                                                                 {editingMatchId === p.id && (
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                                        <input 
+                                                                        <input
                                                                             type="number" min="0" style={{ width: 45, minHeight: 30, padding: 2, textAlign: 'center' }}
                                                                             value={matchResult.golesLocal}
                                                                             onChange={e => setMatchResult({ ...matchResult, golesLocal: e.target.value })}
                                                                         />
                                                                         <span>-</span>
-                                                                        <input 
+                                                                        <input
                                                                             type="number" min="0" style={{ width: 45, minHeight: 30, padding: 2, textAlign: 'center' }}
                                                                             value={matchResult.golesVisitante}
                                                                             onChange={e => setMatchResult({ ...matchResult, golesVisitante: e.target.value })}
@@ -2004,6 +2357,13 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                     )}
                 </>
             )}
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(c => ({ ...c, isOpen: false }))}
+            />
         </section>
     );
 }
@@ -2016,6 +2376,20 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
 
     const [selectedClaseId, setSelectedClaseId] = useState(null);
     const [claseDetails, setClaseDetails] = useState(null);
+
+    // Confirm modal state (local to this component)
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+    const showConfirm = (message, onConfirm, title = 'Confirmación') => {
+        setConfirmConfig({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmConfig(c => ({ ...c, isOpen: false }));
+            }
+        });
+    };
 
     // Form states
     const [showClaseForm, setShowClaseForm] = useState(false);
@@ -2033,11 +2407,11 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
         setLoading(true);
         try {
             const [cr, ur] = await Promise.all([
-                fetch(`${API_URL}/clases`),
-                fetch(`${API_URL}/users`)
+                clasesApi.getAll(),
+                usersApi.getAll()
             ]);
-            if (cr.ok) setClases(await cr.json());
-            if (ur.ok) setUsers(await ur.json());
+            setClases(cr);
+            setUsers(ur);
         } catch (error) {
             setMessage('Error al cargar datos: ' + error.message);
         } finally {
@@ -2051,42 +2425,28 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
 
     const loadClaseDetails = async (id) => {
         try {
-            const res = await fetch(`${API_URL}/clases/${id}`);
-            if (res.ok) {
-                const data = await res.json();
-                setClaseDetails(data);
-                setSelectedClaseId(id);
-            } else {
-                setMessage('No se pudieron cargar los detalles de la clase');
-            }
+            const data = await clasesApi.getById(id);
+            setClaseDetails(data);
+            setSelectedClaseId(id);
         } catch (error) {
-            setMessage('Error: ' + error.message);
+            setMessage('Error al cargar los detalles: ' + error.message);
         }
     };
 
     const handleCreateClase = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch(`${API_URL}/clases`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    canchaId: Number(claseForm.canchaId),
-                    profesorId: Number(claseForm.profesorId),
-                    tipo: claseForm.tipo,
-                    fechaHora: new Date(claseForm.fechaHora).toISOString(),
-                    capacidadMax: Number(claseForm.capacidadMax)
-                })
+            await clasesApi.create({
+                canchaId: Number(claseForm.canchaId),
+                profesorId: Number(claseForm.profesorId),
+                tipo: claseForm.tipo,
+                fechaHora: new Date(claseForm.fechaHora).toISOString(),
+                capacidadMax: Number(claseForm.capacidadMax)
             });
-            if (res.ok) {
-                setMessage('Clase programada con éxito');
-                setClaseForm({ tipo: '', canchaId: '', profesorId: '', fechaHora: '', capacidadMax: 15 });
-                setShowClaseForm(false);
-                fetchAll();
-            } else {
-                const txt = await res.text();
-                setMessage('Error al crear clase: ' + txt);
-            }
+            setMessage('Clase programada con éxito');
+            setClaseForm({ tipo: '', canchaId: '', profesorId: '', fechaHora: '', capacidadMax: 15 });
+            setShowClaseForm(false);
+            fetchAll();
         } catch (error) {
             setMessage('Error: ' + error.message);
         }
@@ -2095,17 +2455,12 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
     const handleCancelarClase = (id) => {
         showConfirm('¿Seguro que desea cancelar esta clase?', async () => {
             try {
-                const res = await fetch(`${API_URL}/clases/${id}`, { method: 'DELETE' });
-                if (res.ok) {
-                    setMessage('Clase cancelada');
-                    fetchAll();
-                    if (selectedClaseId === id) {
-                        setSelectedClaseId(null);
-                        setClaseDetails(null);
-                    }
-                } else {
-                    const txt = await res.text();
-                    setMessage('Error al cancelar: ' + txt);
+                await clasesApi.remove(id);
+                setMessage('Clase cancelada');
+                fetchAll();
+                if (selectedClaseId === id) {
+                    setSelectedClaseId(null);
+                    setClaseDetails(null);
                 }
             } catch (error) {
                 setMessage('Error: ' + error.message);
@@ -2115,20 +2470,8 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
 
     const handleToggleAsistencia = async (usuarioId, currentPresent) => {
         try {
-            const res = await fetch(`${API_URL}/clases/${selectedClaseId}/asistencias`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    usuarioId: Number(usuarioId),
-                    presente: !currentPresent
-                })
-            });
-            if (res.ok) {
-                loadClaseDetails(selectedClaseId);
-            } else {
-                const txt = await res.text();
-                setMessage('Error al marcar asistencia: ' + txt);
-            }
+            await clasesApi.toggleAsistencia(selectedClaseId, Number(usuarioId), !currentPresent);
+            loadClaseDetails(selectedClaseId);
         } catch (error) {
             setMessage('Error: ' + error.message);
         }
@@ -2137,23 +2480,11 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
     const handleAddAlumno = async () => {
         if (!inscribirAlumnoId) return;
         try {
-            const res = await fetch(`${API_URL}/clases/${selectedClaseId}/asistencias`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    usuarioId: Number(inscribirAlumnoId),
-                    presente: false
-                })
-            });
-            if (res.ok) {
-                setMessage('Alumno inscripto en clase');
-                setInscribirAlumnoId('');
-                loadClaseDetails(selectedClaseId);
-                fetchAll();
-            } else {
-                const txt = await res.text();
-                setMessage('Error al inscribir alumno: ' + txt);
-            }
+            await clasesApi.toggleAsistencia(selectedClaseId, Number(inscribirAlumnoId), false);
+            setMessage('Alumno inscripto en clase');
+            setInscribirAlumnoId('');
+            loadClaseDetails(selectedClaseId);
+            fetchAll();
         } catch (error) {
             setMessage('Error: ' + error.message);
         }
@@ -2168,8 +2499,8 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
     const profesores = users.filter(u => u.rol === 'Profesor' || u.rol === 'Entrenador');
 
     // Filter users to get Students (Client role)
-    const alumnosDisponibles = users.filter(u => 
-        u.rol === 'Usuario' && 
+    const alumnosDisponibles = users.filter(u =>
+        u.rol === 'Usuario' &&
         !claseDetails?.asistencias?.some(a => a.usuarioId === u.id)
     );
 
@@ -2355,8 +2686,8 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
 
                             {claseDetails.estado === 'Programada' && (claseDetails.asistencias?.length || 0) < claseDetails.capacidadMax && (
                                 <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-                                    <select 
-                                        value={inscribirAlumnoId} 
+                                    <select
+                                        value={inscribirAlumnoId}
                                         onChange={e => setInscribirAlumnoId(e.target.value)}
                                         style={{ minHeight: 38, background: '#080c0a', color: '#fff', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 8, padding: '0 8px', flex: 1 }}
                                     >
@@ -2365,9 +2696,9 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
                                             <option key={al.id} value={al.id}>{al.nombre} {al.apellido} ({al.email})</option>
                                         ))}
                                     </select>
-                                    <button 
+                                    <button
                                         onClick={handleAddAlumno}
-                                        className="primary-action" 
+                                        className="primary-action"
                                         style={{ minHeight: 38, padding: '0 12px', fontSize: '0.85rem' }}
                                         disabled={!inscribirAlumnoId}
                                     >
@@ -2402,9 +2733,9 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
                                     <dd style={{ margin: 0, fontWeight: 'bold' }}>{claseDetails.capacidadMax} alumnos</dd>
                                 </div>
                             </dl>
-                        </div>
-                    </div>
-                </div>
+                        </div >
+                    </div >
+                </div >
             )}
             <ConfirmModal
                 isOpen={confirmConfig.isOpen}
@@ -2413,6 +2744,7 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
                 onConfirm={confirmConfig.onConfirm}
                 onCancel={() => setConfirmConfig(c => ({ ...c, isOpen: false }))}
             />
-        </section>
+        </section >
     );
 }
+

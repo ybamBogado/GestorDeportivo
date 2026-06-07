@@ -27,17 +27,17 @@ public class RegisterPersonaCommandHandler
         Persona persona = command.Rol switch
         {
             "Administrador" => new Administrador(),
-            "Profesor"      => new Profesor(),
-            "Entrenador"    => new Entrenador(),
-            "Empleado"      => new Empleado(),
-            _               => new Usuario()
+            "Profesor" => new Profesor(),
+            "Entrenador" => new Entrenador(),
+            "Empleado" => new Empleado(),
+            _ => new Usuario()
         };
 
-        persona.Email        = command.Email;
+        persona.Email = command.Email;
         persona.PasswordHash = _hasher.Hash(command.Password);
-        persona.Rol          = string.IsNullOrEmpty(command.Rol) ? "Usuario" : command.Rol;
-        persona.Nombre       = command.Nombre;
-        persona.Apellido     = command.Apellido;
+        persona.Rol = string.IsNullOrEmpty(command.Rol) ? "Usuario" : command.Rol;
+        persona.Nombre = command.Nombre;
+        persona.Apellido = command.Apellido;
 
         await _repo.AddAsync(persona);
         await _uow.SaveChangesAsync();
