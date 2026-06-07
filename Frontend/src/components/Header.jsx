@@ -1,12 +1,106 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { reservas as reservasApi, cobros as cobrosApi } from '../services/api';
 import './Header.css';
 
 export default function Header() {
     const { user, logout } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    const [pendingReserva, setPendingReserva] = useState(null);
+    const [timeLeft, setTimeLeft] = useState(null);
+
+    useEffect(() => {
+        if (!user) {
+            setPendingReserva(null);
+            return;
+        }
+
+        const checkPending = async () => {
+            try {
+                const allReservas = await reservasApi.getAll();
+                const nowMs = new Date().getTime();
+                
+                // Find a pending reservation for this user that hasn't expired yet
+                const pending = allReservas.find(r => {
+                    if (r.personaId !== user.id || r.estado !== 'Pendiente') return false;
+                    const expDate = r.fechaExpiracion;
+                    if (!expDate) return false;
+                    const exp = new Date(expDate + (expDate.endsWith('Z') ? '' : 'Z')).getTime();
+                    // Must be in the future and within 15 minutes of session
+                    return exp > nowMs && (exp - nowMs) <= 15 * 60 * 1000;
+                });
+
+                if (pending) {
+                    const allCobros = await cobrosApi.getAll();
+                    const cobro = allCobros.find(c => c.reservaId === pending.id);
+                    if (cobro) {
+                        setPendingReserva({ ...pending, cobroId: cobro.id });
+                        
+                        // Inicializamos el timeLeft inmediatamente para que no tarde 1 segundo en aparecer
+                        const expDate = pending.fechaExpiracion;
+                        const exp = new Date(expDate + (expDate.endsWith('Z') ? '' : 'Z')).getTime();
+                        setTimeLeft(exp - nowMs);
+                        return;
+                    }
+                }
+                setPendingReserva(null);
+                setTimeLeft(null);
+            } catch (e) {
+                console.error("Error checking pending reserva", e);
+            }
+        };
+
+        checkPending();
+        const handleUpdate = () => checkPending();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                checkPending();
+            }
+        };
+        window.addEventListener('reservaUpdate', handleUpdate);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            window.removeEventListener('reservaUpdate', handleUpdate);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [user, location.pathname]);
+
+    useEffect(() => {
+        if (!pendingReserva) {
+            setTimeLeft(null);
+            return;
+        }
+        
+        const interval = setInterval(() => {
+            const expDate = pendingReserva.fechaExpiracion;
+            const exp = new Date(expDate + (expDate.endsWith('Z') ? '' : 'Z')).getTime();
+            const now = new Date().getTime();
+            const diff = exp - now;
+            
+            if (diff <= 0) {
+                setPendingReserva(null);
+                setTimeLeft(null);
+                clearInterval(interval);
+            } else {
+                setTimeLeft(diff);
+            }
+        }, 1000);
+        
+        return () => clearInterval(interval);
+    }, [pendingReserva]);
+
+    function formatTime(ms) {
+        if (!ms || ms <= 0) return "00:00";
+        const totalSecs = Math.floor(ms / 1000);
+        const mins = String(Math.floor(totalSecs / 60)).padStart(2, '0');
+        const secs = String(totalSecs % 60).padStart(2, '0');
+        return `${mins}:${secs}`;
+    }
 
     const handleAuthClick = () => {
         if (user) {
@@ -31,6 +125,27 @@ export default function Header() {
                     <span className="header-title">Gol Ahora</span>
                 </Link>
                 <div className="header-actions">
+                    {pendingReserva && timeLeft !== null && (
+                        <button 
+                            onClick={() => navigate(`/pago/${pendingReserva.cobroId}`)} 
+                            style={{ 
+                                background: '#f2b84b', 
+                                color: '#000', 
+                                border: 'none', 
+                                padding: '8px 16px', 
+                                borderRadius: '20px', 
+                                fontWeight: 'bold', 
+                                marginRight: '15px',
+                                boxShadow: '0 0 10px rgba(242, 184, 75, 0.5)',
+                                cursor: 'pointer',
+                                transition: 'all 0.3s ease'
+                            }}
+                            onMouseOver={e => e.target.style.transform = 'scale(1.05)'}
+                            onMouseOut={e => e.target.style.transform = 'scale(1)'}
+                        >
+                            ⏳ Completar Reserva ({formatTime(timeLeft)})
+                        </button>
+                    )}
                     {user && (
                         <Link to={
                             user.rol === 'Administrador' ? '/admin' :

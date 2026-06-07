@@ -15,6 +15,7 @@ namespace Domain.Entities
     {
         public int Id { get; set; }
 
+        public DateTime FechaCreacion { get; set; } = DateTime.Now;
         public DateTime Fecha { get; set; }
         public TimeSpan HoraInicio { get; set; }
         public TimeSpan HoraFin { get; set; }
@@ -28,6 +29,9 @@ namespace Domain.Entities
 
         /// <summary>Código generado para pago en red de cobranza (ej. Rapipago). Ej: RP-59281</summary>
         public string? CodigoPagoExterno { get; set; }
+
+        /// <summary>Ruta al comprobante de pago por transferencia bancaria (ej. PDF o Imagen)</summary>
+        public string? ComprobantePdf { get; set; }
 
         /// <summary>
         /// Soft-lock: fecha/hora límite para confirmar el pago.
