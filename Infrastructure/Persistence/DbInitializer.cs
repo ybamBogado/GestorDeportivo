@@ -135,6 +135,66 @@ public static class DbInitializer
             context.SaveChanges();
         }
 
+        // Seed de equipos
+        if (!context.Equipos.Any())
+        {
+            var equipos = new List<Equipo>
+            {
+                new Equipo { Nombre = "Boca Juniors", Categoria = "Primera", Estado = "Activo" },
+                new Equipo { Nombre = "River Plate", Categoria = "Primera", Estado = "Activo" },
+                new Equipo { Nombre = "Independiente", Categoria = "Primera", Estado = "Activo" },
+                new Equipo { Nombre = "Racing Club", Categoria = "Primera", Estado = "Activo" },
+                new Equipo { Nombre = "San Lorenzo", Categoria = "Primera", Estado = "Activo" },
+                new Equipo { Nombre = "Vélez Sársfield", Categoria = "Primera", Estado = "Activo" },
+                new Equipo { Nombre = "Huracán", Categoria = "Primera", Estado = "Activo" },
+                new Equipo { Nombre = "Belgrano", Categoria = "Primera", Estado = "Activo" },
+                new Equipo { Nombre = "Estudiantes", Categoria = "Primera", Estado = "Activo" },
+                new Equipo { Nombre = "Lanús", Categoria = "Primera", Estado = "Activo" }
+            };
+            context.Equipos.AddRange(equipos);
+            context.SaveChanges();
+        }
+
+        // Seed de liga
+        if (!context.Ligas.Any())
+        {
+            var liga = new Liga
+            {
+                Nombre = "Torneo Clausura 2026",
+                Reglamento = "Todos juegan contra todos. 3 puntos por victoria, 1 por empate.",
+                Estado = "Abierta",
+                CupoEquipos = 16,
+                FechaInicio = System.DateTime.UtcNow,
+                FechaFin = System.DateTime.UtcNow.AddMonths(4),
+                Categoria = "Primera",
+                CantidadFechas = 15,
+                CostoInscripcion = 5000
+            };
+            context.Ligas.Add(liga);
+            context.SaveChanges();
+        }
+
+        // Seed de torneo
+        if (!context.Torneos.Any())
+        {
+            var torneo = new Torneo
+            {
+                Nombre = "Copa Argentina 2026",
+                Reglamento = "Eliminación directa. Gana quien logre más puntos.",
+                Estado = "Abierto",
+                CupoEquipos = 8,
+                FechaInicio = System.DateTime.UtcNow.AddMonths(1),
+                FechaFin = System.DateTime.UtcNow.AddMonths(3),
+                Categoria = "Primera",
+                Modalidad = "Eliminacion",
+                PremioUSD = 10000,
+                CostoInscripcion = 2500,
+                Formato = "EliminacionDirecta"
+            };
+            context.Torneos.Add(torneo);
+            context.SaveChanges();
+        }
+
         if (context.Canchas.Any()) return;
 
         context.Canchas.AddRange(

@@ -5,6 +5,8 @@ import { useTheme } from '../context/ThemeContext';
 import { canchas as canchasApi, reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi, auth as authApi, clases as clasesApi } from '../services/api.js';
 import { useToast } from '../components/Toast.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
+import EquiposPanel from '../components/Admin/EquiposPanel.jsx';
+import PanelCompetencias from '../components/Admin/PanelCompetencias.jsx';
 import './AdminPanel.css';
 
 const todayInput = () => new Date().toISOString().split('T')[0];
@@ -15,6 +17,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5071/api/v1';
 
 const menuItems = [
     { id: 'usuarios', label: 'Gestión de usuarios', icon: 'bi bi-people-fill' },
+    { id: 'equipos', label: 'Gestión de equipos', icon: 'bi bi-people-team' },
     { id: 'canchas', label: 'Gestión de canchas', icon: 'bi bi-grid-3x3-gap' },
     { id: 'reservas', label: 'Reservas y turnos', icon: 'bi bi-calendar-check' },
     { id: 'pagos', label: 'Pagos y recibos', icon: 'bi bi-credit-card' },
@@ -508,6 +511,10 @@ export default function AdminPanel() {
                 )}
 
                 {/* ── CANCHAS ── */}
+                {activeSection === 'equipos' && (
+                    <EquiposPanel setMessage={setMessage} />
+                )}
+
                 {activeSection === 'canchas' && (
                     <section className="admin-panel">
                         <div className="section-actions">

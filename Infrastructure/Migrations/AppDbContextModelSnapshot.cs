@@ -790,7 +790,7 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.ToTable("CANCHA", t =>
+                    b.ToTable("CANCHA", null, t =>
                         {
                             t.Property("CantJugadores")
                                 .HasColumnName("Futbol5_CantJugadores");
@@ -813,7 +813,7 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.ToTable("CANCHA", t =>
+                    b.ToTable("CANCHA", null, t =>
                         {
                             t.Property("CantJugadores")
                                 .HasColumnName("Futbol7_CantJugadores");
@@ -873,7 +873,7 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime?>("FechaVencimientoCertificacion")
                         .HasColumnType("datetime2");
 
-                    b.ToTable("PERSONA", t =>
+                    b.ToTable("PERSONA", null, t =>
                         {
                             t.Property("FechaVencimientoCertificacion")
                                 .HasColumnName("Profesor_FechaVencimientoCertificacion");
