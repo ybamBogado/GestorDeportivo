@@ -51,11 +51,38 @@ namespace Api.Controllers
                 .Include(l => l.Inscripciones).ThenInclude(i => i.Cobro)
                 .Include(l => l.Partidos).ThenInclude(p => p.EquipoLocal)
                 .Include(l => l.Partidos).ThenInclude(p => p.EquipoVisitante)
-                .Include(l => l.Fixtures)
+                .Include(l => l.Fixtures).ThenInclude(f => f.Partidos)
                 .FirstOrDefaultAsync(l => l.Id == id);
 
             if (liga == null) return NotFound("Liga no encontrada");
-            return Ok(liga);
+
+            return Ok(new
+            {
+                liga.Id,
+                liga.Nombre,
+                liga.Reglamento,
+                liga.Estado,
+                liga.CupoEquipos,
+                liga.FechaInicio,
+                liga.FechaFin,
+                liga.Categoria,
+                liga.CantidadFechas,
+                liga.CostoInscripcion,
+                Inscripciones = liga.Inscripciones,
+                Partidos = liga.Partidos.OrderBy(p => p.FechaHora),
+                Fixtures = liga.Fixtures
+                    .OrderBy(f => f.Numero)
+                    .Select(f => new
+                    {
+                        f.Id,
+                        f.Numero,
+                        NombreFase = $"Fecha {f.Numero}",
+                        f.FechaDesde,
+                        f.FechaHasta,
+                        Partidos = liga.Partidos.Where(p => p.FixtureId == f.Id).OrderBy(p => p.FechaHora)
+                    }),
+                TablaPosiciones = BuildStandings(liga.Inscripciones, liga.Partidos)
+            });
         }
 
         /// <summary>GET /ligas/{id}/fixtures — devuelve las jornadas con sus partidos</summary>
@@ -75,6 +102,7 @@ namespace Api.Controllers
                 {
                     f.Id,
                     f.Numero,
+                    NombreFase = $"Fecha {f.Numero}",
                     f.FechaDesde,
                     f.FechaHasta,
                     Partidos = f.Partidos.Select(p => new
@@ -273,6 +301,104 @@ namespace Api.Controllers
         {
             public int GolesLocal { get; set; }
             public int GolesVisitante { get; set; }
+        }
+
+        private static List<object> BuildStandings(IEnumerable<InscripcionLiga> inscripciones, IEnumerable<Partido> partidos)
+        {
+            var tabla = inscripciones
+                .Where(i => i.Estado == "Confirmado" && i.Equipo != null)
+                .ToDictionary(
+                    i => i.EquipoId,
+                    i => new StandingRow(i.EquipoId, i.Equipo!.Nombre));
+
+            foreach (var partido in partidos.Where(p =>
+                         p.Estado == "Finalizado" &&
+                         p.GolesLocal.HasValue &&
+                         p.GolesVisitante.HasValue &&
+                         p.EquipoLocal != null &&
+                         p.EquipoVisitante != null))
+            {
+                if (!tabla.TryGetValue(partido.EquipoLocalId, out var local))
+                {
+                    local = new StandingRow(partido.EquipoLocalId, partido.EquipoLocal.Nombre);
+                    tabla[partido.EquipoLocalId] = local;
+                }
+
+                if (!tabla.TryGetValue(partido.EquipoVisitanteId, out var visitante))
+                {
+                    visitante = new StandingRow(partido.EquipoVisitanteId, partido.EquipoVisitante.Nombre);
+                    tabla[partido.EquipoVisitanteId] = visitante;
+                }
+
+                var golesLocal = partido.GolesLocal.GetValueOrDefault();
+                var golesVisitante = partido.GolesVisitante.GetValueOrDefault();
+
+                local.PJ++;
+                visitante.PJ++;
+                local.GF += golesLocal;
+                local.GC += golesVisitante;
+                visitante.GF += golesVisitante;
+                visitante.GC += golesLocal;
+
+                if (golesLocal > golesVisitante)
+                {
+                    local.PG++;
+                    local.Pts += 3;
+                    visitante.PP++;
+                }
+                else if (golesVisitante > golesLocal)
+                {
+                    visitante.PG++;
+                    visitante.Pts += 3;
+                    local.PP++;
+                }
+                else
+                {
+                    local.PE++;
+                    visitante.PE++;
+                    local.Pts++;
+                    visitante.Pts++;
+                }
+            }
+
+            return tabla.Values
+                .OrderByDescending(r => r.Pts)
+                .ThenByDescending(r => r.GF - r.GC)
+                .ThenByDescending(r => r.GF)
+                .ThenBy(r => r.Equipo)
+                .Select(r => (object)new
+                {
+                    equipoId = r.EquipoId,
+                    equipo = r.Equipo,
+                    pj = r.PJ,
+                    pg = r.PG,
+                    pe = r.PE,
+                    pp = r.PP,
+                    gf = r.GF,
+                    gc = r.GC,
+                    dg = r.GF - r.GC,
+                    pts = r.Pts
+                })
+                .ToList();
+        }
+
+        private sealed class StandingRow
+        {
+            public StandingRow(int equipoId, string equipo)
+            {
+                EquipoId = equipoId;
+                Equipo = equipo;
+            }
+
+            public int EquipoId { get; }
+            public string Equipo { get; }
+            public int PJ { get; set; }
+            public int PG { get; set; }
+            public int PE { get; set; }
+            public int PP { get; set; }
+            public int GF { get; set; }
+            public int GC { get; set; }
+            public int Pts { get; set; }
         }
     }
 }

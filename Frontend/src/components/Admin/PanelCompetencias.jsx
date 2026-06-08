@@ -166,12 +166,15 @@ export default function PanelCompetencias() {
         );
 
         if (!isElimination) return `Fecha ${f.numero}`;
-        const matchCount = f.partidos?.length || 0;
-        if (matchCount === 1) return 'Final';
-        if (matchCount === 2) return 'Semifinal';
-        if (matchCount === 4) return 'Cuartos de Final';
-        if (matchCount === 8) return 'Octavos de Final';
-        return `Ronda de ${matchCount * 2}`;
+        let remaining = Math.max(2, inscritos.filter(i => i.estado === 'Confirmado').length);
+        for (let round = 1; round < f.numero; round += 1) {
+            remaining = Math.ceil(remaining / 2);
+        }
+        if (remaining <= 2) return 'Final';
+        if (remaining <= 4) return 'Semifinal';
+        if (remaining <= 8) return 'Cuartos de Final';
+        if (remaining <= 16) return 'Octavos de Final';
+        return `Ronda de ${remaining}`;
     };
 
     return (
@@ -242,7 +245,6 @@ export default function PanelCompetencias() {
                                             <label>Modalidad</label>
                                             <select value={form.modalidad} onChange={e => setForm(f => ({ ...f, modalidad: e.target.value }))}>
                                                 <option value="Eliminacion">Eliminación directa</option>
-                                                <option value="TodosVsTodos">Todos vs todos</option>
                                             </select>
                                         </div>
                                         <div className="cf-field">

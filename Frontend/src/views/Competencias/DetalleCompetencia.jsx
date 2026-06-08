@@ -66,6 +66,19 @@ const calculateStandings = (fixturesList) => {
     return standingsList;
 };
 
+const getEliminationRoundName = (initialTeams, roundNumber) => {
+    let remaining = Math.max(2, initialTeams || 2);
+    for (let round = 1; round < roundNumber; round += 1) {
+        remaining = Math.ceil(remaining / 2);
+    }
+
+    if (remaining <= 2) return 'Final';
+    if (remaining <= 4) return 'Semifinal';
+    if (remaining <= 8) return 'Cuartos de Final';
+    if (remaining <= 16) return 'Octavos de Final';
+    return `Ronda de ${remaining}`;
+};
+
 export default function DetalleCompetencia() {
     const { tipo, id } = useParams();
     const navigate = useNavigate();
@@ -96,6 +109,19 @@ export default function DetalleCompetencia() {
     const abierta = data.estado === 'Abierta' || data.estado === 'Abierto';
     const cupoUsado = (data.inscripciones ?? []).filter(i => i.estado === 'Confirmado').length;
     const cupoLibre = (data.cupoEquipos ?? 0) - cupoUsado;
+    const standings = Array.isArray(data.tablaPosiciones) && data.tablaPosiciones.length > 0
+        ? data.tablaPosiciones.map(pos => ({
+            team: pos.equipo,
+            pj: pos.pj,
+            pg: pos.pg,
+            pe: pos.pe,
+            pp: pos.pp,
+            gf: pos.gf,
+            gc: pos.gc,
+            dg: pos.dg,
+            pts: pos.pts
+        }))
+        : calculateStandings(fixtures);
 
     const isElimination = tipo === 'torneos' && (
         data.modalidad?.toLowerCase().includes('eliminacion') ||
@@ -106,12 +132,7 @@ export default function DetalleCompetencia() {
 
     const getRoundName = (f) => {
         if (!isElimination) return `Fecha ${f.numero}`;
-        const matchCount = f.partidos?.length || 0;
-        if (matchCount === 1) return 'Final';
-        if (matchCount === 2) return 'Semifinal';
-        if (matchCount === 4) return 'Cuartos de Final';
-        if (matchCount === 8) return 'Octavos de Final';
-        return `Ronda de ${matchCount * 2}`;
+        return getEliminationRoundName(cupoUsado, f.numero);
     };
 
     return (
@@ -329,7 +350,7 @@ export default function DetalleCompetencia() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {calculateStandings(fixtures).map((team, idx) => (
+                                                {standings.map((team, idx) => (
                                                     <tr key={idx} className={idx === 0 ? 'row-leader' : ''}>
                                                         <td className="col-rank">{idx + 1}</td>
                                                         <td className="col-team">{team.team}</td>
@@ -343,7 +364,7 @@ export default function DetalleCompetencia() {
                                                         <td className="col-pts">{team.pts}</td>
                                                     </tr>
                                                 ))}
-                                                {calculateStandings(fixtures).length === 0 && (
+                                                {standings.length === 0 && (
                                                     <tr>
                                                         <td colSpan="10" className="table-empty">
                                                             No hay equipos registrados o partidos jugados para generar la tabla.

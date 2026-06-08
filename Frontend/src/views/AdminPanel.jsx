@@ -2219,7 +2219,7 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
     const handleSaveMatchResult = async (partidoId, isLiga) => {
         const url = isLiga
             ? `${API_URL}/ligas/partidos/${partidoId}/resultado`
-            : `${API_URL}/torneos/partidos/${partidoId}/resultado`;
+            : `${API_URL}/partidos/${partidoId}/resultado`;
         try {
             const res = await fetch(url, {
                 method: 'PUT',
@@ -2411,6 +2411,32 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                             </button>
                                         </div>
                                     )}
+
+                                    <div style={{ marginTop: 18 }}>
+                                        <h4 style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8, marginBottom: 12 }}>Tabla de Posiciones</h4>
+                                        {ligaDetails.tablaPosiciones?.length ? (
+                                            <div className="data-table" style={{ maxHeight: 260, overflow: 'auto' }}>
+                                                <table>
+                                                    <thead>
+                                                        <tr><th>#</th><th>Equipo</th><th>PJ</th><th>DG</th><th>Pts</th></tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {ligaDetails.tablaPosiciones.map((pos, idx) => (
+                                                            <tr key={pos.equipoId}>
+                                                                <td>{idx + 1}</td>
+                                                                <td style={{ fontWeight: 700 }}>{pos.equipo}</td>
+                                                                <td>{pos.pj}</td>
+                                                                <td>{pos.dg > 0 ? `+${pos.dg}` : pos.dg}</td>
+                                                                <td style={{ color: '#31d94f', fontWeight: 700 }}>{pos.pts}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <p style={{ color: '#8ca092', fontSize: '0.85rem' }}>Sin posiciones disponibles.</p>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Right Column: Fixture */}
@@ -2555,7 +2581,6 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                     onChange={e => setTorneoForm({ ...torneoForm, formato: e.target.value })}
                                 >
                                     <option value="EliminacionDirecta">Eliminación Directa</option>
-                                    <option value="TodosContraTodos">Todos contra Todos</option>
                                 </select>
                             </div>
                             <div>
@@ -2699,6 +2724,7 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                                 <thead>
                                                     <tr>
                                                         <th>Fecha/Hora</th>
+                                                        <th>Fase</th>
                                                         <th>Local</th>
                                                         <th>Resultado</th>
                                                         <th>Visitante</th>
@@ -2710,6 +2736,18 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                                     {torneoDetails.partidos.map(p => (
                                                         <tr key={p.id}>
                                                             <td style={{ fontSize: '0.8rem' }}>{formatLocalDateTime(p.fechaHora)}</td>
+                                                            <td style={{ color: '#31d94f', fontWeight: 700 }}>
+                                                                {(() => {
+                                                                    const fixture = torneoDetails.fixtures?.find(f => f.id === p.fixtureId);
+                                                                    let remaining = Math.max(2, torneoDetails.inscripciones?.filter(i => i.estado === 'Confirmado').length || 2);
+                                                                    for (let round = 1; round < (fixture?.numero || 1); round += 1) remaining = Math.ceil(remaining / 2);
+                                                                    if (remaining <= 2) return 'Final';
+                                                                    if (remaining <= 4) return 'Semifinal';
+                                                                    if (remaining <= 8) return 'Cuartos';
+                                                                    if (remaining <= 16) return 'Octavos';
+                                                                    return `Ronda de ${remaining}`;
+                                                                })()}
+                                                            </td>
                                                             <td style={{ fontWeight: p.golesLocal > p.golesVisitante ? 'bold' : 'normal', color: p.golesLocal > p.golesVisitante ? '#31d94f' : '#fff' }}>
                                                                 {p.equipoLocal?.nombre || `Equipo #${p.equipoLocalId}`}
                                                             </td>
