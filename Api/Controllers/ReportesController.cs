@@ -128,9 +128,9 @@ namespace Api.Controllers
 
             var listaEntrenamientos = entrenamientos.Select(e =>
             {
-                var confirmedInscripciones = e.Inscripciones.Where(i => i.Estado == "Confirmado").ToList();
-                var totalInscriptos = confirmedInscripciones.Count;
-                var presentes = confirmedInscripciones.Count(i => i.Presente);
+                var activeInscripciones = e.Inscripciones.Where(i => i.Estado != "Cancelado").ToList();
+                var totalInscriptos = activeInscripciones.Count;
+                var presentes = activeInscripciones.Count(i => i.Presente);
                 var ausentes = totalInscriptos - presentes;
                 double tasaAsistencia = totalInscriptos > 0 ? (double)presentes / totalInscriptos * 100 : 0;
                 return new
@@ -146,7 +146,7 @@ namespace Api.Controllers
                     Presentes = presentes,
                     Ausentes = ausentes,
                     TasaAsistencia = Math.Round(tasaAsistencia, 1),
-                    Alumnos = confirmedInscripciones.Select(i => new
+                    Alumnos = activeInscripciones.Select(i => new
                     {
                         i.Usuario.Id,
                         NombreCompleto = $"{i.Usuario.Nombre} {i.Usuario.Apellido}",
