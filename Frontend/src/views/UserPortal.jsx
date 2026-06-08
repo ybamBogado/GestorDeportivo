@@ -462,9 +462,7 @@ export default function UserPortal() {
                         <button className="theme-toggle" onClick={() => { setLoading(true); fetchUserData(); }} title="Actualizar datos">
                             <i className="bi bi-arrow-clockwise"></i>
                         </button>
-                        <button className="theme-toggle" onClick={toggleTheme}>
-                            {theme === 'dark' ? '☀' : '☾'}
-                        </button>
+
                         <button className="btn-logout" onClick={() => { logout(); navigate('/'); }}>
                             Cerrar sesión
                         </button>

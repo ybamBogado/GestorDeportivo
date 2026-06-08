@@ -475,9 +475,6 @@ export default function AdminPanel() {
                 </nav>
 
                 <div className="admin-sidebar-footer">
-                    <button className="admin-theme-btn" onClick={toggleTheme}>
-                        {theme === 'dark' ? '☀ Modo claro' : '☾ Modo oscuro'}
-                    </button>
                     <button className="admin-logout" onClick={() => { logout(); navigate('/'); }}>
                         Cerrar sesión
                     </button>

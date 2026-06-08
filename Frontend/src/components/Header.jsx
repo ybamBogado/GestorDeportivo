@@ -146,18 +146,7 @@ export default function Header() {
                         </Link>
                     )}
 
-                    <button
-                        className="header-theme-btn"
-                        onClick={toggleTheme}
-                        aria-label={`Cambiar a modo ${theme === 'dark' ? 'claro' : 'oscuro'}`}
-                        title={`Modo ${theme === 'dark' ? 'claro' : 'oscuro'}`}
-                    >
-                        {theme === 'dark' ? (
-                            <i className="bi bi-sun-fill" style={{ color: '#fbbf24' }}></i>
-                        ) : (
-                            <i className="bi bi-moon-stars-fill" style={{ color: '#3b82f6' }}></i>
-                        )}
-                    </button>
+
 
                     <button className="header-auth-btn" onClick={handleAuthClick}>
                         {user ? (

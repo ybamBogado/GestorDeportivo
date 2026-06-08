@@ -406,9 +406,6 @@ export default function TrainerPanel() {
                 </div>
 
                 <div className="admin-sidebar-footer" style={{ marginTop: 'auto' }}>
-                    <button className="admin-theme-btn" onClick={toggleTheme}>
-                        {theme === 'dark' ? '☀ Modo claro' : '☾ Modo oscuro'}
-                    </button>
                     <button className="admin-logout" onClick={() => { logout(); navigate('/'); }}>
                         Cerrar sesión
                     </button>
