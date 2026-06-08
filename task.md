@@ -1,0 +1,32 @@
+- [x] Modificar `Persona.cs` para agregar propiedad `CertificadoPdf`
+- [x] Modificar `UpdatePersonaCommand.cs` y `UpdatePersonaCommandHandler.cs` para soportar y decodificar el certificado PDF en base64
+- [x] Modificar `AuthContext.jsx` para resolver URLs relativas de `certificadoPdf`
+- [x] Implementar la sección de postulación en la pestaña Perfil de `UserPortal.jsx`
+- [x] Agregar campos condicionales de certificación en "Crear Nuevo Usuario" (AdminPanel)
+- [x] Modificar `RegisterPersonaCommand` y su Handler en el backend para guardar los datos de certificación
+- [x] Verificar compilación y documentar en la bitácora
+
+# FASE 2: Módulos de Reservas, Cobros y Canchas
+
+- `[ ]` **1. Actualización de Modelos (Backend)**
+  - `[ ]` Revisar/Agregar `DuracionMaxima` en la entidad `TipoCancha`.
+  - `[ ]` Asegurar que la entidad `Reserva` soporte estados ("Pendiente", "Confirmada", "Cancelada").
+  - `[ ]` Revisar/Adaptar la entidad `Recibo` para soportar "Recibo de Reembolso".
+- `[ ]` **2. Validaciones de Reservas (Backend)**
+  - `[ ]` Implementar límite de 30 días de antelación.
+  - `[ ]` Validar duración según `TipoCancha.DuracionMaxima`.
+  - `[ ]` Validar solapamientos (con otras reservas o mantenimientos).
+- `[ ]` **3. Concurrencia y Soft-Lock (Backend)**
+  - `[ ]` Crear lógica de expiración de reservas (ej. 15 min para Tarjeta, 12h para Efectivo).
+  - `[ ]` Servicio/Job de background para cancelar reservas "Pendientes" expiradas.
+- `[ ]` **4. Lógica de Pagos y Reembolsos (Backend)**
+  - `[ ]` Mock/Simulación de pago con Tarjeta (Delay 2s -> Confirma Reserva).
+  - `[ ]` Flujo de Cancelación: Si es > 6h, marcar para reembolso total y permitir crear `Recibo de Reembolso`.
+- `[ ]` **5. Frontend: Experiencia de Usuario (UI Reservas)**
+  - `[ ]` Refactorizar grilla de horarios estática a **Bloques Fijos Dinámicos** según la cancha.
+  - `[ ]` Implementar 3 estados visuales para los horarios: Libre, Seleccionado, Ocupado.
+  - `[ ]` Restringir el Datepicker a máximo 30 días.
+- `[ ]` **6. Frontend: Paneles de Gestión (Admin / Empleado)**
+  - `[ ]` **Admin:** Formulario CRUD de `TipoCancha` para incluir `DuracionMaxima`.
+  - `[ ]` **Admin/Dev:** Botón oculto/herramienta para "Simular Webhook de Pago Externo" (Rapipago).
+  - `[ ]` **Empleado:** Funcionalidad para bloquear horarios de canchas por "Mantenimiento".

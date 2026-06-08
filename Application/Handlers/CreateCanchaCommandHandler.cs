@@ -20,9 +20,9 @@ namespace Application.Handlers
         {
             Cancha nuevaCancha = command.TipoCancha switch
             {
-                "Futbol7" => new Futbol7 { Superficie = command.Superficie, Capacidad = command.Capacidad, Estado = command.Estado },
-                "Futbol11" => new Futbol11 { Superficie = command.Superficie, Capacidad = command.Capacidad, Estado = command.Estado },
-                _ => new Futbol5 { Superficie = command.Superficie, Capacidad = command.Capacidad, Estado = command.Estado }
+                "Futbol7"  => new Futbol7  { Superficie = command.Superficie, Capacidad = command.Capacidad, Estado = command.Estado, DuracionMaximaMinutos = command.DuracionMaximaMinutos, PrecioHora = command.PrecioHora },
+                "Futbol11" => new Futbol11 { Superficie = command.Superficie, Capacidad = command.Capacidad, Estado = command.Estado, DuracionMaximaMinutos = command.DuracionMaximaMinutos, PrecioHora = command.PrecioHora },
+                _          => new Futbol5  { Superficie = command.Superficie, Capacidad = command.Capacidad, Estado = command.Estado, DuracionMaximaMinutos = command.DuracionMaximaMinutos, PrecioHora = command.PrecioHora }
             };
 
             await _canchaRepository.AddAsync(nuevaCancha);

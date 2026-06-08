@@ -14,20 +14,54 @@ const CANCHA_IMAGES = {
     default:     'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80',
 };
 
-const TIME_SLOTS = ['18:00', '19:00', '20:00', '21:00', '22:00', '23:00'];
-const PRECIO_BASE = 4500;
+// Hora de apertura y cierre del club
+const HORA_APERTURA = 8;  // 08:00
+const HORA_CIERRE   = 23; // hasta las 23:00
 
-function getCanchaImage(tipo) {
-    return CANCHA_IMAGES[tipo] || CANCHA_IMAGES.default;
+/**
+ * Genera bloques fijos dinámicos según la duración máxima de la cancha.
+ * Ejemplo: duracion=90 min → slots: 08:00, 09:30, 11:00, ...
+ * Esto evita huecos muertos en la agenda del club (Opción A del plan).
+ */
+function generateTimeSlots(duracionMinutos) {
+    const slots = [];
+    let current = HORA_APERTURA * 60; // en minutos
+    const end   = HORA_CIERRE  * 60;
+    while (current + duracionMinutos <= end) {
+        const startH = String(Math.floor(current / 60)).padStart(2, '0');
+        const startM = String(current % 60).padStart(2, '0');
+        
+        const next = current + duracionMinutos;
+        const endH = String(Math.floor(next / 60)).padStart(2, '0');
+        const endM = String(next % 60).padStart(2, '0');
+        
+        slots.push({
+            start: `${startH}:${startM}`,
+            end: `${endH}:${endM}`
+        });
+        current += duracionMinutos;
+    }
+    return slots;
 }
 
-function getEndTime(start) {
-    const hour = parseInt(start.split(':')[0], 10);
-    return hour >= 23 ? '23:59' : `${String(hour + 1).padStart(2, '0')}:00`;
+function addMinutesToTime(timeStr, minutes) {
+    const [h, m] = timeStr.split(':').map(Number);
+    const total = h * 60 + m + minutes;
+    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
 function todayISO() {
     return new Date().toISOString().split('T')[0];
+}
+
+function maxDateISO() {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split('T')[0];
+}
+
+function getCanchaImage(tipo) {
+    return CANCHA_IMAGES[tipo] || CANCHA_IMAGES.default;
 }
 
 export default function SelectCancha() {
@@ -44,6 +78,10 @@ export default function SelectCancha() {
     const [submitting, setSubmitting] = useState(false);
     const [bookingError, setBookingError] = useState(null);
 
+    // Disponibilidad dinámica
+    const [disponibilidad, setDisponibilidad] = useState(null);
+    const [loadingDisp, setLoadingDisp] = useState(false);
+
     useEffect(() => {
         if (!authLoading && user?.rol === 'Administrador') {
             navigate('/admin');
@@ -56,6 +94,100 @@ export default function SelectCancha() {
             .catch(err => setError(err.message))
             .finally(() => setLoading(false));
     }, []);
+
+    const [activeCheckoutCobroId, setActiveCheckoutCobroId] = useState(null);
+
+    useEffect(() => {
+        if (!user) {
+            setActiveCheckoutCobroId(null);
+            return;
+        }
+
+        const checkActiveCheckout = async () => {
+            try {
+                const allReservas = await reservasApi.getAll();
+                const nowMs = new Date().getTime();
+                
+                const pending = allReservas.find(r => {
+                    if (r.personaId !== user.id || r.estado !== 'Pendiente') return false;
+                    const expDate = r.fechaExpiracion;
+                    if (!expDate) return false;
+                    const exp = new Date(expDate + (expDate.endsWith('Z') ? '' : 'Z')).getTime();
+                    return exp > nowMs && (exp - nowMs) <= 15 * 60 * 1000;
+                });
+
+                if (pending) {
+                    const response = await fetch(`http://localhost:5071/api/v1/cobros`);
+                    if (response.ok) {
+                        const allCobros = await response.json();
+                        const cobro = allCobros.find(c => c.reservaId === pending.id);
+                        if (cobro) {
+                            setActiveCheckoutCobroId(cobro.id);
+                            return;
+                        }
+                    }
+                }
+                setActiveCheckoutCobroId(null);
+            } catch (e) {
+                console.error("Error checking active checkout", e);
+            }
+        };
+
+        checkActiveCheckout();
+        const handleUpdate = () => checkActiveCheckout();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                checkActiveCheckout();
+            }
+        };
+        window.addEventListener('reservaUpdate', handleUpdate);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            window.removeEventListener('reservaUpdate', handleUpdate);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [user]);
+
+    // Cada vez que cambia la cancha o la fecha, consulta disponibilidad
+    useEffect(() => {
+        if (!selectedCancha) { setDisponibilidad(null); return; }
+        setLoadingDisp(true);
+        setSelectedTime(null);
+        fetch(`http://localhost:5071/api/v1/reservas/disponibilidad?canchaId=${selectedCancha.id}&fecha=${selectedDate}`)
+            .then(r => r.json())
+            .then(data => setDisponibilidad(data))
+            .catch(() => setDisponibilidad(null))
+            .finally(() => setLoadingDisp(false));
+    }, [selectedCancha, selectedDate]);
+
+    /**
+     * Determina si un slot está ocupado comparando con las reservas activas y bloqueos.
+     */
+    function isSlotOcupado(slotTime) {
+        if (!disponibilidad) return false;
+        const durMin = disponibilidad.duracionMaximaMinutos || 60;
+        const [sh, sm] = slotTime.split(':').map(Number);
+        const slotIni = sh * 60 + sm;
+        const slotFin = slotIni + durMin;
+
+        const ocupadoPorReserva = (disponibilidad.reservasOcupadas || []).some(r => {
+            const [rh, rm] = (r.horaInicio?.substring(0, 5) || '00:00').split(':').map(Number);
+            const [fh, fm] = (r.horaFin?.substring(0, 5)   || '00:00').split(':').map(Number);
+            const rIni = rh * 60 + rm;
+            const rFin = fh * 60 + fm;
+            return slotIni < rFin && slotFin > rIni;
+        });
+
+        const ocupadoPorBloqueo = (disponibilidad.bloqueos || []).some(b => {
+            const bIni = new Date(b.fechaHoraInicio);
+            const bFin = new Date(b.fechaHoraFin);
+            const bIniMin = bIni.getHours() * 60 + bIni.getMinutes();
+            const bFinMin = bFin.getHours() * 60 + bFin.getMinutes();
+            return slotIni < bFinMin && slotFin > bIniMin;
+        });
+
+        return ocupadoPorReserva || ocupadoPorBloqueo;
+    }
 
     const handleSelectCancha = (cancha) => {
         if (selectedCancha?.id === cancha.id) {
@@ -80,6 +212,9 @@ export default function SelectCancha() {
             return;
         }
 
+        const durMin = disponibilidad?.duracionMaximaMinutos || 60;
+        const horaFin = addMinutesToTime(selectedTime, durMin);
+
         setBookingError(null);
         setSubmitting(true);
         try {
@@ -88,13 +223,15 @@ export default function SelectCancha() {
                 personaId:  user.id,
                 fecha:      selectedDate,
                 horaInicio: selectedTime,
-                horaFin:    getEndTime(selectedTime),
-                precio:     PRECIO_BASE,
+                horaFin:    horaFin,
+                precio:     disponibilidad?.precioHora || 4500,
                 pago:       false,
+                metodoPago: 'tarjeta', // default; Pago.jsx puede cambiarlo
             });
+            window.dispatchEvent(new Event('reservaUpdate'));
             navigate(`/pago/${data.cobroId}`);
-        } catch {
-            setBookingError('La reserva no pudo procesarse. Intentá de nuevo.');
+        } catch (err) {
+            setBookingError(err?.message || 'La reserva no pudo procesarse. Intentá de nuevo.');
         } finally {
             setSubmitting(false);
         }
@@ -193,50 +330,91 @@ export default function SelectCancha() {
 
                                         {bookingError && <div className="booking-detail-error" role="alert">{bookingError}</div>}
 
-                                        <div className="booking-detail-section">
-                                            <label className="booking-detail-label">1. SELECCIONÁ EL DÍA</label>
-                                            <input
-                                                type="date"
-                                                className="booking-detail-date-input"
-                                                value={selectedDate}
-                                                min={todayISO()}
-                                                onChange={e => setSelectedDate(e.target.value)}
-                                            />
-                                        </div>
+                                        {activeCheckoutCobroId ? (
+                                            <div className="booking-detail-error" style={{ background: 'rgba(242, 184, 75, 0.1)', border: '1px solid #f2b84b', color: '#f2b84b', padding: '20px', borderRadius: '12px', marginTop: '20px', textAlign: 'center' }}>
+                                                <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: '2rem', display: 'block', marginBottom: '10px' }}></i>
+                                                <h4 style={{ fontWeight: 'bold', margin: '0 0 10px 0' }}>¡Pago Pendiente Activo!</h4>
+                                                <p style={{ fontSize: '0.95rem', margin: '0 0 20px 0', color: 'var(--text-secondary)' }}>Tienes una reserva en proceso de pago. Debes completar la reserva anterior o cancelarla antes de poder seleccionar un nuevo horario.</p>
+                                                <button 
+                                                    type="button" 
+                                                    className="booking-detail-reserve-btn" 
+                                                    style={{ width: '100%', background: '#f2b84b', color: '#000', fontWeight: 'bold' }} 
+                                                    onClick={() => navigate(`/pago/${activeCheckoutCobroId}`)}
+                                                >
+                                                    ⏳ Completar Reserva Activa
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="booking-detail-section">
+                                                    <label className="booking-detail-label">1. SELECCIONÁ EL DÍA</label>
+                                                    <div className="booking-detail-date-wrapper">
+                                                        <i className="bi bi-calendar-event"></i>
+                                                        <input
+                                                            type="date"
+                                                            className="booking-detail-date-input"
+                                                            value={selectedDate}
+                                                            min={todayISO()}
+                                                            max={maxDateISO()}
+                                                            onChange={e => setSelectedDate(e.target.value)}
+                                                        />
+                                                    </div>
+                                                </div>
 
-                                        <div className="booking-detail-section">
-                                            <label className="booking-detail-label">2. SELECCIONÁ EL HORARIO</label>
-                                            <div className="booking-time-slots">
-                                                {TIME_SLOTS.map(time => (
+                                                <div className="booking-detail-section">
+                                                    <label className="booking-detail-label">2. SELECCIONÁ EL HORARIO</label>
+                                                    {loadingDisp ? (
+                                                        <p style={{color:'#aaa', fontSize:'0.85rem'}}>Cargando horarios disponibles...</p>
+                                                    ) : (
+                                                    <div className="booking-time-slots">
+                                                        {(disponibilidad
+                                                            ? generateTimeSlots(disponibilidad.duracionMaximaMinutos)
+                                                            : generateTimeSlots(60)
+                                                        ).map(slot => {
+                                                            const time = slot.start;
+                                                            const ocupado = isSlotOcupado(time);
+                                                            return (
+                                                                <button
+                                                                    key={time}
+                                                                    type="button"
+                                                                    title={ocupado ? 'Este horario ya está reservado' : `Reservar de ${slot.start} a ${slot.end}`}
+                                                                    className={[
+                                                                        'booking-time-slot',
+                                                                        selectedTime === time ? 'booking-time-slot--active' : '',
+                                                                        ocupado ? 'booking-time-slot--ocupado' : '',
+                                                                    ].join(' ')}
+                                                                    onClick={() => !ocupado && setSelectedTime(time)}
+                                                                    disabled={ocupado}
+                                                                >
+                                                                    {slot.start} - {slot.end}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="booking-detail-summary">
+                                                    <div className="booking-detail-price-row">
+                                                        <span>Total a pagar</span>
+                                                        <strong className="booking-detail-price">
+                                                            ${(disponibilidad?.precioHora || 4500).toLocaleString('es-AR')}
+                                                        </strong>
+                                                    </div>
                                                     <button
-                                                        key={time}
-                                                        type="button"
-                                                        className={`booking-time-slot ${selectedTime === time ? 'booking-time-slot--active' : ''}`}
-                                                        onClick={() => setSelectedTime(time)}
+                                                        className="booking-detail-reserve-btn"
+                                                        onClick={handleConfirmReserva}
+                                                        disabled={submitting}
                                                     >
-                                                        {time}
+                                                        {submitting
+                                                            ? 'Procesando...'
+                                                            : selectedTime
+                                                                ? `RESERVAR PARA LAS ${selectedTime}`
+                                                                : 'ELEGÍ UN HORARIO'}
                                                     </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="booking-detail-summary">
-                                            <div className="booking-detail-price-row">
-                                                <span>Total a pagar</span>
-                                                <strong className="booking-detail-price">${PRECIO_BASE.toLocaleString('es-AR')}</strong>
-                                            </div>
-                                            <button
-                                                className="booking-detail-reserve-btn"
-                                                onClick={handleConfirmReserva}
-                                                disabled={submitting}
-                                            >
-                                                {submitting
-                                                    ? 'Procesando...'
-                                                    : selectedTime
-                                                        ? `RESERVAR PARA LAS ${selectedTime}`
-                                                        : 'ELEGÍ UN HORARIO'}
-                                            </button>
-                                        </div>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>

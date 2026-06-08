@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import Loader from '../components/Loader';
-import { cobros as cobrosApi, recibos as recibosApi } from '../services/api.js';
+import { cobros as cobrosApi, recibos as recibosApi, reservas as reservasApi } from '../services/api.js';
 import { validateCard, detectCardBrand, luhnCheck } from '../utils/validation.js';
 import './Pago.css';
 
@@ -24,16 +24,22 @@ function formatExpiry(value) {
     return digits;
 }
 
+function formatTime(ms) {
+    if (!ms || ms <= 0) return "00:00";
+    const totalSecs = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSecs / 3600);
+    const mins = String(Math.floor((totalSecs % 3600) / 60)).padStart(2, '0');
+    const secs = String(totalSecs % 60).padStart(2, '0');
+    if (hours > 0) {
+        return `${String(hours).padStart(2, '0')}:${mins}:${secs}`;
+    }
+    return `${mins}:${secs}`;
+}
+
 export default function Pago() {
     const { cobroId } = useParams();
     const navigate    = useNavigate();
     const { user, loading: authLoading } = useAuth();
-
-    useEffect(() => {
-        if (!authLoading && user?.rol === 'Administrador') {
-            navigate('/admin');
-        }
-    }, [user, authLoading, navigate]);
 
     const [cobro, setCobro]         = useState(null);
     const [loading, setLoading]     = useState(true);
@@ -41,17 +47,156 @@ export default function Pago() {
     const [metodoPago, setMetodoPago] = useState('tarjeta');
     const [paying, setPaying]       = useState(false);
     const [recibo, setRecibo]       = useState(null);
+    const [timeLeft, setTimeLeft]   = useState(null);
+    const [expired, setExpired]     = useState(false);
+
+    // Finalized states
+    const [comprobanteFile, setComprobanteFile] = useState(null);
+    const [finalizedEfectivo, setFinalizedEfectivo] = useState(null);
+    const [finalizedTransferencia, setFinalizedTransferencia] = useState(false);
 
     // Card form state
     const [card, setCard] = useState({ number: '', expiry: '', cvv: '', holder: '' });
     const [cardErrors, setCardErrors] = useState({});
 
     useEffect(() => {
-        cobrosApi.getById(cobroId)
-            .then(setCobro)
-            .catch(e => setError(e.message ?? 'Error de conexión'))
-            .finally(() => setLoading(false));
-    }, [cobroId]);
+        const fetchCobro = () => {
+            cobrosApi.getById(cobroId)
+                .then(data => {
+                    if (data?.reserva?.estado !== 'Pendiente' && data?.estado !== 'Aprobado') {
+                        navigate('/');
+                        return;
+                    }
+                    setCobro(data);
+                    if (data?.reserva?.metodoPago) {
+                        setMetodoPago(data.reserva.metodoPago);
+                    }
+                })
+                .catch(e => {
+                    if (e.message?.includes('Pendiente') || e.message?.includes('encontrada')) {
+                        navigate('/');
+                    } else {
+                        setError(e.message ?? 'Error de conexión');
+                    }
+                })
+                .finally(() => setLoading(false));
+        };
+
+        fetchCobro();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchCobro();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [cobroId, navigate]);
+
+    useEffect(() => {
+        if (!cobro?.reserva?.fechaExpiracion || expired || recibo) return;
+
+        // Si es admin/empleado, no hay expiración estricta visual
+        if (user?.rol === 'Administrador' || user?.rol === 'Empleado') {
+            setTimeLeft(null);
+            return;
+        }
+
+        const interval = setInterval(() => {
+            const expDate = cobro.reserva?.fechaExpiracion;
+            if (!expDate) return;
+
+            const now = new Date().getTime();
+            const exp = new Date(expDate + (expDate.endsWith('Z') ? '' : 'Z')).getTime();
+            const diff = exp - now;
+
+            if (diff <= 0) {
+                clearInterval(interval);
+                setTimeLeft(0);
+                setExpired(true);
+            } else {
+                setTimeLeft(diff);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [cobro, expired, recibo, user]);
+
+    const handleMetodoChange = (newMetodo) => {
+        if (newMetodo === metodoPago) return;
+        setMetodoPago(newMetodo);
+        // NO llamamos al backend aquí. Solo cuando confirmen la acción final.
+    };
+
+    const handleFinalizarEfectivo = async () => {
+        setPaying(true);
+        setError(null);
+        try {
+            const rId = cobro.reservaId || cobro.reserva.id;
+            const res = await reservasApi.updateMetodoPago(rId, 'efectivo');
+            window.dispatchEvent(new Event('reservaUpdate'));
+            setFinalizedEfectivo(res);
+        } catch (e) {
+            if (e.message?.includes('Pendiente')) navigate('/');
+            else setError(e.message);
+        } finally {
+            setPaying(false);
+        }
+    };
+
+    const handleFinalizarTransferencia = async () => {
+        if (!comprobanteFile) {
+            setError("Por favor selecciona un archivo de comprobante.");
+            return;
+        }
+
+        setPaying(true);
+        setError(null);
+        try {
+            const rId = cobro.reservaId || cobro.reserva.id;
+
+            const reader = new FileReader();
+            reader.readAsDataURL(comprobanteFile);
+            reader.onloadend = async () => {
+                const base64Data = reader.result;
+                try {
+                    await reservasApi.updateMetodoPago(rId, 'transferencia', base64Data);
+                    window.dispatchEvent(new Event('reservaUpdate'));
+                    setFinalizedTransferencia(true);
+                } catch (e) {
+                    if (e.message?.includes('Pendiente')) navigate('/');
+                    else setError(e.message);
+                    setPaying(false);
+                }
+            };
+            reader.onerror = () => {
+                setError("Error al leer el comprobante.");
+                setPaying(false);
+            };
+        } catch (e) {
+            if (e.message?.includes('Pendiente')) navigate('/');
+            else setError(e.message);
+            setPaying(false);
+        }
+    };
+
+    const handleCancelarReserva = async () => {
+        if (!cobro) {
+            navigate('/');
+            return;
+        }
+
+        setPaying(true);
+        setError(null);
+        try {
+            const rId = cobro.reservaId || cobro.reserva.id;
+            await reservasApi.cancelar(rId);
+            window.dispatchEvent(new Event('reservaUpdate'));
+            navigate('/');
+        } catch (e) {
+            setError("No se pudo cancelar la reserva: " + e.message);
+            setPaying(false);
+        }
+    };
 
     const handleCardChange = (field) => (e) => {
         let value = e.target.value;
@@ -96,7 +241,8 @@ export default function Pago() {
             });
             setCobro(updated);
         } catch (e) {
-            setError(e.message);
+            if (e.message?.includes('Pendiente')) navigate('/');
+            else setError(e.message);
         } finally {
             setPaying(false);
         }
@@ -142,6 +288,56 @@ export default function Pago() {
         );
     }
 
+    // ── Pantalla de éxito Transferencia ──────────────────────────────────────
+    if (finalizedTransferencia) {
+        return (
+            <>
+                <Header />
+                <div className="pago-page fade-in-up">
+                    <div className="recibo-card" style={{textAlign: 'center'}}>
+                        <div className="recibo-check" style={{background: 'var(--accent)'}}>⏳</div>
+                        <h2 className="recibo-title">Comprobante Enviado</h2>
+                        <p className="recibo-subtitle">Tu reserva está pendiente de verificación</p>
+                        <p style={{color: 'var(--text-secondary)', marginBottom: '30px'}}>Nuestros administradores revisarán el pago en breve. Tenés 24 horas para que el pago se acredite.</p>
+                        <button className="btn-volver" onClick={() => navigate('/my-portal')}>
+                            Ir a Mis Reservas
+                        </button>
+                    </div>
+                </div>
+                <Footer />
+            </>
+        );
+    }
+
+    // ── Pantalla de éxito Efectivo ───────────────────────────────────────────
+    if (finalizedEfectivo) {
+        return (
+            <>
+                <Header />
+                <div className="pago-page fade-in-up">
+                    <div className="recibo-card" style={{textAlign: 'center'}}>
+                        <div className="recibo-check" style={{background: '#f2b84b'}}>💵</div>
+                        <h2 className="recibo-title">Código Generado</h2>
+                        <p className="recibo-subtitle">Acercate a Rapipago o PagoFácil</p>
+                        
+                        <div style={{ background: 'var(--bg-app)', padding: '20px', borderRadius: '8px', border: '1px dashed var(--accent)', margin: '20px 0' }}>
+                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '5px' }}>Tu código de pago</div>
+                            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent)', letterSpacing: '3px' }}>
+                                {finalizedEfectivo.codigoPagoExterno}
+                            </div>
+                        </div>
+
+                        <p style={{color: 'var(--text-secondary)', marginBottom: '30px'}}>Tenés 3 horas para abonar antes de que la reserva expire automáticamente.</p>
+                        <button className="btn-volver" onClick={() => navigate('/my-portal')}>
+                            Ir a Mis Reservas
+                        </button>
+                    </div>
+                </div>
+                <Footer />
+            </>
+        );
+    }
+
     // ── Formulario de pago ───────────────────────────────────────────────────
     const cardBrand = detectCardBrand(card.number);
     const cardValid = card.number.length >= 13 && luhnCheck(card.number.replace(/\s/g, ''));
@@ -155,11 +351,27 @@ export default function Pago() {
                         <span className="pago-step">PASO 2 DE 2</span>
                         <h2>Completar Pago</h2>
                         <p>Revisá los detalles y elegí cómo pagar</p>
+                        
+                        {timeLeft !== null && !expired && (
+                            <div className="pago-timer mt-3" style={{ background: 'rgba(49, 217, 79, 0.1)', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '10px 15px', borderRadius: '8px', display: 'inline-block', fontWeight: 'bold' }}>
+                                <i className="bi bi-clock-history"></i> Tiempo restante para pagar: <strong>{formatTime(timeLeft)}</strong>
+                            </div>
+                        )}
                     </div>
+
+                    {expired && (
+                        <div className="alert alert-danger mt-3" role="alert" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', padding: '20px', borderRadius: '12px' }}>
+                            <h4 className="alert-heading" style={{ margin: '0 0 10px 0', fontSize: '1.2rem' }}>¡Tiempo expirado!</h4>
+                            <p style={{ margin: '0 0 15px 0' }}>El tiempo para completar el pago ha finalizado y la cancha ha sido liberada. Por favor, volvé a iniciar tu reserva.</p>
+                            <button className="btn-cancelar" style={{ width: '100%', margin: 0 }} onClick={() => navigate('/')}>Volver al inicio</button>
+                        </div>
+                    )}
 
                     {error && <div className="pago-error" role="alert">{error}</div>}
 
-                    {/* Resumen */}
+                    {!expired && (
+                        <>
+                            {/* Resumen */}
                     <div className="pago-resumen">
                         <div className="pago-resumen-row">
                             <span>Concepto</span>
@@ -183,22 +395,22 @@ export default function Pago() {
                         </div>
                     </div>
 
-                    {/* Método de pago */}
-                    <div className="pago-metodos">
-                        <p className="pago-label">Seleccioná el método de pago</p>
-                        <div className="metodo-grid">
-                            {METODOS.map(m => (
-                                <button
-                                    key={m.id}
-                                    className={`metodo-btn ${metodoPago === m.id ? 'metodo-btn--active' : ''}`}
-                                    onClick={() => setMetodoPago(m.id)}
-                                >
-                                    <span className="metodo-icon">{m.icon}</span>
-                                    <span>{m.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                            {/* Método de pago */}
+                            <div className="pago-metodos">
+                                <p className="pago-label">Seleccioná el método de pago</p>
+                                <div className="metodo-grid">
+                                    {METODOS.map(m => (
+                                        <button
+                                            key={m.id}
+                                            className={`metodo-btn ${metodoPago === m.id ? 'metodo-btn--active' : ''}`}
+                                            onClick={() => handleMetodoChange(m.id)}
+                                        >
+                                            <span className="metodo-icon">{m.icon}</span>
+                                            <span>{m.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
 
                     {/* Formulario de tarjeta con validación Luhn */}
                     {metodoPago === 'tarjeta' && (
@@ -281,30 +493,55 @@ export default function Pago() {
 
                     {metodoPago === 'transferencia' && (
                         <div className="pago-info-box">
-                            <h4>🏦 Datos bancarios</h4>
+                            <h4>🏦 Datos bancarios y QR</h4>
                             <p>CBU: <strong>1234567890123456789012</strong></p>
                             <p>Alias: <strong>GOLAHORA.PAGOS</strong></p>
-                            <p className="pago-info-note">Una vez realizada la transferencia, tu reserva se confirmará en 24 hs.</p>
+                            
+                            <div style={{textAlign: 'center', margin: '20px 0'}}>
+                                <img src="/qr.jpg" alt="QR MercadoPago" style={{maxWidth: '200px', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.2)'}} onError={(e) => e.target.outerHTML='<div style="padding:40px;background:var(--bg-app);color:var(--text-primary);display:inline-block;border-radius:10px;border:1px dashed var(--border);"><i class="bi bi-qr-code" style="font-size:4rem"></i></div>'} />
+                                <p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '10px'}}>Escaneá con Mercado Pago u otra billetera virtual</p>
+                            </div>
+                            
+                            <div className="file-upload-box" style={{background: 'var(--bg-app)', padding: '15px', borderRadius: '8px', marginTop: '15px', border: '1px dashed var(--border)'}}>
+                                <label style={{display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--text-primary)'}}>
+                                    <i className="bi bi-cloud-arrow-up"></i> Subir Comprobante (Obligatorio)
+                                </label>
+                                <input type="file" accept=".pdf,image/*" onChange={(e) => setComprobanteFile(e.target.files[0])} style={{color: 'var(--text-secondary)'}} />
+                            </div>
+                            
+                            <p className="pago-info-note" style={{marginTop: '15px'}}>Una vez enviado el comprobante, tu reserva quedará pendiente hasta que verifiquemos el pago (Plazo: 24 hs).</p>
+
+                            <button className="btn-pagar" style={{ marginTop: '20px' }} onClick={handleFinalizarTransferencia} disabled={paying || !comprobanteFile}>
+                                {paying ? 'Enviando...' : 'Enviar comprobante y finalizar'}
+                            </button>
                         </div>
                     )}
 
-                    {metodoPago === 'efectivo' && (
-                        <div className="pago-info-box">
-                            <h4>💵 Pago en mostrador</h4>
-                            <p>Presentate en el complejo con el número de reserva y abonás en el momento.</p>
-                            <p className="pago-info-note">Tenés 2 horas para presentarte antes que se cancele la reserva.</p>
-                        </div>
+                            {metodoPago === 'efectivo' && (
+                                <div className="pago-info-box">
+                                    <h4>💵 Pago en Efectivo</h4>
+                                    <p>Acercate a cualquier sucursal de Rapipago o PagoFácil y dicta el código que generaremos a continuación.</p>
+                                    <p className="pago-info-note">Al confirmar, se generará tu código de pago y tendrás <strong>3 horas</strong> para abonar antes de que se cancele automáticamente tu reserva.</p>
+                                    
+                                    <button className="btn-pagar" style={{ marginTop: '20px', background: '#f2b84b', color: '#000' }} onClick={handleFinalizarEfectivo} disabled={paying}>
+                                        {paying ? 'Generando...' : 'Entendido, generar código'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {metodoPago === 'tarjeta' && (
+                                <button className="btn-pagar" onClick={handlePagar} disabled={paying}>
+                                    {paying
+                                        ? <span>Procesando...</span>
+                                        : `Pagar $${Number(cobro?.montoFinal).toLocaleString('es-AR')}`}
+                                </button>
+                            )}
+
+                            <button className="btn-cancelar" onClick={handleCancelarReserva} disabled={paying}>
+                                Cancelar y volver
+                            </button>
+                        </>
                     )}
-
-                    <button className="btn-pagar" onClick={handlePagar} disabled={paying}>
-                        {paying
-                            ? <span>Procesando...</span>
-                            : `Pagar $${Number(cobro?.montoFinal).toLocaleString('es-AR')}`}
-                    </button>
-
-                    <button className="btn-cancelar" onClick={() => navigate('/')}>
-                        Cancelar
-                    </button>
                 </div>
             </div>
             <Footer />

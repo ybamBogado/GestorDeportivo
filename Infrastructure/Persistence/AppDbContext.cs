@@ -60,6 +60,12 @@ namespace Infrastructure.Persistence
                 entity.ToTable("CANCHA");
                 entity.HasKey(e => e.Id);
 
+                // Duración máxima configurable por el Admin (en minutos)
+                entity.Property(e => e.DuracionMaximaMinutos).HasDefaultValue(60);
+
+                // Precio por hora configurable por el Admin
+                entity.Property(e => e.PrecioHora).HasColumnType("decimal(18,2)").HasDefaultValue(4500);
+
                 entity.HasOne(e => e.Complejo)
                     .WithMany(c => c.Canchas)
                     .HasForeignKey(e => e.ComplejoId)
@@ -83,6 +89,12 @@ namespace Infrastructure.Persistence
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Precio).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.Estado).HasMaxLength(30);
+                entity.Property(e => e.MetodoPago).HasMaxLength(50);
+                entity.Property(e => e.CodigoPagoExterno).HasMaxLength(20);
+
+                // Ignorar propiedades calculadas (no son columnas de BD)
+                entity.Ignore(e => e.FechaHoraInicio);
+                entity.Ignore(e => e.FechaHoraFin);
 
                 entity.HasOne(e => e.Complejo)
                     .WithMany(c => c.Reservas)
@@ -95,7 +107,7 @@ namespace Infrastructure.Persistence
                     .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(e => e.Persona)
-                    .WithMany() // O WithMany(p => p.Reservas) si volvemos a poner la lista en Persona
+                    .WithMany()
                     .HasForeignKey(e => e.PersonaId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
