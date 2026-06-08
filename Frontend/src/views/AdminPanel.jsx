@@ -64,6 +64,8 @@ export default function AdminPanel() {
 
     const [showCanchaForm, setShowCanchaForm] = useState(false);
     const [canchaForm, setCanchaForm] = useState({ superficie: '', capacidad: 10, tipoCancha: 'Futbol5', duracionMaximaMinutos: 60, precioHora: 4500 });
+    const [editingCanchaId, setEditingCanchaId] = useState(null);
+    const [editCanchaForm, setEditCanchaForm] = useState({ superficie: '', capacidad: 10, duracionMaximaMinutos: 60, precioHora: 4500, estado: 'Disponible' });
 
     // Simulador de pago externo (Rapipago / demo)
     const [codigoRapipago, setCodigoRapipago] = useState('');
@@ -203,6 +205,42 @@ export default function AdminPanel() {
         } catch (err) {
             notify(err.message || 'No se pudo crear la cancha', 'error');
         }
+    };
+
+    const handleEditCancha = (c) => {
+        setEditingCanchaId(c.id);
+        setEditCanchaForm({
+            superficie: c.superficie || '',
+            capacidad: c.capacidad || 10,
+            tipoCancha: c.tipoCancha || 'Futbol5',
+            duracionMaximaMinutos: c.duracionMaximaMinutos || 60,
+            precioHora: c.precioHora || 4500,
+            estado: c.estado || 'Disponible'
+        });
+    };
+
+    const handleUpdateCancha = async (e) => {
+        e.preventDefault();
+        try {
+            await canchasApi.update(editingCanchaId, editCanchaForm);
+            notify('Cancha actualizada con éxito', 'success');
+            setEditingCanchaId(null);
+            fetchAll();
+        } catch (err) {
+            notify(err.message || 'No se pudo actualizar la cancha', 'error');
+        }
+    };
+
+    const handleDeleteCancha = (id) => {
+        showConfirm('¿Estás seguro de eliminar esta cancha? Solo se puede eliminar si no tiene reservas activas.', async () => {
+            try {
+                await canchasApi.remove(id);
+                notify('Cancha eliminada con éxito', 'success');
+                fetchAll();
+            } catch (err) {
+                notify(err.message || 'No se pudo eliminar la cancha', 'error');
+            }
+        }, 'Eliminar cancha');
     };
 
     const handleSimularPagoExterno = async () => {
@@ -593,10 +631,51 @@ export default function AdminPanel() {
                             </form>
                         )}
 
+                        {/* Modal edición de cancha */}
+                        {editingCanchaId && (
+                            <div className="admin-modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                                <form onSubmit={handleUpdateCancha} style={{ background: '#111d13', border: '1px solid rgba(234,179,8,0.25)', borderRadius: '16px', padding: '30px', width: '100%', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}>
+                                    <h3 style={{ margin: 0, color: '#eab308', fontWeight: 'bold', fontSize: '1.3rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
+                                        Modificar Cancha #{editingCanchaId}
+                                    </h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '12px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, gridColumn: 'span 2' }}>
+                                            <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700 }}>Superficie / Nombre</label>
+                                            <input type="text" value={editCanchaForm.superficie} onChange={e => setEditCanchaForm(f => ({ ...f, superficie: e.target.value }))} required style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} />
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                            <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700 }}>Capacidad</label>
+                                            <input type="number" min="2" max="30" value={editCanchaForm.capacidad} onChange={e => setEditCanchaForm(f => ({ ...f, capacidad: parseInt(e.target.value) }))} style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} />
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                            <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700 }}>Estado</label>
+                                            <select value={editCanchaForm.estado} onChange={e => setEditCanchaForm(f => ({ ...f, estado: e.target.value }))} style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}>
+                                                <option value="Disponible">Disponible</option>
+                                                <option value="Ocupada">Ocupada</option>
+                                                <option value="Mantenimiento">Mantenimiento</option>
+                                            </select>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                            <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700 }}>⏱ Duración máxima (min)</label>
+                                            <input type="number" min="30" max="240" step="15" value={editCanchaForm.duracionMaximaMinutos} onChange={e => setEditCanchaForm(f => ({ ...f, duracionMaximaMinutos: parseInt(e.target.value) }))} style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} />
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                            <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700 }}>💰 Precio por hora (ARS)</label>
+                                            <input type="number" min="0" step="100" value={editCanchaForm.precioHora} onChange={e => setEditCanchaForm(f => ({ ...f, precioHora: parseFloat(e.target.value) }))} style={{ padding: '10px', background: '#0a100c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} />
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px' }}>
+                                        <button type="button" className="btn btn-secondary" style={{ borderRadius: '8px', padding: '10px 20px' }} onClick={() => setEditingCanchaId(null)}>Cancelar</button>
+                                        <button type="submit" style={{ backgroundColor: '#eab308', border: 'none', borderRadius: '8px', padding: '10px 20px', fontWeight: 'bold', color: '#000', cursor: 'pointer' }}>Guardar cambios</button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
+
                         {/* Tabla de canchas */}
                         <div className="data-table">
                             <table>
-                                <thead><tr><th>ID</th><th>Superficie</th><th>Tipo</th><th>Capacidad</th><th>Duración máx.</th><th>Precio/h</th><th>Estado</th></tr></thead>
+                                <thead><tr><th>ID</th><th>Superficie</th><th>Tipo</th><th>Capacidad</th><th>Duración máx.</th><th>Precio/h</th><th>Estado</th><th style={{ width: 100 }}>Acciones</th></tr></thead>
                                 <tbody>
                                     {canchas.map(c => (
                                         <tr key={c.id}>
@@ -607,6 +686,28 @@ export default function AdminPanel() {
                                             <td>{c.duracionMaximaMinutos || 60} min</td>
                                             <td>{moneyFmt.format(c.precioHora || 4500)}</td>
                                             <td><span className="pill success">{c.estado}</span></td>
+                                            <td>
+                                                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                                    <button
+                                                        title="Modificar cancha"
+                                                        onClick={() => handleEditCancha(c)}
+                                                        style={{ width: 34, height: 34, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(234,179,8,0.3)', background: 'rgba(234,179,8,0.1)', color: '#eab308', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
+                                                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(234,179,8,0.25)'; e.currentTarget.style.borderColor = '#eab308'; }}
+                                                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(234,179,8,0.1)'; e.currentTarget.style.borderColor = 'rgba(234,179,8,0.3)'; }}
+                                                    >
+                                                        <i className="bi bi-pencil-fill" style={{ fontSize: '0.8rem' }}></i>
+                                                    </button>
+                                                    <button
+                                                        title="Eliminar cancha"
+                                                        onClick={() => handleDeleteCancha(c.id)}
+                                                        style={{ width: 34, height: 34, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
+                                                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)'; }}
+                                                    >
+                                                        <i className="bi bi-trash3-fill" style={{ fontSize: '0.8rem' }}></i>
+                                                    </button>
+                                                </div>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -1969,8 +2070,10 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
     const handleInscribirEquipoLiga = async () => {
         if (!inscribirEquipoId) return;
         try {
-            const res = await fetch(`${API_URL}/ligas/${selectedLigaId}/equipos/${inscribirEquipoId}`, {
-                method: 'POST'
+            const res = await fetch(`${API_URL}/ligas/${selectedLigaId}/inscribir`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ equipoId: Number(inscribirEquipoId) })
             });
             if (res.ok) {
                 setMessage('Equipo inscripto en la liga con éxito');
@@ -2058,8 +2161,10 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
     const handleInscribirEquipoTorneo = async () => {
         if (!inscribirEquipoId) return;
         try {
-            const res = await fetch(`${API_URL}/torneos/${selectedTorneoId}/equipos/${inscribirEquipoId}`, {
-                method: 'POST'
+            const res = await fetch(`${API_URL}/torneos/${selectedTorneoId}/inscribir`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ equipoId: Number(inscribirEquipoId) })
             });
             if (res.ok) {
                 setMessage('Equipo inscripto en el torneo con éxito');

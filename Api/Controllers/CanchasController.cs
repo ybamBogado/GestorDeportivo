@@ -62,6 +62,47 @@ namespace Api.Controllers
             return CreatedAtAction(nameof(GetById), new { id }, "Cancha creada con éxito");
         }
 
+        // ── PUT /api/v1/canchas/{id} ───────────────────────────────────────────
+        /// <summary>Actualiza los datos de una cancha existente.</summary>
+        [HttpPut("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Update(int id, [FromBody] CreateCanchaCommand command)
+        {
+            var cancha = await _context.Canchas.FindAsync(id);
+            if (cancha == null) return NotFound("Cancha no encontrada");
+
+            cancha.Superficie = command.Superficie;
+            cancha.Capacidad = command.Capacidad;
+            cancha.Estado = string.IsNullOrWhiteSpace(command.Estado) ? cancha.Estado : command.Estado;
+            cancha.DuracionMaximaMinutos = command.DuracionMaximaMinutos;
+            cancha.PrecioHora = command.PrecioHora;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { mensaje = "Cancha actualizada con éxito" });
+        }
+
+        // ── DELETE /api/v1/canchas/{id} ───────────────────────────────────────
+        /// <summary>Elimina una cancha (solo si no tiene reservas activas).</summary>
+        [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var cancha = await _context.Canchas.FindAsync(id);
+            if (cancha == null) return NotFound("Cancha no encontrada");
+
+            var hayReservas = await _context.Reservas.AnyAsync(r =>
+                r.CanchaId == id && r.Estado != "Cancelada" && r.Estado != "Expirada");
+            if (hayReservas)
+                return Conflict("No se puede eliminar una cancha con reservas activas.");
+
+            _context.Canchas.Remove(cancha);
+            await _context.SaveChangesAsync();
+            return Ok(new { mensaje = "Cancha eliminada con éxito" });
+        }
+
         // ── GET /api/v1/canchas/bloqueos ──────────────────────────────────────
         /// <summary>
         /// Lista todos los bloqueos de mantenimiento registrados.

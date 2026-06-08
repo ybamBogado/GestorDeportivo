@@ -172,6 +172,13 @@ namespace Api.Controllers
             }
 
             var reservaId = await handler.HandleAsync(command);
+            var reserva = await _context.Reservas.FindAsync(reservaId);
+            if (reserva == null)
+                return StatusCode(500, "No se pudo recuperar la reserva recién creada.");
+
+            reserva.MetodoPago = metodoPago;
+            reserva.FechaExpiracion = expiracion;
+            reserva.CodigoPagoExterno = codigoPago;
 
             // Auto-create a pending Cobro linked to this reserva
             var precio = command.Precio <= 0 ? 4500m : command.Precio;
@@ -195,7 +202,7 @@ namespace Api.Controllers
                 Descuento  = descuento,
                 MontoFinal = precio - descuento,
                 Estado     = "Pendiente",
-                MetodoPago = string.Empty,
+                MetodoPago = metodoPago,
                 Fecha      = DateTime.UtcNow
             };
 

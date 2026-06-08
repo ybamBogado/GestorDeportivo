@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ligas as ligasApi, torneos as torneosApi, partidos as partidosApi } from '../../services/api.js';
+import { ligas as ligasApi, torneos as torneosApi, partidos as partidosApi, equipos as equiposApi } from '../../services/api.js';
 import ConfirmModal from '../ConfirmModal.jsx';
 import './PanelCompetencias.css';
 
@@ -19,6 +19,9 @@ export default function PanelCompetencias() {
     const [golesLocal, setGolesLocal] = useState(0);
     const [golesVisit, setGolesVisit] = useState(0);
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+    const [equiposDisponibles, setEquiposDisponibles] = useState([]);
+    const [showInscribirForm, setShowInscribirForm] = useState(false);
+    const [selectedEquipoId, setSelectedEquipoId] = useState('');
 
     const api = subTab === 'ligas' ? ligasApi : torneosApi;
 
@@ -79,19 +82,39 @@ export default function PanelCompetencias() {
 
     const handleSelectItem = async (item) => {
         setSelected(item);
+        setShowInscribirForm(false);
+        setSelectedEquipoId('');
         setLoadingDetail(true);
         try {
-            const [fix, ins] = await Promise.all([
+            const [fix, ins, eqs] = await Promise.all([
                 api.getFixtures(item.id),
-                api.getInscritos(item.id)
+                api.getInscritos(item.id),
+                equiposApi.getAll()
             ]);
             setFixtures(fix);
             setInscritos(ins);
+            setEquiposDisponibles(eqs);
         } catch {
             setFixtures([]);
             setInscritos([]);
+            setEquiposDisponibles([]);
         } finally {
             setLoadingDetail(false);
+        }
+    };
+
+    const handleInscribirEquipo = async (e) => {
+        e.preventDefault();
+        if (!selectedEquipoId) return;
+        setError(null);
+        try {
+            const result = await api.inscribir(selected.id, { equipoId: Number(selectedEquipoId) });
+            setSuccess(`Equipo inscripto. Estado: ${result.estado}. ${result.montoMatricula > 0 ? `Cobro generado: $${Number(result.montoMatricula).toLocaleString('es-AR')}` : 'Sin costo.'}`);
+            setShowInscribirForm(false);
+            setSelectedEquipoId('');
+            handleSelectItem(selected);
+        } catch (e) {
+            setError(e.message);
         }
     };
 
@@ -270,7 +293,48 @@ export default function PanelCompetencias() {
                     ) : (
                         <>
                             <section className="detail-section">
-                                <h4><i className="bi bi-card-list"></i> Equipos inscriptos ({inscritos.length})</h4>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                    <h4 style={{ margin: 0 }}><i className="bi bi-card-list"></i> Equipos inscriptos ({inscritos.length})</h4>
+                                    <button
+                                        className="btn-nuevo"
+                                        onClick={() => { setShowInscribirForm(s => !s); setSelectedEquipoId(''); }}
+                                        style={{ fontSize: '0.82rem', padding: '6px 14px' }}
+                                    >
+                                        {showInscribirForm ? 'Cancelar' : '+ Inscribir Equipo'}
+                                    </button>
+                                </div>
+
+                                {showInscribirForm && (
+                                    <form onSubmit={handleInscribirEquipo} style={{ background: 'rgba(49,217,79,0.05)', border: '1px solid rgba(49,217,79,0.2)', borderRadius: 10, padding: '16px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 200 }}>
+                                            <label style={{ fontSize: '0.75rem', color: '#8ca092', fontWeight: 700, textTransform: 'uppercase' }}>Seleccionar equipo existente</label>
+                                            <select
+                                                value={selectedEquipoId}
+                                                onChange={e => setSelectedEquipoId(e.target.value)}
+                                                required
+                                                style={{ padding: '9px 12px', background: '#0a100c', border: '1px solid rgba(49,217,79,0.25)', borderRadius: 8, color: '#fff', fontSize: '0.9rem' }}
+                                            >
+                                                <option value="">— Elegir equipo —</option>
+                                                {equiposDisponibles
+                                                    .filter(eq => !inscritos.some(i => i.equipoId === eq.id))
+                                                    .map(eq => (
+                                                        <option key={eq.id} value={eq.id}>
+                                                            {eq.nombre} ({eq.categoria})
+                                                        </option>
+                                                    ))
+                                                }
+                                            </select>
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            className="btn-guardar"
+                                            style={{ padding: '9px 20px', fontSize: '0.88rem' }}
+                                        >
+                                            <i className="bi bi-plus-circle me-1"></i> Inscribir
+                                        </button>
+                                    </form>
+                                )}
+
                                 {inscritos.length === 0 ? (
                                     <p className="empty-msg">Sin inscripciones aún.</p>
                                 ) : (

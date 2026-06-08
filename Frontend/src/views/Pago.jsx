@@ -487,19 +487,9 @@ export default function Pago() {
                         {paying ? <span>Procesando...</span> : `Pagar $${Number(cobro?.montoFinal).toLocaleString('es-AR')}`}
                     </button>
 
-                            {metodoPago === 'tarjeta' && (
-                                <button className="btn-pagar" onClick={handlePagar} disabled={paying}>
-                                    {paying
-                                        ? <span>Procesando...</span>
-                                        : `Pagar $${Number(cobro?.montoFinal).toLocaleString('es-AR')}`}
-                                </button>
-                            )}
-
-                            <button className="btn-cancelar" onClick={handleCancelarReserva} disabled={paying}>
-                                Cancelar y volver
-                            </button>
-                        </>
-                    )}
+                    <button className="btn-cancelar" onClick={handleCancelarReserva} disabled={paying}>
+                        Cancelar y volver
+                    </button>
                 </div>
             </div>
             <Footer />
