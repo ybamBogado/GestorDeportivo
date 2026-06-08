@@ -80,19 +80,21 @@ namespace Api.Controllers
         {
             var fechaHastaFinDia = hasta.Date.AddDays(1).AddTicks(-1);
 
-            // Fetch all non-cancelled classes
+            // Fetch all non-cancelled classes with attendees
             var clases = await _context.Clases
                 .Include(c => c.Profesor)
                 .Include(c => c.Cancha)
                 .Include(c => c.Asistencias)
+                    .ThenInclude(a => a.Usuario)
                 .Where(c => c.FechaHora >= desde && c.FechaHora <= fechaHastaFinDia && c.Estado != "Cancelada")
                 .ToListAsync();
 
-            // Fetch all non-cancelled training sessions
+            // Fetch all non-cancelled training sessions with attendees
             var entrenamientos = await _context.Entrenamientos
                 .Include(e => e.Profesor)
                 .Include(e => e.Cancha)
                 .Include(e => e.Inscripciones)
+                    .ThenInclude(i => i.Usuario)
                 .Where(e => e.Fecha >= desde && e.Fecha <= fechaHastaFinDia && e.Estado != "Cancelado")
                 .ToListAsync();
 
@@ -114,7 +116,13 @@ namespace Api.Controllers
                     Inscriptos = totalInscriptos,
                     Presentes = presentes,
                     Ausentes = ausentes,
-                    TasaAsistencia = Math.Round(tasaAsistencia, 1)
+                    TasaAsistencia = Math.Round(tasaAsistencia, 1),
+                    Alumnos = c.Asistencias.Select(a => new
+                    {
+                        a.Usuario.Id,
+                        NombreCompleto = $"{a.Usuario.Nombre} {a.Usuario.Apellido}",
+                        a.Presente
+                    }).ToList()
                 };
             }).ToList();
 
@@ -137,7 +145,13 @@ namespace Api.Controllers
                     Inscriptos = totalInscriptos,
                     Presentes = presentes,
                     Ausentes = ausentes,
-                    TasaAsistencia = Math.Round(tasaAsistencia, 1)
+                    TasaAsistencia = Math.Round(tasaAsistencia, 1),
+                    Alumnos = confirmedInscripciones.Select(i => new
+                    {
+                        i.Usuario.Id,
+                        NombreCompleto = $"{i.Usuario.Nombre} {i.Usuario.Apellido}",
+                        i.Presente
+                    }).ToList()
                 };
             }).ToList();
 

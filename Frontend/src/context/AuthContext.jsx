@@ -17,7 +17,14 @@ export const AuthProvider = ({ children }) => {
                     }
                     if (parsed.certificadoPdf && !parsed.certificadoPdf.startsWith('data:') && !parsed.certificadoPdf.startsWith('http://') && !parsed.certificadoPdf.startsWith('https://')) {
                         const backendBase = 'http://localhost:5071';
-                        parsed.certificadoPdf = `${backendBase}${parsed.certificadoPdf}`;
+                        if (parsed.certificadoPdf.includes(':')) {
+                            const parts = parsed.certificadoPdf.split(':');
+                            const role = parts[0];
+                            const path = parts.slice(1).join(':');
+                            parsed.certificadoPdf = `${role}:${backendBase}${path}`;
+                        } else {
+                            parsed.certificadoPdf = `${backendBase}${parsed.certificadoPdf}`;
+                        }
                     }
                     return parsed;
                 }
@@ -40,7 +47,14 @@ export const AuthProvider = ({ children }) => {
         }
         if (userData && userData.certificadoPdf && !userData.certificadoPdf.startsWith('data:') && !userData.certificadoPdf.startsWith('http://') && !userData.certificadoPdf.startsWith('https://')) {
             const backendBase = 'http://localhost:5071';
-            userData.certificadoPdf = `${backendBase}${userData.certificadoPdf}`;
+            if (userData.certificadoPdf.includes(':')) {
+                const parts = userData.certificadoPdf.split(':');
+                const role = parts[0];
+                const path = parts.slice(1).join(':');
+                userData.certificadoPdf = `${role}:${backendBase}${path}`;
+            } else {
+                userData.certificadoPdf = `${backendBase}${userData.certificadoPdf}`;
+            }
         }
         setUser(userData);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));

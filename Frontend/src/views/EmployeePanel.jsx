@@ -9,6 +9,20 @@ import './EmployeePanel.css';
 
 const todayInput = () => new Date().toISOString().split('T')[0];
 const moneyFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+
+const getKycDetails = (certificadoPdf) => {
+    if (!certificadoPdf) return { role: 'Profesor', pdfUrl: '' };
+    if (certificadoPdf.includes(':')) {
+        const parts = certificadoPdf.split(':');
+        if (parts[0] === 'Entrenador' || parts[0] === 'Profesor') {
+            const role = parts[0];
+            const path = parts.slice(1).join(':');
+            return { role, pdfUrl: path };
+        }
+    }
+    return { role: 'Profesor', pdfUrl: certificadoPdf };
+};
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5071/api/v1';
 
 const menuItems = [
@@ -899,6 +913,7 @@ export default function EmployeePanel() {
                                         <th>Nombre</th>
                                         <th>DNI</th>
                                         <th>Email</th>
+                                        <th>Puesto Solicitado</th>
                                         <th>Documento</th>
                                         <th>Acciones</th>
                                     </tr>
@@ -906,29 +921,37 @@ export default function EmployeePanel() {
                                 <tbody>
                                     {pendingKycUsers.length === 0 ? (
                                         <tr>
-                                            <td colSpan="6" style={{ textAlign: 'center', padding: '30px', color: '#8ca092' }}>
+                                            <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#8ca092' }}>
                                                 No hay solicitudes pendientes (KYC).
                                             </td>
                                         </tr>
                                     ) : (
-                                        pendingKycUsers.map(u => (
-                                            <tr key={u.id}>
-                                                <td>#{u.id}</td>
-                                                <td>{u.nombre} {u.apellido}</td>
-                                                <td>{u.dni}</td>
-                                                <td>{u.email}</td>
-                                                <td>
-                                                    <a href={`http://localhost:5071${u.certificadoPdf}`} target="_blank" rel="noopener noreferrer" className="pill success">
-                                                        📄 Ver PDF
-                                                    </a>
-                                                </td>
-                                                <td className="table-actions">
-                                                    <button onClick={() => handleKycAction(u, 'Profesor', true)}>Aprobar Prof.</button>
-                                                    <button onClick={() => handleKycAction(u, 'Entrenador', true)}>Aprobar Entr.</button>
-                                                    <button className="danger" onClick={() => handleKycAction(u, 'Usuario', false)}>Rechazar</button>
-                                                </td>
-                                            </tr>
-                                        ))
+                                        pendingKycUsers.map(u => {
+                                            const { role, pdfUrl } = getKycDetails(u.certificadoPdf);
+                                            const fullUrl = pdfUrl.startsWith('http') ? pdfUrl : `http://localhost:5071${pdfUrl}`;
+                                            return (
+                                                <tr key={u.id}>
+                                                    <td>#{u.id}</td>
+                                                    <td>{u.nombre} {u.apellido}</td>
+                                                    <td>{u.dni}</td>
+                                                    <td>{u.email}</td>
+                                                    <td>
+                                                        <span className="pill neutral" style={{ fontWeight: 'bold', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                                                            {role}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="pill success">
+                                                            📄 Ver PDF
+                                                        </a>
+                                                    </td>
+                                                    <td className="table-actions">
+                                                        <button onClick={() => handleKycAction(u, role, true)}>Aprobar</button>
+                                                        <button className="danger" onClick={() => handleKycAction(u, 'Usuario', false)}>Rechazar</button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
                                     )}
                                 </tbody>
                             </table>

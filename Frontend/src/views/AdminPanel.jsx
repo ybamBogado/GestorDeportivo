@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -12,6 +12,19 @@ import './AdminPanel.css';
 const todayInput = () => new Date().toISOString().split('T')[0];
 
 const moneyFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+
+const getKycDetails = (certificadoPdf) => {
+    if (!certificadoPdf) return { role: 'Profesor', pdfUrl: '' };
+    if (certificadoPdf.includes(':')) {
+        const parts = certificadoPdf.split(':');
+        if (parts[0] === 'Entrenador' || parts[0] === 'Profesor') {
+            const role = parts[0];
+            const path = parts.slice(1).join(':');
+            return { role, pdfUrl: path };
+        }
+    }
+    return { role: 'Profesor', pdfUrl: certificadoPdf };
+};
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5071/api/v1';
 
@@ -1246,6 +1259,7 @@ export default function AdminPanel() {
                                             <th>DNI</th>
                                             <th>Contacto</th>
                                             <th>Email</th>
+                                            <th>Puesto Solicitado</th>
                                             <th>Certificado PDF</th>
                                             <th>Acciones</th>
                                         </tr>
@@ -1253,57 +1267,60 @@ export default function AdminPanel() {
                                     <tbody>
                                         {pendingKycUsers.length === 0 ? (
                                             <tr>
-                                                <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#8ca092' }}>
+                                                <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: '#8ca092' }}>
                                                     No hay solicitudes pendientes de validación (KYC).
                                                 </td>
                                             </tr>
                                         ) : (
-                                            pendingKycUsers.map(selectedUser => (
-                                                <tr key={selectedUser.id}>
-                                                    <td>#{selectedUser.id}</td>
-                                                    <td style={{ fontWeight: 'bold' }}>{selectedUser.nombre} {selectedUser.apellido}</td>
-                                                    <td>{selectedUser.dni}</td>
-                                                    <td>
-                                                        <div style={{ fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                            <span><i className="bi bi-telephone-fill text-success me-1"></i> {selectedUser.telefono || '—'}</span>
-                                                            <span style={{ color: '#8ca092' }}><i className="bi bi-geo-alt-fill text-success me-1"></i> {selectedUser.direccion || '—'}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td>{selectedUser.email}</td>
-                                                    <td>
-                                                        <a
-                                                            href={`http://localhost:5071${selectedUser.certificadoPdf}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="pill success text-decoration-none"
-                                                            style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'inline-block', fontWeight: 'bold' }}
-                                                        >
-                                                            <i className="bi bi-file-earmark-pdf-fill me-1"></i> Ver Documento PDF
-                                                        </a>
-                                                    </td>
-                                                    <td className="table-actions">
-                                                        <button
-                                                            onClick={() => handleKycAction(selectedUser, 'Profesor', true)}
-                                                            style={{ backgroundColor: '#1b4332', borderColor: '#2d6a4f', color: '#52b788', padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold' }}
-                                                        >
-                                                            Aprobar Profesor
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleKycAction(selectedUser, 'Entrenador', true)}
-                                                            style={{ backgroundColor: '#0f2c3b', borderColor: '#1b4d66', color: '#3ca6d8', padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold' }}
-                                                        >
-                                                            Aprobar Entrenador
-                                                        </button>
-                                                        <button
-                                                            className="danger"
-                                                            onClick={() => handleKycAction(selectedUser, 'Usuario', false)}
-                                                            style={{ padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold' }}
-                                                        >
-                                                            Rechazar
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))
+                                            pendingKycUsers.map(selectedUser => {
+                                                const { role, pdfUrl } = getKycDetails(selectedUser.certificadoPdf);
+                                                const fullUrl = pdfUrl.startsWith('http') ? pdfUrl : `http://localhost:5071${pdfUrl}`;
+                                                return (
+                                                    <tr key={selectedUser.id}>
+                                                        <td>#{selectedUser.id}</td>
+                                                        <td style={{ fontWeight: 'bold' }}>{selectedUser.nombre} {selectedUser.apellido}</td>
+                                                        <td>{selectedUser.dni}</td>
+                                                        <td>
+                                                            <div style={{ fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                                <span><i className="bi bi-telephone-fill text-success me-1"></i> {selectedUser.telefono || '—'}</span>
+                                                                <span style={{ color: '#8ca092' }}><i className="bi bi-geo-alt-fill text-success me-1"></i> {selectedUser.direccion || '—'}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td>{selectedUser.email}</td>
+                                                        <td>
+                                                            <span className="pill neutral" style={{ fontWeight: 'bold', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                                                                {role}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <a
+                                                                href={fullUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="pill success text-decoration-none"
+                                                                style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'inline-block', fontWeight: 'bold' }}
+                                                            >
+                                                                <i className="bi bi-file-earmark-pdf-fill me-1"></i> Ver Documento PDF
+                                                            </a>
+                                                        </td>
+                                                        <td className="table-actions">
+                                                            <button
+                                                                onClick={() => handleKycAction(selectedUser, role, true)}
+                                                                style={{ backgroundColor: '#1b4332', borderColor: '#2d6a4f', color: '#52b788', padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold' }}
+                                                            >
+                                                                Aprobar
+                                                            </button>
+                                                            <button
+                                                                className="danger"
+                                                                onClick={() => handleKycAction(selectedUser, 'Usuario', false)}
+                                                                style={{ padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold' }}
+                                                            >
+                                                                Rechazar
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
                                         )}
                                     </tbody>
                                 </table>
@@ -1482,18 +1499,22 @@ export default function AdminPanel() {
                                             </div>
                                         )}
                                         {/* PDF */}
-                                        {userDetailPanel.certificadoPdf ? (
-                                            <a href={`http://localhost:5071${userDetailPanel.certificadoPdf}`} target="_blank" rel="noopener noreferrer"
-                                                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(49,217,79,0.07)', border: '1px solid rgba(49,217,79,0.2)', borderRadius: 8, color: '#31d94f', textDecoration: 'none', fontWeight: 700, fontSize: '0.82rem' }}
-                                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(49,217,79,0.15)'}
-                                                onMouseLeave={e => e.currentTarget.style.background = 'rgba(49,217,79,0.07)'}
-                                            >
-                                                <i className="bi bi-file-earmark-pdf-fill" style={{ fontSize: '1.1rem', color: '#ef4444' }}></i>
-                                                <div><div>Ver certificado PDF</div><div style={{ fontSize: '0.7rem', color: '#8ca092', fontWeight: 400 }}>Abrir en nueva pestaña</div></div>
-                                                <i className="bi bi-box-arrow-up-right" style={{ marginLeft: 'auto', fontSize: '0.75rem' }}></i>
-                                            </a>
-                                        ) : (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 8, color: '#8ca092', fontSize: '0.8rem' }}>
+                                        {userDetailPanel.certificadoPdf ? (() => {
+                                            const { pdfUrl } = getKycDetails(userDetailPanel.certificadoPdf);
+                                            const fullUrl = pdfUrl.startsWith('http') ? pdfUrl : `http://localhost:5071${pdfUrl}`;
+                                            return (
+                                                <a href={fullUrl} target="_blank" rel="noopener noreferrer"
+                                                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(49,217,79,0.07)', border: '1px solid rgba(49,217,79,0.2)', borderRadius: 8, color: '#31d94f', textDecoration: 'none', fontWeight: 700, fontSize: '0.82rem' }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(49,217,79,0.15)'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(49,217,79,0.07)'}
+                                                >
+                                                    <i className="bi bi-file-earmark-pdf-fill" style={{ fontSize: '1.1rem', color: '#ef4444' }}></i>
+                                                    <div><div>Ver certificado PDF</div><div style={{ fontSize: '0.7rem', color: '#8ca092', fontWeight: 400 }}>Abrir en nueva pestaña</div></div>
+                                                    <i className="bi bi-box-arrow-up-right" style={{ marginLeft: 'auto', fontSize: '0.75rem' }}></i>
+                                                </a>
+                                            );
+                                        })()
+                                        : (<div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 8, color: '#8ca092', fontSize: '0.8rem' }}>
                                                 <i className="bi bi-file-earmark-x" style={{ color: '#ef4444' }}></i>
                                                 No se subió ningún certificado PDF
                                             </div>
@@ -3137,6 +3158,7 @@ function ReportsDashboard({ notify, moneyFmt }) {
     const [hasta, setHasta] = useState(todayStr);
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState(null);
+    const [expandedEvent, setExpandedEvent] = useState(null);
 
     const loadReport = useCallback(async () => {
         if (!desde || !hasta) return;
@@ -3282,7 +3304,14 @@ function ReportsDashboard({ notify, moneyFmt }) {
                         ${data.eventos.map(e => `
                             <tr>
                                 <td><span class="badge ${e.tipo.toLowerCase()}">${e.tipo}</span></td>
-                                <td><strong>${e.nombre}</strong></td>
+                                <td>
+                                    <strong>${e.nombre}</strong>
+                                    ${e.alumnos && e.alumnos.length > 0 ? `
+                                        <div style="font-size:0.75rem; color:#555; margin-top:4px;">
+                                            <strong>Alumnos:</strong> ${e.alumnos.map(al => `${al.nombreCompleto} (${al.presente ? 'Presente' : 'Ausente'})`).join(', ')}
+                                        </div>
+                                    ` : '<div style="font-size:0.75rem; color:#999; margin-top:4px; font-style:italic;">Sin alumnos</div>'}
+                                </td>
                                 <td>${new Date(e.fecha).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
                                 <td>${e.instructor}</td>
                                 <td>${e.cancha}</td>
@@ -3413,13 +3442,13 @@ function ReportsDashboard({ notify, moneyFmt }) {
         <section className="admin-panel" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                 <div className="status-tabs" style={{ display: 'flex', gap: '6px', margin: 0 }}>
-                    <button className={reportTab === 'ingresos' ? 'active' : ''} onClick={() => { setReportTab('ingresos'); setData(null); }}>
+                    <button className={reportTab === 'ingresos' ? 'active' : ''} onClick={() => { setReportTab('ingresos'); setData(null); setExpandedEvent(null); }}>
                         <i className="bi bi-cash-stack me-2"></i> Ingresos
                     </button>
-                    <button className={reportTab === 'asistencia' ? 'active' : ''} onClick={() => { setReportTab('asistencia'); setData(null); }}>
+                    <button className={reportTab === 'asistencia' ? 'active' : ''} onClick={() => { setReportTab('asistencia'); setData(null); setExpandedEvent(null); }}>
                         <i className="bi bi-people-fill me-2"></i> Asistencia
                     </button>
-                    <button className={reportTab === 'reservas' ? 'active' : ''} onClick={() => { setReportTab('reservas'); setData(null); }}>
+                    <button className={reportTab === 'reservas' ? 'active' : ''} onClick={() => { setReportTab('reservas'); setData(null); setExpandedEvent(null); }}>
                         <i className="bi bi-calendar-check me-2"></i> Reservas
                     </button>
                 </div>
@@ -3601,30 +3630,69 @@ function ReportsDashboard({ notify, moneyFmt }) {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {data.eventos.map((e, idx) => (
-                                                <tr key={idx}>
-                                                    <td>
-                                                        <span className={`pill ${e.tipo === 'Clase' ? 'success' : 'neutral'}`} style={{ fontSize: '0.72rem', padding: '2px 8px' }}>
-                                                            {e.tipo}
-                                                        </span>
-                                                    </td>
-                                                    <td><strong>{e.nombre}</strong></td>
-                                                    <td style={{ fontSize: '0.82rem' }}>{new Date(e.fecha).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
-                                                    <td>{e.instructor}</td>
-                                                    <td style={{ color: '#8ca092' }}>{e.cancha}</td>
-                                                    <td>{e.inscriptos} / {e.capacidad}</td>
-                                                    <td style={{ color: '#31d94f', fontWeight: 'bold' }}>{e.presentes}</td>
-                                                    <td style={{ color: '#ef4444' }}>{e.ausentes}</td>
-                                                    <td>
-                                                        <span style={{
-                                                            fontWeight: 'bold',
-                                                            color: e.tasaAsistencia >= 70 ? '#31d94f' : e.tasaAsistencia >= 40 ? '#f2b84b' : '#ef4444'
-                                                        }}>
-                                                            {e.tasaAsistencia}%
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                             {data.eventos.map((e, idx) => {
+                                                 const isExpanded = expandedEvent === `${e.tipo}-${e.id}`;
+                                                 return (
+                                                     <Fragment key={idx}>
+                                                         <tr>
+                                                             <td>
+                                                                 <span className={`pill ${e.tipo === 'Clase' ? 'success' : 'neutral'}`} style={{ fontSize: '0.72rem', padding: '2px 8px' }}>
+                                                                     {e.tipo}
+                                                                 </span>
+                                                             </td>
+                                                             <td><strong>{e.nombre}</strong></td>
+                                                             <td style={{ fontSize: '0.82rem' }}>{new Date(e.fecha).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                                             <td>{e.instructor}</td>
+                                                             <td style={{ color: '#8ca092' }}>{e.cancha}</td>
+                                                             <td 
+                                                                 style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                                 onClick={() => setExpandedEvent(isExpanded ? null : `${e.tipo}-${e.id}`)}
+                                                                 title="Haga clic para ver alumnos"
+                                                             >
+                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                     <span style={{ textDecoration: 'underline', color: '#31d94f', fontWeight: 'bold' }}>{e.inscriptos} / {e.capacidad}</span>
+                                                                     <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} text-success`} style={{ fontSize: '0.75rem' }}></i>
+                                                                 </div>
+                                                             </td>
+                                                             <td style={{ color: '#31d94f', fontWeight: 'bold' }}>{e.presentes}</td>
+                                                             <td style={{ color: '#ef4444' }}>{e.ausentes}</td>
+                                                             <td>
+                                                                 <span style={{
+                                                                     fontWeight: 'bold',
+                                                                     color: e.tasaAsistencia >= 70 ? '#31d94f' : e.tasaAsistencia >= 40 ? '#f2b84b' : '#ef4444'
+                                                                 }}>
+                                                                     {e.tasaAsistencia}%
+                                                                 </span>
+                                                             </td>
+                                                         </tr>
+                                                         {isExpanded && (
+                                                             <tr style={{ background: 'rgba(49,217,79,0.02)' }}>
+                                                                 <td colSpan="9" style={{ padding: '12px 20px', borderBottom: '1px solid rgba(49,217,79,0.1)' }}>
+                                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                                         <div style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#31d94f', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                             <i className="bi bi-people-fill"></i> Alumnos Inscriptos y Asistencia:
+                                                                         </div>
+                                                                         {e.alumnos && e.alumnos.length > 0 ? (
+                                                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8, marginTop: 4 }}>
+                                                                                 {e.alumnos.map(al => (
+                                                                                     <div key={al.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, fontSize: '0.8rem' }}>
+                                                                                         <span style={{ color: '#fff', fontWeight: 500 }}>{al.nombreCompleto}</span>
+                                                                                         <span className={`pill ${al.presente ? 'success' : 'danger'}`} style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+                                                                                             {al.presente ? 'Presente' : 'Ausente'}
+                                                                                         </span>
+                                                                                     </div>
+                                                                                 ))}
+                                                                             </div>
+                                                                         ) : (
+                                                                             <div style={{ fontSize: '0.8rem', color: '#8ca092', fontStyle: 'italic' }}>No hay alumnos inscriptos en este evento.</div>
+                                                                         )}
+                                                                     </div>
+                                                                 </td>
+                                                             </tr>
+                                                         )}
+                                                     </Fragment>
+                                                 );
+                                             })}
                                             {data.eventos.length === 0 && (
                                                 <tr>
                                                     <td colSpan="9" style={{ textAlign: 'center', padding: '30px', color: '#8ca092' }}>No se encontraron clases o entrenamientos programados en este período.</td>

@@ -95,6 +95,18 @@ public class UpdatePersonaCommandHandler
         else if (!string.IsNullOrEmpty(command.CertificadoPdf))
         {
             var cleanPdf = command.CertificadoPdf;
+            string? rolePrefix = null;
+
+            if (cleanPdf.Contains(':'))
+            {
+                var parts = cleanPdf.Split(':', 2);
+                if (parts[0] == "Entrenador" || parts[0] == "Profesor")
+                {
+                    rolePrefix = parts[0];
+                    cleanPdf = parts[1];
+                }
+            }
+
             if (cleanPdf.StartsWith("http://localhost:5071"))
             {
                 cleanPdf = cleanPdf.Substring("http://localhost:5071".Length);
@@ -120,13 +132,18 @@ public class UpdatePersonaCommandHandler
                         var filePath = Path.Combine(uploadsFolder, fileName);
                         await File.WriteAllBytesAsync(filePath, fileBytes);
                         
-                        persona.CertificadoPdf = $"/uploads/certificates/{fileName}";
+                        cleanPdf = $"/uploads/certificates/{fileName}";
                     }
                 }
                 catch
                 {
                     // Skip saving if invalid base64
                 }
+            }
+
+            if (!string.IsNullOrEmpty(rolePrefix))
+            {
+                persona.CertificadoPdf = $"{rolePrefix}:{cleanPdf}";
             }
             else
             {

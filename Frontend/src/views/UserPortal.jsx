@@ -10,6 +10,19 @@ import './UserPortal.css';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5071/api/v1';
 const moneyFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
+const getKycDetails = (certificadoPdf) => {
+    if (!certificadoPdf) return { role: 'Profesor', pdfUrl: '' };
+    if (certificadoPdf.includes(':')) {
+        const parts = certificadoPdf.split(':');
+        if (parts[0] === 'Entrenador' || parts[0] === 'Profesor') {
+            const role = parts[0];
+            const path = parts.slice(1).join(':');
+            return { role, pdfUrl: path };
+        }
+    }
+    return { role: 'Profesor', pdfUrl: certificadoPdf };
+};
+
 export default function UserPortal() {
     const { user, login, logout, loading: authLoading } = useAuth();
     const { theme, toggleTheme } = useTheme();
@@ -183,7 +196,7 @@ export default function UserPortal() {
                 fotoPerfil: user.fotoPerfil,
                 direccion: user.direccion || '',
                 telefono: user.telefono || '',
-                certificadoPdf: pdfBase64
+                certificadoPdf: `${postularRol}:${pdfBase64}`
             });
 
             notify('Postulación enviada con éxito. Un empleado la revisará pronto.', 'success');
@@ -1025,17 +1038,21 @@ export default function UserPortal() {
                                                     ¿Quieres ser profesor o entrenador en Gol Ahora? Sube tu certificación correspondiente en formato PDF para iniciar el proceso de verificación.
                                                 </p>
                                                 
-                                                {user?.certificadoPdf ? (
-                                                    <div className="alert alert-success d-flex align-items-center gap-2" role="alert" style={{ background: 'rgba(49, 217, 79, 0.1)', border: '1px solid rgba(49, 217, 79, 0.2)', color: '#31d94f', borderRadius: '12px' }}>
-                                                        <i className="bi bi-clock-history"></i>
-                                                        <div>
-                                                            Ya tienes una postulación pendiente de revisión. 
-                                                            <a href={user.certificadoPdf} target="_blank" rel="noopener noreferrer" style={{ color: '#31d94f', textDecoration: 'underline', marginLeft: '6px', fontWeight: 'bold' }}>
-                                                                Ver certificado enviado
-                                                            </a>
+                                                {user?.certificadoPdf ? (() => {
+                                                    const { role, pdfUrl } = getKycDetails(user.certificadoPdf);
+                                                    const fullUrl = pdfUrl.startsWith('http') ? pdfUrl : `http://localhost:5071${pdfUrl}`;
+                                                    return (
+                                                        <div className="alert alert-success d-flex align-items-center gap-2" role="alert" style={{ background: 'rgba(49, 217, 79, 0.1)', border: '1px solid rgba(49, 217, 79, 0.2)', color: '#31d94f', borderRadius: '12px' }}>
+                                                            <i className="bi bi-clock-history"></i>
+                                                            <div>
+                                                                Ya tienes una postulación pendiente de revisión para el puesto de <strong>{role}</strong>. 
+                                                                <a href={fullUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#31d94f', textDecoration: 'underline', marginLeft: '6px', fontWeight: 'bold' }}>
+                                                                    Ver certificado enviado
+                                                                </a>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ) : (
+                                                    );
+                                                })() : (
                                                     <form onSubmit={handlePostularSubmit} style={{ display: 'grid', gap: '16px', maxWidth: '500px' }}>
                                                         <div>
                                                             <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 'bold', marginBottom: '6px', textTransform: 'uppercase' }}>Puesto al que te postulas</label>
