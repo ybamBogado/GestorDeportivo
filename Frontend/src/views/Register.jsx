@@ -6,6 +6,23 @@ import { isValidEmail, validatePassword } from '../utils/validation.js';
 import { useToast } from '../components/Toast.jsx';
 import './Register.css';
 
+const Field = ({ id, label, type = 'text', placeholder, value, onChange, error, autoComplete }) => (
+    <div className="field-group">
+        <label htmlFor={id}>{label}</label>
+        <input
+            id={id}
+            type={type}
+            placeholder={placeholder}
+            value={value}
+            onChange={onChange}
+            className={error ? 'input-error' : ''}
+            autoComplete={autoComplete}
+            required
+        />
+        {error && <span className="field-error">{error}</span>}
+    </div>
+);
+
 export default function Register() {
     const [formData, setFormData] = useState({
         nombre:   '',
@@ -65,23 +82,6 @@ export default function Register() {
         }
     };
 
-    const Field = ({ id, label, type = 'text', placeholder, value, onChange, error, autoComplete }) => (
-        <div className="field-group">
-            <label htmlFor={id}>{label}</label>
-            <input
-                id={id}
-                type={type}
-                placeholder={placeholder}
-                value={value}
-                onChange={onChange}
-                className={error ? 'input-error' : ''}
-                autoComplete={autoComplete}
-                required
-            />
-            {error && <span className="field-error">{error}</span>}
-        </div>
-    );
-
     return (
         <div className="register-page fade-in-up">
             <div className="register-card">
@@ -102,7 +102,7 @@ export default function Register() {
                         <Field id="nombre"   label="Nombre"   placeholder="Juan"      value={formData.nombre}   onChange={handleChange('nombre')}   error={errors.nombre}   autoComplete="given-name" />
                         <Field id="apellido" label="Apellido" placeholder="Pérez"     value={formData.apellido} onChange={handleChange('apellido')} error={errors.apellido} autoComplete="family-name" />
                     </div>
-                    <Field id="dni"      label="DNI"         type="number" placeholder="30123456" value={formData.dni}      onChange={handleChange('dni')}      error={errors.dni}      autoComplete="off" />
+                    <Field id="dni"      label="DNI"         type="text" placeholder="30123456" value={formData.dni}      onChange={handleChange('dni')}      error={errors.dni}      autoComplete="off" />
                     <Field id="email"    label="Email"       type="email"  placeholder="nombre@ejemplo.com" value={formData.email}    onChange={handleChange('email')}    error={errors.email}    autoComplete="email" />
                     <Field id="password" label="Contraseña"  type="password" placeholder="Mínimo 6 caracteres" value={formData.password} onChange={handleChange('password')} error={errors.password} autoComplete="new-password" />
 
