@@ -130,6 +130,18 @@ public static class DbInitializer
                 Direccion = "Belgrano, CABA",
                 Telefono = "1178901234"
             });
+            personas.Add(new Empleado
+            {
+                Nombre = "Diego",
+                Apellido = "Usuario",
+                Email = "empleado@gmail.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123", 12),
+                Rol = "Usuario",
+                Dni = 30123456,
+                Legajo = 1006,
+                Direccion = "Belgrano, CABA",
+                Telefono = "1178901234"
+            });
 
             context.Personas.AddRange(personas);
             context.SaveChanges();
