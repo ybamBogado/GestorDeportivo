@@ -67,6 +67,7 @@ export default function CanchaDetail() {
                 precio:     PRECIO_BASE,
                 pago:       false,
             });
+            window.dispatchEvent(new Event('reservaUpdate'));
             navigate(`/pago/${data.cobroId}`);
         } catch {
             setError('La reserva no pudo procesarse. Intentá de nuevo.');

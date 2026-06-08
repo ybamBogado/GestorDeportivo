@@ -14,5 +14,10 @@ namespace Application.DTOs
         public decimal Precio { get; set; }
         public string Estado { get; set; } = "Pendiente";
         public bool Pago { get; set; }
+        public string? MetodoPago { get; set; }
+        public DateTime? FechaExpiracion { get; set; }
+        public string? CodigoPagoExterno { get; set; }
+        public string? ComprobantePdf { get; set; }
+        public DateTime? FechaCreacion { get; set; }
     }
 }

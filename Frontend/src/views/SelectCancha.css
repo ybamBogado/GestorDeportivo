@@ -298,21 +298,50 @@
     letter-spacing: 0.5px;
 }
 
-.booking-detail-date-input {
-    padding: 12px 14px;
-    background: var(--bg-input);
-    border: 1px solid var(--border-base);
+.booking-detail-date-wrapper {
+    display: flex;
+    align-items: center;
+    background: rgba(49, 217, 79, 0.05);
+    border: 1px solid rgba(49, 217, 79, 0.15);
     border-radius: 12px;
-    color: var(--text-primary);
-    font-size: 0.95rem;
-    outline: none;
-    transition: all 0.25s ease;
-    max-width: 250px;
+    padding: 0 16px;
+    width: fit-content;
+    transition: all 0.3s ease;
 }
 
-.booking-detail-date-input:focus {
-    border-color: var(--border-focus);
+.booking-detail-date-wrapper:focus-within {
+    border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(49, 217, 79, 0.15);
+    background: rgba(49, 217, 79, 0.08);
+}
+
+.booking-detail-date-wrapper i {
+    color: var(--accent);
+    font-size: 1.1rem;
+    margin-right: 12px;
+}
+
+.booking-detail-date-input {
+    padding: 14px 0;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+    min-width: 140px;
+}
+
+.booking-detail-date-input::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.6);
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.booking-detail-date-input::-webkit-calendar-picker-indicator:hover {
+    filter: invert(1) opacity(1);
 }
 
 .booking-time-slots {
@@ -347,6 +376,41 @@
     font-weight: 800;
     transform: translateY(-2px);
     box-shadow: 0 6px 15px rgba(49, 217, 79, 0.35);
+}
+
+/* Estado: Ocupado / Bloqueado por mantenimiento */
+.booking-time-slot--ocupado {
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.03),
+        rgba(255, 255, 255, 0.03) 8px,
+        rgba(0, 0, 0, 0.15) 8px,
+        rgba(0, 0, 0, 0.15) 16px
+    ), rgba(239, 68, 68, 0.06);
+    border-color: rgba(239, 68, 68, 0.15);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    opacity: 0.6;
+    pointer-events: none;
+    position: relative;
+    overflow: hidden;
+    text-decoration: none;
+}
+
+.booking-time-slot--ocupado::after {
+    content: 'Ocupado';
+    position: absolute;
+    bottom: -1px;
+    right: 8px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: rgba(239, 68, 68, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.booking-time-slot--ocupado:hover {
+    transform: none;
 }
 
 .booking-detail-summary {

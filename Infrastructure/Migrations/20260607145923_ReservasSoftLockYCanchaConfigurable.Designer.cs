@@ -4,6 +4,7 @@ using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260607145923_ReservasSoftLockYCanchaConfigurable")]
+    partial class ReservasSoftLockYCanchaConfigurable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -812,7 +815,7 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.ToTable("CANCHA", null, t =>
+                    b.ToTable("CANCHA", t =>
                         {
                             t.Property("CantJugadores")
                                 .HasColumnName("Futbol5_CantJugadores");
@@ -835,7 +838,7 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.ToTable("CANCHA", null, t =>
+                    b.ToTable("CANCHA", t =>
                         {
                             t.Property("CantJugadores")
                                 .HasColumnName("Futbol7_CantJugadores");
@@ -895,7 +898,7 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime?>("FechaVencimientoCertificacion")
                         .HasColumnType("datetime2");
 
-                    b.ToTable("PERSONA", null, t =>
+                    b.ToTable("PERSONA", t =>
                         {
                             t.Property("FechaVencimientoCertificacion")
                                 .HasColumnName("Profesor_FechaVencimientoCertificacion");

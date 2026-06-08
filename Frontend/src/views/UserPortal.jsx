@@ -17,7 +17,9 @@ export default function UserPortal() {
     const { notify }             = useToast();
 
     const [activeTab, setActiveTab] = useState('reservas');
+    const [selectedReservaEfectivo, setSelectedReservaEfectivo] = useState(null);
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+    const [showHistory, setShowHistory] = useState(false);
 
     // Postulation states
     const [postularRol, setPostularRol] = useState('Profesor');
@@ -395,13 +397,16 @@ export default function UserPortal() {
     }, [fetchUserData]);
 
     const metrics = useMemo(() => {
+        const ACTIVE_ESTADOS = ['Pendiente', 'PendienteVerificacion', 'Confirmada'];
+        const activeReservaIds = new Set(
+            reservas.filter(r => ACTIVE_ESTADOS.includes(r.estado)).map(r => r.id)
+        );
         const activeBookings = reservas.filter(r => r.estado === 'Confirmada').length;
-        const pendingPayments = cobros.filter(c => c.estado === 'Pendiente').length;
         const totalSpent = cobros
             .filter(c => c.estado === 'Pagado')
             .reduce((s, c) => s + Number(c.montoFinal), 0);
 
-        return { activeBookings, pendingPayments, totalSpent };
+        return { activeBookings, totalSpent };
     }, [reservas, cobros]);
 
     const handlePrintRecibo = (r) => {
@@ -426,6 +431,24 @@ export default function UserPortal() {
         return new Date(isoString).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
     };
 
+    const openComprobanteEnPestana = (path) => {
+        if (!path) return;
+        
+        // El servidor guarda la imagen y devuelve una ruta como /uploads/receipts/...
+        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5071/api/v1';
+        const baseUrl = API_BASE.replace('/api/v1', '');
+        
+        // Si por alguna razón es una URL completa o un base64 heredado, lo abrimos directo
+        if (path.startsWith('http') || path.startsWith('data:')) {
+            window.open(path, '_blank');
+            return;
+        }
+
+        // Construimos la URL completa al backend
+        const fullUrl = `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+        window.open(fullUrl, '_blank');
+    };
+
     return (
         <div className="user-portal-shell">
             <header className="portal-header">
@@ -436,6 +459,9 @@ export default function UserPortal() {
                     </Link>
                     <div className="portal-user-meta">
                         <span>Hola, <strong>{user?.nombre} {user?.apellido}</strong></span>
+                        <button className="theme-toggle" onClick={() => { setLoading(true); fetchUserData(); }} title="Actualizar datos">
+                            <i className="bi bi-arrow-clockwise"></i>
+                        </button>
                         <button className="theme-toggle" onClick={toggleTheme}>
                             {theme === 'dark' ? '☀' : '☾'}
                         </button>
@@ -456,10 +482,6 @@ export default function UserPortal() {
                     <article className="metric-card">
                         <span>Reservas Activas</span>
                         <strong>{metrics.activeBookings}</strong>
-                    </article>
-                    <article className="metric-card">
-                        <span>Pagos Pendientes</span>
-                        <strong style={{ color: '#f2b84b' }}>{metrics.pendingPayments}</strong>
                     </article>
                     <article className="metric-card">
                         <span>Inversión Deportiva</span>
@@ -495,68 +517,165 @@ export default function UserPortal() {
                         ) : (
                             <>
                                 {/* RESERVAS TAB */}
-                                {activeTab === 'reservas' && (
+                                {activeTab === 'reservas' && (() => {
+                                    const INACTIVE = ['Cancelada', 'Expirada'];
+                                    const pendingAction = reservas.filter(r =>
+                                        r.estado === 'Pendiente' &&
+                                        !r.pago &&
+                                        r.fechaExpiracion &&
+                                        new Date(r.fechaExpiracion + (r.fechaExpiracion.endsWith('Z') ? '' : 'Z')) > new Date()
+                                    );
+                                    const pendingVerificacion = reservas.filter(r => r.estado === 'PendienteVerificacion');
+                                    const sorted = [...reservas].sort((a, b) => new Date(b.fecha) - new Date(a.fecha) || b.id - a.id);
+                                    const visible = showHistory ? sorted : sorted.filter(r => !INACTIVE.includes(r.estado));
+                                    const hiddenCount = sorted.filter(r => INACTIVE.includes(r.estado)).length;
+
+                                    const estadoMeta = (r) => {
+                                        if (r.pago) return { label: 'Pagado ✓', cls: 'success', icon: '✅' };
+                                        if (r.estado === 'Confirmada') return { label: 'Confirmada', cls: 'success', icon: '✅' };
+                                        if (r.estado === 'PendienteVerificacion') return { label: 'Verificando pago…', cls: 'pending', icon: '⏳' };
+                                        if (r.estado === 'Pendiente') return { label: 'Pendiente de pago', cls: 'pending', icon: '🕐' };
+                                        if (r.estado === 'Cancelada') return { label: 'Cancelada', cls: 'danger', icon: '✕' };
+                                        if (r.estado === 'Expirada') return { label: 'Expirada', cls: 'danger', icon: '⏰' };
+                                        return { label: r.estado, cls: 'pending', icon: '•' };
+                                    };
+
+                                    return (
                                     <div className="portal-reservas-section">
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                                            <h3>Historial de Reservas</h3>
-                                            <Link to="/" className="btn-reserve-new">+ Reservar Nueva Cancha</Link>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                            <h3 style={{ margin: 0 }}>Mis Reservas</h3>
+                                            <Link to="/" className="btn-reserve-new">+ Nueva Cancha</Link>
                                         </div>
-                                        {reservas.length === 0 ? (
-                                            <div className="empty-state">No posees reservas registradas. ¡Reserva tu primer turno en el inicio!</div>
-                                        ) : (
-                                            <div className="data-table">
-                                                <table>
-                                                    <thead>
-                                                        <tr>
-                                                            <th>ID</th>
-                                                            <th>Cancha</th>
-                                                            <th>Fecha</th>
-                                                            <th>Horario</th>
-                                                            <th>Precio</th>
-                                                            <th>Estado</th>
-                                                            <th>Pago</th>
-                                                            <th>Acciones</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {reservas.map(r => {
-                                                            const cobroAsociado = cobros.find(c => c.reservaId === r.id);
-                                                            return (
-                                                                <tr key={r.id}>
-                                                                    <td>#{r.id}</td>
-                                                                    <td style={{ fontWeight: 'bold' }}>{r.cancha}</td>
-                                                                    <td>{new Date(r.fecha).toLocaleDateString('es-AR')}</td>
-                                                                    <td>{r.horaInicio} – {r.horaFin}</td>
-                                                                    <td>{moneyFmt.format(r.precio)}</td>
-                                                                    <td>
-                                                                        <span className={`pill ${r.estado === 'Confirmada' ? 'success' : r.estado === 'Pendiente' ? 'pending' : 'danger'}`}>
-                                                                            {r.estado}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td>
-                                                                        <span className={`pill ${r.pago ? 'success' : 'danger'}`}>
-                                                                            {r.pago ? 'PAGADO' : 'IMPAGO'}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td className="table-actions">
-                                                                        {!r.pago && cobroAsociado && (
-                                                                            <button onClick={() => navigate(`/pago/${cobroAsociado.id}`)} style={{ background: '#31d94f', color: '#000' }}>
-                                                                                💳 Pagar
-                                                                            </button>
-                                                                        )}
-                                                                        {r.pago && cobroAsociado && (
-                                                                            <span style={{ fontSize: '0.85rem', color: '#8ca092' }}>Completado</span>
-                                                                        )}
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                    </tbody>
-                                                </table>
+
+                                        {/* Banner: pago pendiente urgente */}
+                                        {pendingAction.length > 0 && (
+                                            <div className="reservas-pending-banner">
+                                                <div className="reservas-pending-banner__icon">
+                                                    <i className="bi bi-clock-history"></i>
+                                                </div>
+                                                <div className="reservas-pending-banner__body">
+                                                    <strong>Tenés {pendingAction.length} reserva{pendingAction.length > 1 ? 's' : ''} esperando pago</strong>
+                                                    <p>Completá el pago antes de que expire el tiempo reservado. Usá el botón de la barra superior.</p>
+                                                </div>
                                             </div>
                                         )}
+
+                                        {/* Banner: en verificación por transferencia */}
+                                        {pendingVerificacion.length > 0 && (
+                                            <div className="reservas-pending-banner reservas-pending-banner--info">
+                                                <div className="reservas-pending-banner__icon reservas-pending-banner__icon--info">
+                                                    <i className="bi bi-hourglass-split"></i>
+                                                </div>
+                                                <div className="reservas-pending-banner__body">
+                                                    <strong>{pendingVerificacion.length} comprobante{pendingVerificacion.length > 1 ? 's' : ''} en verificación</strong>
+                                                    <p>Tu transferencia está siendo revisada por el equipo. Te confirmaremos a la brevedad.</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {reservas.length === 0 ? (
+                                            <div className="empty-state">
+                                                <i className="bi bi-calendar-x" style={{ fontSize: '3rem', display: 'block', marginBottom: 12, color: '#8ca092' }}></i>
+                                                <p>¡Todavía no tenés reservas! Elegí tu cancha favorita y empezá a jugar.</p>
+                                                <Link to="/" className="btn-reserve-new" style={{ marginTop: 12, display: 'inline-block' }}>Reservar ahora</Link>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="reservas-cards-grid">
+                                                    {visible.map(r => {
+                                                        const cobroAsociado = cobros.find(c => c.reservaId === r.id);
+                                                        const meta = estadoMeta(r);
+                                                        const isInactive = INACTIVE.includes(r.estado);
+                                                        return (
+                                                            <div key={r.id} className={`reserva-card ${isInactive ? 'reserva-card--inactive' : ''} ${r.estado === 'Pendiente' && !r.pago ? 'reserva-card--pending' : ''}`}>
+                                                                {/* ─ Card Header: cancha name + status pill ─ */}
+                                                                <div className="reserva-card__header">
+                                                                    <div className="reserva-card__cancha-icon">
+                                                                        <i className="bi bi-dribbble"></i>
+                                                                    </div>
+                                                                    <div className="reserva-card__cancha-info">
+                                                                        <strong>{r.cancha}</strong>
+                                                                    </div>
+                                                                    <span className={`pill ${meta.cls}`}>{meta.label}</span>
+                                                                </div>
+                                                                {/* ─ Card Body: all relevant details including date ─ */}
+                                                                <div className="reserva-card__body">
+                                                                    <div className="reserva-card__detail">
+                                                                        <span><i className="bi bi-calendar3"></i> Fecha</span>
+                                                                        <strong style={{ textTransform: 'capitalize' }}>
+                                                                            {new Date(r.fecha).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                        </strong>
+                                                                    </div>
+                                                                    <div className="reserva-card__detail">
+                                                                        <span><i className="bi bi-clock"></i> Horario</span>
+                                                                        <strong>{r.horaInicio} – {r.horaFin}</strong>
+                                                                    </div>
+                                                                    <div className="reserva-card__detail">
+                                                                        <span><i className="bi bi-credit-card"></i> Método</span>
+                                                                        <strong style={{ textTransform: 'capitalize' }}>{r.metodoPago || '—'}</strong>
+                                                                    </div>
+                                                                    <div className="reserva-card__detail">
+                                                                        <span><i className="bi bi-cash-coin"></i> Total</span>
+                                                                        <strong style={{ color: '#31d94f' }}>{moneyFmt.format(r.precio)}</strong>
+                                                                    </div>
+                                                                    {r.fechaCreacion && (
+                                                                        <div className="reserva-card__detail">
+                                                                            <span><i className="bi bi-pencil-square"></i> Creada el</span>
+                                                                            <strong>{new Date(r.fechaCreacion).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</strong>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                {/* ─ Card Footer: action buttons ─ */}
+                                                                {!isInactive && (
+                                                                    <div className="reserva-card__footer">
+                                                                        {!r.pago && cobroAsociado && r.metodoPago === 'efectivo' && r.estado === 'Pendiente' && (
+                                                                            <button className="btn-action btn-action--yellow" onClick={() => setSelectedReservaEfectivo(r)}>
+                                                                                <i className="bi bi-upc-scan me-1"></i> Ver Código Rapipago
+                                                                            </button>
+                                                                        )}
+                                                                        {r.estado === 'PendienteVerificacion' && (
+                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '8px' }}>
+                                                                                <span className="reserva-card__verif-badge">
+                                                                                    <i className="bi bi-hourglass-split me-1"></i> Comprobante en verificación
+                                                                                </span>
+                                                                                {r.comprobantePdf && (
+                                                                                    <button 
+                                                                                        className="btn-action btn-action--yellow" 
+                                                                                        style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                                                                                        onClick={() => openComprobanteEnPestana(r.comprobantePdf)}
+                                                                                    >
+                                                                                        <i className="bi bi-file-earmark-pdf me-1"></i> Ver Comprobante
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                        {r.pago && (
+                                                                            <span className="reserva-card__ok-badge">
+                                                                                <i className="bi bi-check-circle-fill me-1"></i> Pago confirmado
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {hiddenCount > 0 && (
+                                                    <button
+                                                        className="btn-toggle-history"
+                                                        onClick={() => setShowHistory(p => !p)}
+                                                    >
+                                                        {showHistory
+                                                            ? `▲ Ocultar historial (${hiddenCount} canceladas/expiradas)`
+                                                            : `▼ Ver historial completo (${hiddenCount} canceladas/expiradas)`}
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
-                                )}
+                                    );
+                                })()}
 
                                 {/* CLASES TAB */}
                                 {activeTab === 'clases' && (
@@ -1031,6 +1150,38 @@ export default function UserPortal() {
                     onConfirm={confirmConfig.onConfirm}
                     onCancel={() => setConfirmConfig(c => ({ ...c, isOpen: false }))}
                 />
+
+                {/* MODAL DE COMPROBANTE EFECTIVO */}
+                {selectedReservaEfectivo && (
+                    <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                        <div className="modal-content" style={{ background: 'var(--bg-card)', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '400px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                            <h3 style={{ marginBottom: '15px', color: 'var(--text-primary)' }}>💵 Comprobante de Pago</h3>
+                            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
+                                Muestra este código en mostrador o en cualquier sucursal Rapipago / PagoFácil.
+                            </p>
+                            
+                            <div style={{ background: 'var(--bg-app)', padding: '20px', borderRadius: '8px', border: '1px dashed var(--accent)', marginBottom: '20px' }}>
+                                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '5px' }}>Código de Pago</div>
+                                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--accent)', letterSpacing: '2px' }}>
+                                    {selectedReservaEfectivo.codigoPagoExterno || 'Generando...'}
+                                </div>
+                            </div>
+                            
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '1rem', color: 'var(--text-primary)' }}>
+                                <span>Total a pagar:</span>
+                                <strong style={{ color: 'var(--accent)' }}>{moneyFmt.format(selectedReservaEfectivo.precio)}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                <span>Vence:</span>
+                                <span>{new Date(selectedReservaEfectivo.fechaExpiracion).toLocaleString('es-AR')}</span>
+                            </div>
+
+                            <button onClick={() => setSelectedReservaEfectivo(null)} style={{ background: 'transparent', border: '1px solid var(--text-secondary)', color: 'var(--text-primary)', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', width: '100%', fontWeight: 'bold' }}>
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

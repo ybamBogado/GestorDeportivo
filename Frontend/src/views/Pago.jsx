@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import Loader from '../components/Loader';
-import { cobros as cobrosApi, recibos as recibosApi } from '../services/api.js';
+import { cobros as cobrosApi, recibos as recibosApi, reservas as reservasApi } from '../services/api.js';
 import { validateCard, detectCardBrand, luhnCheck } from '../utils/validation.js';
 import './Pago.css';
 
@@ -61,11 +61,143 @@ export default function Pago() {
     const successSubtitle = esReserva ? 'Tu reserva está confirmada' : 'Tu inscripción quedó registrada correctamente';
 
     useEffect(() => {
-        cobrosApi.getById(cobroId)
-            .then(setCobro)
-            .catch(e => setError(e.message ?? 'Error de conexión'))
-            .finally(() => setLoading(false));
-    }, [cobroId]);
+        const fetchCobro = () => {
+            cobrosApi.getById(cobroId)
+                .then(data => {
+                    if (data?.reserva?.estado !== 'Pendiente' && data?.estado !== 'Aprobado') {
+                        navigate('/');
+                        return;
+                    }
+                    setCobro(data);
+                    if (data?.reserva?.metodoPago) {
+                        setMetodoPago(data.reserva.metodoPago);
+                    }
+                })
+                .catch(e => {
+                    if (e.message?.includes('Pendiente') || e.message?.includes('encontrada')) {
+                        navigate('/');
+                    } else {
+                        setError(e.message ?? 'Error de conexión');
+                    }
+                })
+                .finally(() => setLoading(false));
+        };
+
+        fetchCobro();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchCobro();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [cobroId, navigate]);
+
+    useEffect(() => {
+        if (!cobro?.reserva?.fechaExpiracion || expired || recibo) return;
+
+        // Si es admin/empleado, no hay expiración estricta visual
+        if (user?.rol === 'Administrador' || user?.rol === 'Empleado') {
+            setTimeLeft(null);
+            return;
+        }
+
+        const interval = setInterval(() => {
+            const expDate = cobro.reserva?.fechaExpiracion;
+            if (!expDate) return;
+
+            const now = new Date().getTime();
+            const exp = new Date(expDate + (expDate.endsWith('Z') ? '' : 'Z')).getTime();
+            const diff = exp - now;
+
+            if (diff <= 0) {
+                clearInterval(interval);
+                setTimeLeft(0);
+                setExpired(true);
+            } else {
+                setTimeLeft(diff);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [cobro, expired, recibo, user]);
+
+    const handleMetodoChange = (newMetodo) => {
+        if (newMetodo === metodoPago) return;
+        setMetodoPago(newMetodo);
+        // NO llamamos al backend aquí. Solo cuando confirmen la acción final.
+    };
+
+    const handleFinalizarEfectivo = async () => {
+        setPaying(true);
+        setError(null);
+        try {
+            const rId = cobro.reservaId || cobro.reserva.id;
+            const res = await reservasApi.updateMetodoPago(rId, 'efectivo');
+            window.dispatchEvent(new Event('reservaUpdate'));
+            setFinalizedEfectivo(res);
+        } catch (e) {
+            if (e.message?.includes('Pendiente')) navigate('/');
+            else setError(e.message);
+        } finally {
+            setPaying(false);
+        }
+    };
+
+    const handleFinalizarTransferencia = async () => {
+        if (!comprobanteFile) {
+            setError("Por favor selecciona un archivo de comprobante.");
+            return;
+        }
+
+        setPaying(true);
+        setError(null);
+        try {
+            const rId = cobro.reservaId || cobro.reserva.id;
+
+            const reader = new FileReader();
+            reader.readAsDataURL(comprobanteFile);
+            reader.onloadend = async () => {
+                const base64Data = reader.result;
+                try {
+                    await reservasApi.updateMetodoPago(rId, 'transferencia', base64Data);
+                    window.dispatchEvent(new Event('reservaUpdate'));
+                    setFinalizedTransferencia(true);
+                } catch (e) {
+                    if (e.message?.includes('Pendiente')) navigate('/');
+                    else setError(e.message);
+                    setPaying(false);
+                }
+            };
+            reader.onerror = () => {
+                setError("Error al leer el comprobante.");
+                setPaying(false);
+            };
+        } catch (e) {
+            if (e.message?.includes('Pendiente')) navigate('/');
+            else setError(e.message);
+            setPaying(false);
+        }
+    };
+
+    const handleCancelarReserva = async () => {
+        if (!cobro) {
+            navigate('/');
+            return;
+        }
+
+        setPaying(true);
+        setError(null);
+        try {
+            const rId = cobro.reservaId || cobro.reserva.id;
+            await reservasApi.cancelar(rId);
+            window.dispatchEvent(new Event('reservaUpdate'));
+            navigate('/');
+        } catch (e) {
+            setError("No se pudo cancelar la reserva: " + e.message);
+            setPaying(false);
+        }
+    };
 
     useEffect(() => {
         if (!cobro?.reserva?.fechaExpiracion || recibo) {
@@ -134,7 +266,8 @@ export default function Pago() {
             });
             setCobro(updated);
         } catch (e) {
-            setError(e.message);
+            if (e.message?.includes('Pendiente')) navigate('/');
+            else setError(e.message);
         } finally {
             setPaying(false);
         }
@@ -197,6 +330,14 @@ export default function Pago() {
                             </div>
                         )}
                     </div>
+
+                    {expired && (
+                        <div className="alert alert-danger mt-3" role="alert" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', padding: '20px', borderRadius: '12px' }}>
+                            <h4 className="alert-heading" style={{ margin: '0 0 10px 0', fontSize: '1.2rem' }}>¡Tiempo expirado!</h4>
+                            <p style={{ margin: '0 0 15px 0' }}>El tiempo para completar el pago ha finalizado y la cancha ha sido liberada. Por favor, volvé a iniciar tu reserva.</p>
+                            <button className="btn-cancelar" style={{ width: '100%', margin: 0 }} onClick={() => navigate('/')}>Volver al inicio</button>
+                        </div>
+                    )}
 
                     {error && <div className="pago-error" role="alert">{error}</div>}
 
@@ -346,9 +487,19 @@ export default function Pago() {
                         {paying ? <span>Procesando...</span> : `Pagar $${Number(cobro?.montoFinal).toLocaleString('es-AR')}`}
                     </button>
 
-                    <button className="btn-cancelar" onClick={() => navigate('/')}>
-                        Cancelar
-                    </button>
+                            {metodoPago === 'tarjeta' && (
+                                <button className="btn-pagar" onClick={handlePagar} disabled={paying}>
+                                    {paying
+                                        ? <span>Procesando...</span>
+                                        : `Pagar $${Number(cobro?.montoFinal).toLocaleString('es-AR')}`}
+                                </button>
+                            )}
+
+                            <button className="btn-cancelar" onClick={handleCancelarReserva} disabled={paying}>
+                                Cancelar y volver
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
             <Footer />

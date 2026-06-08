@@ -309,3 +309,265 @@
     color: #080c0a;
     border-color: #31d94f;
 }
+
+/* ── Reservas Pending Banner ──────────────────────────────────────── */
+.reservas-pending-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    background: rgba(242, 184, 75, 0.08);
+    border: 1px solid rgba(242, 184, 75, 0.35);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+    animation: pulse-border 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+    0%, 100% { border-color: rgba(242, 184, 75, 0.35); }
+    50%       { border-color: rgba(242, 184, 75, 0.75); }
+}
+
+.reservas-pending-banner__icon {
+    font-size: 1.6rem;
+    color: #f2b84b;
+    flex-shrink: 0;
+    line-height: 1;
+    width: 40px;
+    height: 40px;
+    background: rgba(242, 184, 75, 0.12);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.reservas-pending-banner__body strong {
+    color: #f2b84b;
+    font-size: 1rem;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.reservas-pending-banner__body p {
+    color: #8ca092;
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+/* Info variant: azul para transferencias en verificación */
+.reservas-pending-banner--info {
+    background: rgba(96, 165, 250, 0.06);
+    border-color: rgba(96, 165, 250, 0.3);
+    animation: pulse-border-info 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-border-info {
+    0%, 100% { border-color: rgba(96, 165, 250, 0.3); }
+    50%       { border-color: rgba(96, 165, 250, 0.65); }
+}
+
+.reservas-pending-banner__icon--info {
+    color: #60a5fa;
+    background: rgba(96, 165, 250, 0.1);
+}
+
+.reservas-pending-banner--info .reservas-pending-banner__body strong {
+    color: #60a5fa;
+}
+
+/* ── Reservas Cards Grid ──────────────────────────────────────────── */
+.reservas-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+/* ── Single Reserva Card ──────────────────────────────────────────── */
+.reserva-card {
+    background: rgba(17, 29, 19, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.reserva-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(49, 217, 79, 0.2);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.reserva-card--pending {
+    border-color: rgba(242, 184, 75, 0.3);
+}
+
+.reserva-card--pending:hover {
+    border-color: rgba(242, 184, 75, 0.5);
+    box-shadow: 0 8px 24px rgba(242, 184, 75, 0.1);
+}
+
+.reserva-card--inactive {
+    opacity: 0.5;
+    filter: grayscale(0.4);
+}
+
+.reserva-card--inactive:hover {
+    opacity: 0.7;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Card Header */
+.reserva-card__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.reserva-card__cancha-icon {
+    font-size: 1.25rem;
+    color: #31d94f;
+    width: 42px;
+    height: 42px;
+    background: rgba(49, 217, 79, 0.08);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.reserva-card__cancha-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.reserva-card__cancha-info strong {
+    display: block;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.reserva-card__cancha-info span {
+    font-size: 0.78rem;
+    color: #8ca092;
+    text-transform: capitalize;
+}
+
+/* Card Body */
+.reserva-card__body {
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+}
+
+.reserva-card__detail {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.reserva-card__detail span {
+    font-size: 0.82rem;
+    color: #8ca092;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.reserva-card__detail span i {
+    font-size: 0.85rem;
+    color: #5a7a63;
+}
+
+.reserva-card__detail strong {
+    font-size: 0.9rem;
+    color: #e2e8f0;
+}
+
+/* Card Footer */
+.reserva-card__footer {
+    padding: 12px 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.reserva-card__verif-badge {
+    font-size: 0.82rem;
+    color: #f2b84b;
+    font-weight: 600;
+}
+
+.reserva-card__ok-badge {
+    font-size: 0.82rem;
+    color: #31d94f;
+    font-weight: 600;
+}
+
+/* Action Buttons inside Card Footer */
+.btn-action {
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-action--yellow {
+    background: rgba(242, 184, 75, 0.12);
+    color: #f2b84b;
+    border: 1px solid rgba(242, 184, 75, 0.35);
+}
+
+.btn-action--yellow:hover {
+    background: #f2b84b;
+    color: #000;
+}
+
+/* Toggle History Button */
+.btn-toggle-history {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 11px 20px;
+    background: transparent;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    color: #8ca092;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.btn-toggle-history:hover {
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #fff;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+@media (max-width: 640px) {
+    .reservas-cards-grid {
+        grid-template-columns: 1fr;
+    }
+}
+

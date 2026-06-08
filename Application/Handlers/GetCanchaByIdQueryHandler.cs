@@ -21,10 +21,13 @@ namespace Application.Handlers
 
             return new CanchaCatalogDto
             {
-                Id = cancha.Id,
+                Id         = cancha.Id,
                 Superficie = cancha.Superficie,
-                Capacidad = cancha.Capacidad,
-                Estado = cancha.Estado
+                Capacidad  = cancha.Capacidad,
+                Estado     = cancha.Estado,
+                TipoCancha = cancha.GetType().Name,
+                DuracionMaximaMinutos = cancha.GetDuracionMaxima(),
+                PrecioHora = cancha.PrecioHora
             };
         }
     }

@@ -33,7 +33,12 @@ namespace Application.Handlers
                 HoraFin = r.HoraFin.ToString(@"hh\:mm"),
                 Precio = r.Precio,
                 Estado = r.Estado,
-                Pago = r.Pago
+                Pago = r.Pago,
+                MetodoPago = r.MetodoPago,
+                FechaExpiracion = r.FechaExpiracion,
+                CodigoPagoExterno = r.CodigoPagoExterno,
+                ComprobantePdf = r.ComprobantePdf,
+                FechaCreacion = r.FechaCreacion
             });
         }
     }

@@ -23,10 +23,13 @@ namespace Application.Handlers
 
             var catalog = canchas.Select(c => new CanchaCatalogDto
             {
-                Id = c.Id,
+                Id         = c.Id,
                 Superficie = c.Superficie,
-                Capacidad = c.Capacidad,
-                Estado = c.Estado
+                Capacidad  = c.Capacidad,
+                Estado     = c.Estado,
+                TipoCancha = c.GetType().Name, // Futbol5, Futbol7, Futbol11
+                DuracionMaximaMinutos = c.GetDuracionMaxima(),
+                PrecioHora = c.PrecioHora
             });
             return catalog;
         }
