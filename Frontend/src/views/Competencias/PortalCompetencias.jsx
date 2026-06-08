@@ -8,12 +8,11 @@ import './PortalCompetencias.css';
 
 export default function PortalCompetencias() {
     const navigate = useNavigate();
-
-    const [ligasData, setLigasData]     = useState([]);
+    const [ligasData, setLigasData] = useState([]);
     const [torneosData, setTorneosData] = useState([]);
-    const [loading, setLoading]         = useState(true);
-    const [error, setError]             = useState(null);
-    const [tab, setTab]                 = useState('ligas'); // 'ligas' | 'torneos'
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [tab, setTab] = useState('ligas');
 
     useEffect(() => {
         Promise.all([ligasApi.getAll(), torneosApi.getAll()])
@@ -37,24 +36,18 @@ export default function PortalCompetencias() {
             <Header />
             <main className="portal-comp fade-in-up">
                 <div className="portal-comp__hero">
-                    <h1>🏆 Competencias</h1>
+                    <h1><i className="bi bi-trophy-fill"></i> Competencias</h1>
                     <p>Inscribí tu equipo en ligas y torneos del complejo</p>
                 </div>
 
                 {error && <div className="portal-comp__error">{error}</div>}
 
                 <div className="portal-comp__tabs">
-                    <button
-                        className={`comp-tab ${tab === 'ligas' ? 'comp-tab--active' : ''}`}
-                        onClick={() => setTab('ligas')}
-                    >
-                        ⚽ Ligas
+                    <button className={`comp-tab ${tab === 'ligas' ? 'comp-tab--active' : ''}`} onClick={() => setTab('ligas')}>
+                        <i className="bi bi-shield-fill"></i> Ligas
                     </button>
-                    <button
-                        className={`comp-tab ${tab === 'torneos' ? 'comp-tab--active' : ''}`}
-                        onClick={() => setTab('torneos')}
-                    >
-                        🥇 Torneos
+                    <button className={`comp-tab ${tab === 'torneos' ? 'comp-tab--active' : ''}`} onClick={() => setTab('torneos')}>
+                        <i className="bi bi-trophy-fill"></i> Torneos
                     </button>
                 </div>
 
@@ -78,7 +71,7 @@ export default function PortalCompetencias() {
                                         </span>
                                         {tab === 'torneos' && item.premioUSD > 0 && (
                                             <span className="comp-badge comp-badge--prize">
-                                                🏆 ${item.premioUSD} USD
+                                                <i className="bi bi-award-fill"></i> ${item.premioUSD} USD
                                             </span>
                                         )}
                                     </div>
@@ -99,10 +92,7 @@ export default function PortalCompetencias() {
 
                                     <div className="comp-card__cupo">
                                         <div className="cupo-bar">
-                                            <div
-                                                className="cupo-bar__fill"
-                                                style={{ width: cupoTotal ? `${(cupoUsado / cupoTotal) * 100}%` : '0%' }}
-                                            />
+                                            <div className="cupo-bar__fill" style={{ width: cupoTotal ? `${(cupoUsado / cupoTotal) * 100}%` : '0%' }} />
                                         </div>
                                         <span>{cupoUsado} / {cupoTotal} equipos</span>
                                     </div>
@@ -110,28 +100,19 @@ export default function PortalCompetencias() {
                                     <div className="comp-card__costo">
                                         {item.costoInscripcion > 0
                                             ? <span>Matrícula: <strong>${Number(item.costoInscripcion).toLocaleString('es-AR')}</strong></span>
-                                            : <span className="comp-free">Inscripción gratuita</span>
-                                        }
+                                            : <span className="comp-free">Inscripción gratuita</span>}
                                     </div>
 
                                     <div className="comp-card__actions">
-                                        <button
-                                            className="btn-ver-fixture"
-                                            onClick={() => navigate(`/competencias/${tab}/${item.id}/fixture`)}
-                                        >
+                                        <button className="btn-ver-fixture" onClick={() => navigate(`/competencias/${tab}/${item.id}/fixture`)}>
                                             Ver Fixture
                                         </button>
                                         {abierta && cupoLibre > 0 && (
-                                            <button
-                                                className="btn-inscribir"
-                                                onClick={() => navigate(`/competencias/${tab}/${item.id}/inscribir`)}
-                                            >
+                                            <button className="btn-inscribir" onClick={() => navigate(`/competencias/${tab}/${item.id}/inscribir`)}>
                                                 Inscribir Equipo
                                             </button>
                                         )}
-                                        {cupoLibre <= 0 && (
-                                            <span className="comp-sin-cupo">Sin cupo disponible</span>
-                                        )}
+                                        {cupoLibre <= 0 && <span className="comp-sin-cupo">Sin cupo disponible</span>}
                                     </div>
                                 </div>
                             );

@@ -1,26 +1,28 @@
 .equipos-panel {
     padding: 2rem;
-    background: #f8f9fa;
-    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(15, 23, 18, 0.96), rgba(9, 15, 11, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 20px;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.24);
 }
 
 .equipos-msg {
     padding: 1rem;
     margin-bottom: 1.5rem;
-    border-radius: 6px;
+    border-radius: 10px;
     font-weight: 500;
 }
 
 .equipos-msg--error {
-    background-color: #fee;
-    color: #c33;
-    border-left: 4px solid #c33;
+    background-color: rgba(239, 68, 68, 0.12);
+    color: #fca5a5;
+    border-left: 4px solid #ef4444;
 }
 
 .equipos-msg--success {
-    background-color: #efe;
-    color: #3c3;
-    border-left: 4px solid #3c3;
+    background-color: rgba(34, 197, 94, 0.12);
+    color: #bbf7d0;
+    border-left: 4px solid #22c55e;
 }
 
 .equipos-toolbar {
@@ -28,36 +30,43 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+    gap: 1rem;
 }
 
 .equipos-toolbar h3 {
     margin: 0;
     font-size: 1.5rem;
-    color: #333;
+    color: #f7faf7;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
 }
 
 .btn-nuevo {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
     color: white;
     border: none;
     padding: 0.75rem 1.5rem;
-    border-radius: 6px;
+    border-radius: 10px;
     cursor: pointer;
-    font-weight: 600;
+    font-weight: 700;
     transition: transform 0.2s, box-shadow 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .btn-nuevo:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.35);
 }
 
 .equipo-form {
-    background: white;
+    background: rgba(255, 255, 255, 0.05);
     padding: 1.5rem;
-    border-radius: 8px;
+    border-radius: 16px;
     margin-bottom: 2rem;
-    border: 1px solid #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .equipo-form__grid {
@@ -75,39 +84,45 @@
 .eq-field label {
     font-weight: 600;
     margin-bottom: 0.5rem;
-    color: #555;
+    color: #c9d4cc;
     font-size: 0.9rem;
 }
 
 .eq-field input,
-.eq-field select {
+.eq-field select,
+.equipo-edit input,
+.equipo-edit select {
     padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
     font-size: 0.95rem;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: rgba(10, 17, 12, 0.92);
+    color: #eef5ef;
 }
 
 .eq-field input:focus,
-.eq-field select:focus {
+.eq-field select:focus,
+.equipo-edit input:focus,
+.equipo-edit select:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
 }
 
 .btn-submit {
-    background: #667eea;
+    background: #22c55e;
     color: white;
     padding: 0.75rem 2rem;
     border: none;
-    border-radius: 4px;
+    border-radius: 10px;
     cursor: pointer;
-    font-weight: 600;
+    font-weight: 700;
     transition: background 0.2s;
 }
 
 .btn-submit:hover {
-    background: #5568d3;
+    background: #16a34a;
 }
 
 .equipos-lista {
@@ -120,21 +135,21 @@
     grid-column: 1 / -1;
     text-align: center;
     padding: 3rem;
-    color: #999;
+    color: #aab8ae;
     font-size: 1.1rem;
 }
 
 .equipo-card {
-    background: white;
-    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 18px;
     padding: 1.5rem;
-    border: 1px solid #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .equipo-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
 }
 
 .equipo-header {
@@ -142,11 +157,12 @@
     justify-content: space-between;
     align-items: start;
     margin-bottom: 1rem;
+    gap: 0.75rem;
 }
 
 .equipo-header h4 {
     margin: 0;
-    color: #333;
+    color: #f7faf7;
     font-size: 1.2rem;
     flex: 1;
 }
@@ -155,7 +171,7 @@
     padding: 0.35rem 0.75rem;
     border-radius: 20px;
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: 700;
     white-space: nowrap;
 }
 
@@ -180,12 +196,12 @@
 
 .equipo-info p {
     margin: 0.5rem 0;
-    color: #666;
+    color: #c8d3ca;
     font-size: 0.95rem;
 }
 
 .equipo-info strong {
-    color: #333;
+    color: #f4fbf5;
 }
 
 .equipo-actions,
@@ -199,51 +215,55 @@
 .btn-save,
 .btn-cancel {
     flex: 1;
-    padding: 0.6rem 1rem;
+    padding: 0.7rem 1rem;
     border: none;
-    border-radius: 4px;
+    border-radius: 10px;
     cursor: pointer;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 0.9rem;
     transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 .btn-edit {
-    background: #4CAF50;
+    background: #22c55e;
     color: white;
 }
 
 .btn-edit:hover {
-    background: #45a049;
+    background: #16a34a;
     transform: translateY(-1px);
 }
 
 .btn-delete {
-    background: #f44336;
+    background: #ef4444;
     color: white;
 }
 
 .btn-delete:hover {
-    background: #da190b;
+    background: #dc2626;
     transform: translateY(-1px);
 }
 
 .btn-save {
-    background: #667eea;
+    background: #22c55e;
     color: white;
 }
 
 .btn-save:hover {
-    background: #5568d3;
+    background: #16a34a;
 }
 
 .btn-cancel {
-    background: #999;
+    background: #64748b;
     color: white;
 }
 
 .btn-cancel:hover {
-    background: #777;
+    background: #475569;
 }
 
 .equipo-edit {
@@ -252,26 +272,10 @@
     gap: 0.75rem;
 }
 
-.equipo-edit input,
-.equipo-edit select {
-    padding: 0.6rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 0.9rem;
-}
-
-.equipo-edit input:focus,
-.equipo-edit select:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
 @media (max-width: 768px) {
     .equipos-toolbar {
         flex-direction: column;
         align-items: flex-start;
-        gap: 1rem;
     }
 
     .equipos-lista {

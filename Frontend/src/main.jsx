@@ -16,6 +16,7 @@ import EmployeePanel from './views/EmployeePanel.jsx'
 import TrainerPanel from './views/TrainerPanel.jsx'
 import UserPortal from './views/UserPortal.jsx'
 import SelectCancha from './views/SelectCancha.jsx'
+import EquipoDetalle from './views/EquipoDetalle.jsx'
 
 // Nuevas vistas de competencias (ligas y torneos)
 import PortalCompetencias from './views/Competencias/PortalCompetencias.jsx'
@@ -41,6 +42,7 @@ createRoot(document.getElementById('root')).render(
               <Route path="/my-portal"         element={<UserPortal />} />
               <Route path="/select-cancha"     element={<SelectCancha />} />
               <Route path="/pago/:cobroId"     element={<Pago />} />
+              <Route path="/equipos/:id"       element={<EquipoDetalle />} />
 
               {/* Portal público de Competencias */}
               <Route path="/competencias"                              element={<PortalCompetencias />} />

@@ -24,6 +24,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
+    position: relative;
 }
 
 .header-brand {
@@ -208,6 +209,29 @@
     transform: translateY(-1px);
 }
 
+.header-pending-reserva-btn {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: #f2b84b;
+    color: #000;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 700;
+    box-shadow: 0 0 10px rgba(242, 184, 75, 0.5);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    z-index: 2;
+    white-space: nowrap;
+}
+
+.header-pending-reserva-btn:hover {
+    transform: translate(-50%, -50%) scale(1.04);
+    box-shadow: 0 0 16px rgba(242, 184, 75, 0.7);
+}
+
 /* ── Nav de competencias ── */
 .header-nav {
     display: flex;
@@ -234,4 +258,14 @@
     .header-logo   { height: 32px; }
     .header-username { display: none; }
     .header-nav-link { font-size: 0.78rem; padding: 0.25rem 0.5rem; }
+    .header-pending-reserva-btn {
+        position: static;
+        transform: none;
+        margin: 0 8px 0 auto;
+        font-size: 0.78rem;
+        padding: 7px 12px;
+    }
+    .header-pending-reserva-btn:hover {
+        transform: none;
+    }
 }

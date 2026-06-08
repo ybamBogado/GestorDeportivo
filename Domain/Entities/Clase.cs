@@ -16,5 +16,6 @@ namespace Domain.Entities
         public int? ComplejoId { get; set; }
         public virtual Complejo? Complejo { get; set; }
         public virtual ICollection<Asistencia> Asistencias { get; set; } = new List<Asistencia>();
+        public virtual ICollection<InscripcionClase> Inscripciones { get; set; } = new List<InscripcionClase>();
     }
 }

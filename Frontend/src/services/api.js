@@ -121,19 +121,33 @@ export const partidos = {
 
 // ─── Equipos ──────────────────────────────────────────────────────────────────
 export const equipos = {
-    getAll:     ()        => request('/equipos'),
-    getById:    (id)      => request(`/equipos/${id}`),
-    create:     (data)    => request('/equipos',                        { method: 'POST',   body: JSON.stringify(data) }),
-    update:     (id, d)   => request(`/equipos/${id}`,                  { method: 'PUT',    body: JSON.stringify(d) }),
-    remove:     (id)      => request(`/equipos/${id}`,                  { method: 'DELETE' }),
-    addJugador: (id, uid) => request(`/equipos/${id}/jugadores/${uid}`, { method: 'POST' }),
+    getAll:        ()        => request('/equipos'),
+    getById:       (id)      => request(`/equipos/${id}`),
+    create:        (data)    => request('/equipos',                        { method: 'POST',   body: JSON.stringify(data) }),
+    update:        (id, d)   => request(`/equipos/${id}`,                  { method: 'PUT',    body: JSON.stringify(d) }),
+    remove:        (id)      => request(`/equipos/${id}`,                  { method: 'DELETE' }),
+    addJugador:    (id, uid) => request(`/equipos/${id}/jugadores/${uid}`, { method: 'POST' }),
+    inscribirse:   (id, d)   => request(`/equipos/${id}/inscripciones`,    { method: 'POST',   body: JSON.stringify(d) }),
 };
 
 // ─── Clases ───────────────────────────────────────────────────────────────────
 export const clases = {
-    getAll:            ()       => request('/clases'),
-    getById:           (id)     => request(`/clases/${id}`),
-    create:            (data)   => request('/clases', { method: 'POST', body: JSON.stringify(data) }),
-    remove:            (id)     => request(`/clases/${id}`, { method: 'DELETE' }),
-    toggleAsistencia:  (claseId, usuarioId, presente) => request(`/clases/${claseId}/asistencias`, { method: 'POST', body: JSON.stringify({ usuarioId, presente }) }),
+    getAll:             (params = {}) => {
+        const qs = new URLSearchParams(params).toString();
+        return request(`/clases${qs ? `?${qs}` : ''}`);
+    },
+    getById:            (id)     => request(`/clases/${id}`),
+    create:             (data)   => request('/clases', { method: 'POST', body: JSON.stringify(data) }),
+    remove:             (id)     => request(`/clases/${id}`, { method: 'DELETE' }),
+    toggleAsistencia:   (claseId, usuarioId, presente) => request(`/clases/${claseId}/asistencias`, { method: 'POST', body: JSON.stringify({ usuarioId, presente }) }),
+    inscribirse:        (claseId, usuarioId) => request(`/clases/${claseId}/inscripciones`, { method: 'POST', body: JSON.stringify({ usuarioId }) }),
+};
+
+export const entrenamientos = {
+    getAll:      (params = {}) => {
+        const qs = new URLSearchParams(params).toString();
+        return request(`/entrenamientos${qs ? `?${qs}` : ''}`);
+    },
+    getById:     (id) => request(`/entrenamientos/${id}`),
+    inscribirse: (id, usuarioId) => request(`/entrenamientos/${id}/inscripciones`, { method: 'POST', body: JSON.stringify({ usuarioId }) }),
 };

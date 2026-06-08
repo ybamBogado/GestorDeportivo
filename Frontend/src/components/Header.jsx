@@ -10,28 +10,24 @@ export default function Header() {
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
-
     const [pendingReserva, setPendingReserva] = useState(null);
     const [timeLeft, setTimeLeft] = useState(null);
 
     useEffect(() => {
         if (!user) {
             setPendingReserva(null);
+            setTimeLeft(null);
             return;
         }
 
         const checkPending = async () => {
             try {
                 const allReservas = await reservasApi.getAll();
-                const nowMs = new Date().getTime();
-                
-                // Find a pending reservation for this user that hasn't expired yet
+                const nowMs = Date.now();
                 const pending = allReservas.find(r => {
                     if (r.personaId !== user.id || r.estado !== 'Pendiente') return false;
-                    const expDate = r.fechaExpiracion;
-                    if (!expDate) return false;
-                    const exp = new Date(expDate + (expDate.endsWith('Z') ? '' : 'Z')).getTime();
-                    // Must be in the future and within 15 minutes of session
+                    if (!r.fechaExpiracion) return false;
+                    const exp = new Date(r.fechaExpiracion + (r.fechaExpiracion.endsWith('Z') ? '' : 'Z')).getTime();
                     return exp > nowMs && (exp - nowMs) <= 15 * 60 * 1000;
                 });
 
@@ -40,18 +36,15 @@ export default function Header() {
                     const cobro = allCobros.find(c => c.reservaId === pending.id);
                     if (cobro) {
                         setPendingReserva({ ...pending, cobroId: cobro.id });
-                        
-                        // Inicializamos el timeLeft inmediatamente para que no tarde 1 segundo en aparecer
-                        const expDate = pending.fechaExpiracion;
-                        const exp = new Date(expDate + (expDate.endsWith('Z') ? '' : 'Z')).getTime();
-                        setTimeLeft(exp - nowMs);
+                        setTimeLeft(new Date(pending.fechaExpiracion + (pending.fechaExpiracion.endsWith('Z') ? '' : 'Z')).getTime() - nowMs);
                         return;
                     }
                 }
+
                 setPendingReserva(null);
                 setTimeLeft(null);
             } catch (e) {
-                console.error("Error checking pending reserva", e);
+                console.error('Error checking pending reserva', e);
             }
         };
 
@@ -62,6 +55,7 @@ export default function Header() {
                 checkPending();
             }
         };
+
         window.addEventListener('reservaUpdate', handleUpdate);
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => {
@@ -75,13 +69,10 @@ export default function Header() {
             setTimeLeft(null);
             return;
         }
-        
+
         const interval = setInterval(() => {
-            const expDate = pendingReserva.fechaExpiracion;
-            const exp = new Date(expDate + (expDate.endsWith('Z') ? '' : 'Z')).getTime();
-            const now = new Date().getTime();
-            const diff = exp - now;
-            
+            const exp = new Date(pendingReserva.fechaExpiracion + (pendingReserva.fechaExpiracion.endsWith('Z') ? '' : 'Z')).getTime();
+            const diff = exp - Date.now();
             if (diff <= 0) {
                 setPendingReserva(null);
                 setTimeLeft(null);
@@ -90,12 +81,12 @@ export default function Header() {
                 setTimeLeft(diff);
             }
         }, 1000);
-        
+
         return () => clearInterval(interval);
     }, [pendingReserva]);
 
     function formatTime(ms) {
-        if (!ms || ms <= 0) return "00:00";
+        if (!ms || ms <= 0) return '00:00';
         const totalSecs = Math.floor(ms / 1000);
         const mins = String(Math.floor(totalSecs / 60)).padStart(2, '0');
         const secs = String(totalSecs % 60).padStart(2, '0');
@@ -124,31 +115,15 @@ export default function Header() {
                     <img src="/logo.png" alt="Gol Ahora Logo" className="header-logo" />
                     <span className="header-title">Gol Ahora</span>
                 </Link>
-                <nav className="header-nav">
-                    <Link to="/competencias" className="header-nav-link">
-                        🏆 Competencias
-                    </Link>
-                </nav>
+                
                 <div className="header-actions">
                     {pendingReserva && timeLeft !== null && (
-                        <button 
-                            onClick={() => navigate(`/pago/${pendingReserva.cobroId}`)} 
-                            style={{ 
-                                background: '#f2b84b', 
-                                color: '#000', 
-                                border: 'none', 
-                                padding: '8px 16px', 
-                                borderRadius: '20px', 
-                                fontWeight: 'bold', 
-                                marginRight: '15px',
-                                boxShadow: '0 0 10px rgba(242, 184, 75, 0.5)',
-                                cursor: 'pointer',
-                                transition: 'all 0.3s ease'
-                            }}
-                            onMouseOver={e => e.target.style.transform = 'scale(1.05)'}
-                            onMouseOut={e => e.target.style.transform = 'scale(1)'}
+                        <button
+                            className="header-pending-reserva-btn"
+                            onClick={() => navigate(`/pago/${pendingReserva.cobroId}`)}
                         >
-                            ⏳ Completar Reserva ({formatTime(timeLeft)})
+                            <i className="bi bi-clock-history me-1"></i>
+                            Completar Reserva ({formatTime(timeLeft)})
                         </button>
                     )}
                     {user && (

@@ -8,14 +8,14 @@ import { ligas as ligasApi, torneos as torneosApi } from '../../services/api.js'
 import './DetalleCompetencia.css';
 
 export default function DetalleCompetencia() {
-    const { tipo, id } = useParams(); // tipo = 'ligas' | 'torneos'
-    const navigate     = useNavigate();
-    const { user }     = useAuth();
+    const { tipo, id } = useParams();
+    const navigate = useNavigate();
+    const { user } = useAuth();
 
-    const [data, setData]       = useState(null);
+    const [data, setData] = useState(null);
     const [fixtures, setFixtures] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError]     = useState(null);
+    const [error, setError] = useState(null);
 
     const api = tipo === 'ligas' ? ligasApi : torneosApi;
 
@@ -30,8 +30,8 @@ export default function DetalleCompetencia() {
         iso ? new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 
     if (loading) return <><Header /><Loader /></>;
-    if (error)   return <><Header /><div className="det-error">{error}</div><Footer /></>;
-    if (!data)   return null;
+    if (error) return <><Header /><div className="det-error">{error}</div><Footer /></>;
+    if (!data) return null;
 
     const abierta = data.estado === 'Abierta' || data.estado === 'Abierto';
     const cupoUsado = (data.inscripciones ?? []).filter(i => i.estado === 'Confirmado').length;
@@ -41,20 +41,18 @@ export default function DetalleCompetencia() {
         <>
             <Header />
             <main className="det-comp fade-in-up">
-                {/* Encabezado */}
                 <div className="det-comp__header">
                     <button className="btn-back" onClick={() => navigate('/competencias')}>← Volver</button>
                     <div>
                         <span className={`comp-badge comp-badge--${abierta ? 'open' : 'closed'}`}>{data.estado}</span>
                         <h1>{data.nombre}</h1>
                         {tipo === 'torneos' && data.premioUSD > 0 && (
-                            <p className="det-premio">🏆 Premio: <strong>${data.premioUSD} USD</strong></p>
+                            <p className="det-premio"><i className="bi bi-award-fill"></i> Premio: <strong>${data.premioUSD} USD</strong></p>
                         )}
                     </div>
                 </div>
 
                 <div className="det-comp__body">
-                    {/* Info general */}
                     <div className="det-info-grid">
                         <div className="det-info-item">
                             <span>Categoría</span>
@@ -74,11 +72,7 @@ export default function DetalleCompetencia() {
                         </div>
                         <div className="det-info-item">
                             <span>Matrícula</span>
-                            <strong>
-                                {data.costoInscripcion > 0
-                                    ? `$${Number(data.costoInscripcion).toLocaleString('es-AR')}`
-                                    : 'Gratuita'}
-                            </strong>
+                            <strong>{data.costoInscripcion > 0 ? `$${Number(data.costoInscripcion).toLocaleString('es-AR')}` : 'Gratuita'}</strong>
                         </div>
                         {tipo === 'torneos' && (
                             <div className="det-info-item">
@@ -88,15 +82,13 @@ export default function DetalleCompetencia() {
                         )}
                     </div>
 
-                    {/* Reglamento */}
                     {data.reglamento && (
                         <div className="det-reglamento">
-                            <h3>📋 Reglamento</h3>
+                            <h3><i className="bi bi-card-list"></i> Reglamento</h3>
                             <p>{data.reglamento}</p>
                         </div>
                     )}
 
-                    {/* CTA inscripción */}
                     {abierta && cupoLibre > 0 ? (
                         <div className="det-cta">
                             <div>
@@ -104,23 +96,19 @@ export default function DetalleCompetencia() {
                                 {!user && <p className="det-cta__login">Necesitás <a href="/login">iniciar sesión</a> para inscribirte</p>}
                             </div>
                             {user && (
-                                <button
-                                    className="btn-inscribir-cta"
-                                    onClick={() => navigate(`/competencias/${tipo}/${id}/inscribir`)}
-                                >
+                                <button className="btn-inscribir-cta" onClick={() => navigate(`/competencias/${tipo}/${id}/inscribir`)}>
                                     Inscribir mi equipo →
                                 </button>
                             )}
                         </div>
                     ) : (
                         <div className="det-cerrado">
-                            {cupoLibre <= 0 ? '⚠️ Cupo completo' : `Estado: ${data.estado}`}
+                            {cupoLibre <= 0 ? 'Cupo completo' : `Estado: ${data.estado}`}
                         </div>
                     )}
 
-                    {/* Fixture */}
                     <div className="det-fixture">
-                        <h3>📅 Fixture</h3>
+                        <h3><i className="bi bi-calendar3"></i> Fixture</h3>
                         {fixtures.length === 0 ? (
                             <p className="det-fixture__empty">El fixture aún no fue generado.</p>
                         ) : (
@@ -134,12 +122,10 @@ export default function DetalleCompetencia() {
                                         <div key={p.id} className={`fixture-partido fixture-partido--${p.estado?.toLowerCase()}`}>
                                             <span className="fx-local">{p.equipoLocal}</span>
                                             <div className="fx-score">
-                                                {p.golesLocal != null
-                                                    ? <strong>{p.golesLocal} – {p.golesVisitante}</strong>
-                                                    : <span>VS</span>}
+                                                {p.golesLocal != null ? <strong>{p.golesLocal} – {p.golesVisitante}</strong> : <span>VS</span>}
                                             </div>
                                             <span className="fx-visit">{p.equipoVisitante}</span>
-                                            {p.cancha && <small className="fx-cancha">🏟 {p.cancha}</small>}
+                                            {p.cancha && <small className="fx-cancha"><i className="bi bi-pin-map"></i> {p.cancha}</small>}
                                         </div>
                                     ))}
                                 </div>

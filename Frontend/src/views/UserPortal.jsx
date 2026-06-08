@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../components/Toast.jsx';
-import { reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi } from '../services/api.js';
+import { reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi, entrenamientos as entrenamientosApi } from '../services/api.js';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import './UserPortal.css';
 
@@ -41,6 +41,7 @@ export default function UserPortal() {
 
     const [reservas, setReservas] = useState([]);
     const [clases, setClases]     = useState([]);
+    const [entrenamientos, setEntrenamientos] = useState([]);
     const [cobros, setCobros]     = useState([]);
     const [recibos, setRecibos]   = useState([]);
     const [ligas, setLigas]       = useState([]);
@@ -320,12 +321,13 @@ export default function UserPortal() {
         if (!user) return;
         setLoading(true);
         try {
-            // Fetch all reservations, classes, cobros, receipts, and leagues
-            const [allReservas, allCobros, allRecibos, allLigas] = await Promise.all([
+            // Fetch all reservations, classes, trainings, cobros, receipts, and leagues
+            const [allReservas, allCobros, allRecibos, allLigas, allEntrenamientos] = await Promise.all([
                 reservasApi.getAll(),
                 cobrosApi.getAll(),
                 recibosApi.getAll(),
-                fetch(`${API_URL}/ligas`).then(r => r.ok ? r.json() : [])
+                fetch(`${API_URL}/ligas`).then(r => r.ok ? r.json() : []),
+                entrenamientosApi.getAll()
             ]);
 
             // Filter reservations belonging to the logged-in user
@@ -364,6 +366,17 @@ export default function UserPortal() {
                 const resolved = await Promise.all(enrollmentPromises);
                 setClases(resolved.filter(Boolean));
             }
+
+            const entrenamientosEnrolledPromises = allEntrenamientos.map(async (entrenamiento) => {
+                const detailRes = await fetch(`${API_URL}/entrenamientos/${entrenamiento.id}`);
+                if (!detailRes.ok) return null;
+
+                const details = await detailRes.json();
+                const enrolled = details.alumnos?.some(a => a.id === user.id) || false;
+                return enrolled ? { ...entrenamiento, enrolled: true, alumnos: details.alumnos } : null;
+            });
+            const entrenamientosResolved = await Promise.all(entrenamientosEnrolledPromises);
+            setEntrenamientos(entrenamientosResolved.filter(Boolean));
 
         } catch (error) {
             notify('Error al cargar datos: ' + error.message, 'error');
@@ -483,6 +496,9 @@ export default function UserPortal() {
                         </button>
                         <button className={activeTab === 'clases' ? 'active' : ''} onClick={() => setActiveTab('clases')}>
                             <i className="bi bi-journal-text me-2"></i> Mis Clases
+                        </button>
+                        <button className={activeTab === 'entrenamientos' ? 'active' : ''} onClick={() => setActiveTab('entrenamientos')}>
+                            <i className="bi bi-lightning-charge me-2"></i> Mis Entrenamientos
                         </button>
                         <button className={activeTab === 'ligas' ? 'active' : ''} onClick={() => setActiveTab('ligas')}>
                             <i className="bi bi-trophy me-2"></i> Ligas y Torneos
@@ -666,7 +682,7 @@ export default function UserPortal() {
                                     <div className="portal-clases-section">
                                         <h3>Mis Clases Inscriptas</h3>
                                         {clases.length === 0 ? (
-                                            <div className="empty-state">No estás inscrito en ninguna clase o entrenamiento grupal actualmente.</div>
+                                            <div className="empty-state">No estás inscrito en ninguna clase actualmente.</div>
                                         ) : (
                                             <div className="data-table">
                                                 <table>
@@ -696,6 +712,45 @@ export default function UserPortal() {
                                                                 </tr>
                                                             );
                                                         })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* ENTRENAMIENTOS TAB */}
+                                {activeTab === 'entrenamientos' && (
+                                    <div className="portal-entrenamientos-section">
+                                        <h3>Mis Entrenamientos Inscriptos</h3>
+                                        {entrenamientos.length === 0 ? (
+                                            <div className="empty-state">No estás inscrito en ningún entrenamiento actualmente.</div>
+                                        ) : (
+                                            <div className="data-table">
+                                                <table>
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Entrenamiento</th>
+                                                            <th>Fecha / Hora</th>
+                                                            <th>Cancha</th>
+                                                            <th>Entrenador</th>
+                                                            <th>Estado</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {entrenamientos.map(e => (
+                                                            <tr key={e.id}>
+                                                                <td style={{ fontWeight: 'bold' }}>{e.tipo}</td>
+                                                                <td>{formatLocalDateTime(e.fecha)}</td>
+                                                                <td>{e.cancha}</td>
+                                                                <td>{e.entrenador}</td>
+                                                                <td>
+                                                                    <span className={`pill ${e.estado === 'Activo' ? 'success' : 'pending'}`}>
+                                                                        {e.estado || 'Confirmado'}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
                                                     </tbody>
                                                 </table>
                                             </div>

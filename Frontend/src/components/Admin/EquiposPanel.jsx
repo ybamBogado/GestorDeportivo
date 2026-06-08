@@ -1,9 +1,6 @@
-/**
- * EquiposPanel — Componente para gestionar equipos en el Admin Panel
- * CRUD completo: crear, ver, editar y eliminar equipos
- */
 import { useState, useEffect } from 'react';
 import { equipos as equiposApi, users as usersApi } from '../../services/api.js';
+import ConfirmModal from '../ConfirmModal.jsx';
 import './EquiposPanel.css';
 
 export default function EquiposPanel({ setMessage }) {
@@ -12,12 +9,9 @@ export default function EquiposPanel({ setMessage }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
-
-    // Crear equipo
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ nombre: '', categoria: 'Primera', estado: 'Activo', capitanId: null });
-
-    // Editar equipo
     const [editingId, setEditingId] = useState(null);
     const [editForm, setEditForm] = useState({});
 
@@ -40,6 +34,18 @@ export default function EquiposPanel({ setMessage }) {
     useEffect(() => {
         load();
     }, []);
+
+    const showConfirm = (message, onConfirm, title = 'Confirmación') => {
+        setConfirmConfig({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmConfig(c => ({ ...c, isOpen: false }));
+            }
+        });
+    };
 
     const handleCreate = async (e) => {
         e.preventDefault();
@@ -90,14 +96,14 @@ export default function EquiposPanel({ setMessage }) {
     };
 
     const handleDelete = (id) => {
-        if (window.confirm('¿Estás seguro de eliminar este equipo?')) {
+        showConfirm('¿Estás seguro de eliminar este equipo? Esta acción no se puede deshacer.', () => {
             equiposApi.remove(id)
                 .then(() => {
                     setSuccess('Equipo eliminado');
                     load();
                 })
                 .catch(e => setError(e.message));
-        }
+        }, 'Eliminar equipo');
     };
 
     if (loading) return <div className="equipos-panel">Cargando equipos...</div>;
@@ -107,25 +113,23 @@ export default function EquiposPanel({ setMessage }) {
             {error && <div className="equipos-msg equipos-msg--error">{error}</div>}
             {success && <div className="equipos-msg equipos-msg--success">{success}</div>}
 
-            {/* Toolbar */}
             <div className="equipos-toolbar">
-                <h3>⚽ Gestión de Equipos</h3>
+                <h3><i className="bi bi-people-fill"></i> Gestión de Equipos</h3>
                 <button className="btn-nuevo" onClick={() => { setShowForm(!showForm); setEditingId(null); }}>
-                    {showForm ? 'Cancelar' : '+ Nuevo Equipo'}
+                    {showForm ? 'Cancelar' : <><i className="bi bi-plus-lg"></i> Nuevo Equipo</>}
                 </button>
             </div>
 
-            {/* Formulario de creación */}
             {showForm && (
                 <form className="equipo-form" onSubmit={handleCreate}>
                     <div className="equipo-form__grid">
                         <div className="eq-field">
                             <label>Nombre</label>
-                            <input 
-                                type="text" 
-                                value={form.nombre} 
-                                onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} 
-                                required 
+                            <input
+                                type="text"
+                                value={form.nombre}
+                                onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
+                                required
                             />
                         </div>
                         <div className="eq-field">
@@ -159,7 +163,6 @@ export default function EquiposPanel({ setMessage }) {
                 </form>
             )}
 
-            {/* Lista de equipos */}
             <div className="equipos-lista">
                 {items.length === 0 ? (
                     <div className="equipos-empty">No hay equipos registrados</div>
@@ -167,13 +170,12 @@ export default function EquiposPanel({ setMessage }) {
                     items.map(equipo => (
                         <div key={equipo.id} className="equipo-card">
                             {editingId === equipo.id ? (
-                                /* Formulario de edición */
                                 <form className="equipo-edit" onSubmit={handleUpdate}>
-                                    <input 
-                                        type="text" 
-                                        value={editForm.nombre} 
-                                        onChange={e => setEditForm(f => ({ ...f, nombre: e.target.value }))} 
-                                        required 
+                                    <input
+                                        type="text"
+                                        value={editForm.nombre}
+                                        onChange={e => setEditForm(f => ({ ...f, nombre: e.target.value }))}
+                                        required
                                     />
                                     <select value={editForm.categoria} onChange={e => setEditForm(f => ({ ...f, categoria: e.target.value }))}>
                                         <option>Primera</option>
@@ -198,7 +200,6 @@ export default function EquiposPanel({ setMessage }) {
                                     </div>
                                 </form>
                             ) : (
-                                /* Vista de equipo */
                                 <>
                                     <div className="equipo-header">
                                         <h4>{equipo.nombre}</h4>
@@ -210,8 +211,12 @@ export default function EquiposPanel({ setMessage }) {
                                         <p><strong>Jugadores:</strong> {equipo.jugadores}</p>
                                     </div>
                                     <div className="equipo-actions">
-                                        <button className="btn-edit" onClick={() => handleEdit(equipo)}>Editar</button>
-                                        <button className="btn-delete" onClick={() => handleDelete(equipo.id)}>Eliminar</button>
+                                        <button className="btn-edit" onClick={() => handleEdit(equipo)}>
+                                            <i className="bi bi-pencil-square"></i> Editar
+                                        </button>
+                                        <button className="btn-delete" onClick={() => handleDelete(equipo.id)}>
+                                            <i className="bi bi-trash3"></i> Eliminar
+                                        </button>
                                     </div>
                                 </>
                             )}
@@ -219,6 +224,14 @@ export default function EquiposPanel({ setMessage }) {
                     ))
                 )}
             </div>
+
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(c => ({ ...c, isOpen: false }))}
+            />
         </div>
     );
 }

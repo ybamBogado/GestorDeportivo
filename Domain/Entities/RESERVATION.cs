@@ -23,25 +23,7 @@ namespace Domain.Entities
 
         /// <summary>Pendiente | PendienteVerificacion | Confirmada | Cancelada | Expirada</summary>
         public string Estado { get; set; } = "Pendiente";
-
-        /// <summary>Método de pago elegido: Tarjeta, Transferencia, Efectivo</summary>
-        public string MetodoPago { get; set; } = string.Empty;
-
-        /// <summary>Código generado para pago en red de cobranza (ej. Rapipago). Ej: RP-59281</summary>
-        public string? CodigoPagoExterno { get; set; }
-
-        /// <summary>Ruta al comprobante de pago por transferencia bancaria (ej. PDF o Imagen)</summary>
-        public string? ComprobantePdf { get; set; }
-
-        /// <summary>
-        /// Soft-lock: fecha/hora límite para confirmar el pago.
-        /// Tarjeta: +15 min. Transferencia: +2 horas. Efectivo/Rapipago: +12 horas.
-        /// Si DateTime.UtcNow > FechaExpiracion y Estado == "Pendiente" → pasar a Expirada.
-        /// </summary>
         public DateTime FechaExpiracion { get; set; }
-
-        public bool Pago { get; set; }
-
         public int? ComplejoId { get; set; }
         public virtual Complejo? Complejo { get; set; }
         public virtual Cobro? Cobro { get; set; }

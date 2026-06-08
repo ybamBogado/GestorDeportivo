@@ -35,7 +35,9 @@ namespace Application.Handlers
                 Precio = command.Precio <= 0 ? 4500 : command.Precio,
                 Estado = "Pendiente",
                 Pago = command.Pago,
-                FechaExpiracion = DateTime.UtcNow.AddMinutes(15) // Soft-lock por defecto, el controlador lo ajusta
+                FechaExpiracion = DateTime.UtcNow.AddMinutes(15),
+                LimiteReserva = 1,
+                LimiteHorario = 1
             };
 
             await _reservaRepository.AddAsync(reserva);

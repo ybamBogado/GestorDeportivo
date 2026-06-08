@@ -14,5 +14,6 @@ namespace Domain.Entities
         public virtual ICollection<Usuario> Jugadores { get; set; } = new List<Usuario>();
         public virtual ICollection<InscripcionLiga> InscripcionesLiga { get; set; } = new List<InscripcionLiga>();
         public virtual ICollection<InscripcionTorneo> InscripcionesTorneo { get; set; } = new List<InscripcionTorneo>();
+        public virtual ICollection<InscripcionEquipo> InscripcionesEquipo { get; set; } = new List<InscripcionEquipo>();
     }
 }

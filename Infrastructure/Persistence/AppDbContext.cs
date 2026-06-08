@@ -33,6 +33,9 @@ namespace Infrastructure.Persistence
         public DbSet<Fixture> Fixtures { get; set; }
         public DbSet<Clase> Clases { get; set; }
         public DbSet<Asistencia> Asistencias { get; set; }
+        public DbSet<InscripcionClase> InscripcionesClase { get; set; }
+        public DbSet<InscripcionEntrenamiento> InscripcionesEntrenamiento { get; set; }
+        public DbSet<InscripcionEquipo> InscripcionesEquipo { get; set; }
         
         // Jerarquía de Personas
         public DbSet<Persona> Personas { get; set; }
@@ -161,7 +164,7 @@ namespace Infrastructure.Persistence
                     .HasForeignKey(e => e.CapitanId)
                     .OnDelete(DeleteBehavior.SetNull);
                 entity.HasMany(e => e.Jugadores)
-                    .WithMany()
+                    .WithMany(u => u.Equipos)
                     .UsingEntity(j => j.ToTable("EQUIPO_JUGADOR"));
             });
 
@@ -295,9 +298,66 @@ namespace Infrastructure.Persistence
                     .HasForeignKey(e => e.ClaseId)
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(e => e.Usuario)
-                    .WithMany()
+                    .WithMany(u => u.Asistencias)
                     .HasForeignKey(e => e.UsuarioId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<InscripcionClase>(entity =>
+            {
+                entity.ToTable("INSCRIPCION_CLASE");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.ClaseId, e.UsuarioId }).IsUnique();
+                entity.HasOne(e => e.Clase)
+                    .WithMany(c => c.Inscripciones)
+                    .HasForeignKey(e => e.ClaseId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Usuario)
+                    .WithMany(u => u.InscripcionesClase)
+                    .HasForeignKey(e => e.UsuarioId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Cobro)
+                    .WithMany()
+                    .HasForeignKey(e => e.CobroId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<InscripcionEntrenamiento>(entity =>
+            {
+                entity.ToTable("INSCRIPCION_ENTRENAMIENTO");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.EntrenamientoId, e.UsuarioId }).IsUnique();
+                entity.HasOne(e => e.Entrenamiento)
+                    .WithMany(ent => ent.Inscripciones)
+                    .HasForeignKey(e => e.EntrenamientoId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Usuario)
+                    .WithMany(u => u.InscripcionesEntrenamiento)
+                    .HasForeignKey(e => e.UsuarioId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Cobro)
+                    .WithMany()
+                    .HasForeignKey(e => e.CobroId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<InscripcionEquipo>(entity =>
+            {
+                entity.ToTable("INSCRIPCION_EQUIPO");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.EquipoId, e.UsuarioId }).IsUnique();
+                entity.HasOne(e => e.Equipo)
+                    .WithMany(eq => eq.InscripcionesEquipo)
+                    .HasForeignKey(e => e.EquipoId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Usuario)
+                    .WithMany(u => u.InscripcionesEquipo)
+                    .HasForeignKey(e => e.UsuarioId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Cobro)
+                    .WithMany()
+                    .HasForeignKey(e => e.CobroId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<Reporte>(entity =>
@@ -326,7 +386,7 @@ namespace Infrastructure.Persistence
                     .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasMany(e => e.Alumnos)
-                    .WithMany()
+                    .WithMany(u => u.Entrenamientos)
                     .UsingEntity(j => j.ToTable("ENTRENAMIENTO_ALUMNO"));
             });
 

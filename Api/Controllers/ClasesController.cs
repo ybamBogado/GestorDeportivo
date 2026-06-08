@@ -10,6 +10,7 @@ namespace Api.Controllers
     public class ClasesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private const decimal CostoInscripcionClase = 2000m;
 
         public ClasesController(AppDbContext context)
         {
@@ -39,7 +40,8 @@ namespace Api.Controllers
                     c.Estado,
                     Cancha = c.Cancha.Superficie,
                     Profesor = $"{c.Profesor.Nombre} {c.Profesor.Apellido}",
-                    Alumnos = c.Asistencias.Count
+                    Alumnos = c.Asistencias.Count,
+                    CuposDisponibles = c.CapacidadMax - c.Asistencias.Count
                 })
                 .ToListAsync();
 
@@ -64,10 +66,10 @@ namespace Api.Controllers
         {
             var profesor = await _context.Profesores.FindAsync(request.ProfesorId);
             if (profesor == null) return NotFound("Profesor no encontrado");
-            if (!profesor.TieneCertificacionVigente()) return BadRequest("El profesor no tiene certificación vigente");
+            if (!profesor.TieneCertificacionVigente()) return BadRequest("El profesor no tiene certificacion vigente");
 
             var canchaDisponible = await CanchaDisponible(request.CanchaId, request.FechaHora, request.FechaHora.AddHours(1));
-            if (!canchaDisponible) return BadRequest("La cancha no está disponible en ese horario");
+            if (!canchaDisponible) return BadRequest("La cancha no esta disponible en ese horario");
 
             var clase = new Clase
             {
@@ -93,7 +95,7 @@ namespace Api.Controllers
 
             var profesor = await _context.Profesores.FindAsync(request.ProfesorId);
             if (profesor == null) return NotFound("Profesor no encontrado");
-            if (!profesor.TieneCertificacionVigente()) return BadRequest("El profesor no tiene certificación vigente");
+            if (!profesor.TieneCertificacionVigente()) return BadRequest("El profesor no tiene certificacion vigente");
 
             clase.CanchaId = request.CanchaId;
             clase.ProfesorId = request.ProfesorId;
@@ -113,9 +115,7 @@ namespace Api.Controllers
             var clase = await _context.Clases.Include(c => c.Asistencias).FirstOrDefaultAsync(c => c.Id == id);
             if (clase == null) return NotFound("Clase no encontrada");
             if (clase.Asistencias.Count >= clase.CapacidadMax && !clase.Asistencias.Any(a => a.UsuarioId == request.UsuarioId))
-            {
                 return BadRequest("Cupo de clase completo");
-            }
 
             var usuario = await _context.Usuarios.FindAsync(request.UsuarioId);
             if (usuario == null) return NotFound("Usuario no encontrado");
@@ -139,6 +139,62 @@ namespace Api.Controllers
 
             await _context.SaveChangesAsync();
             return Ok(asistencia);
+        }
+
+        [HttpPost("{id}/inscripciones")]
+        public async Task<IActionResult> Inscribirse(int id, [FromBody] InscripcionClaseRequest request)
+        {
+            var clase = await _context.Clases
+                .Include(c => c.Asistencias)
+                .Include(c => c.Inscripciones)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (clase == null) return NotFound("Clase no encontrada");
+            if (clase.Estado == "Cancelada") return BadRequest("La clase fue cancelada");
+
+            var usuario = await _context.Usuarios.FindAsync(request.UsuarioId);
+            if (usuario == null) return NotFound("Usuario no encontrado");
+
+            if (clase.Asistencias.Any(a => a.UsuarioId == request.UsuarioId) || clase.Inscripciones.Any(i => i.UsuarioId == request.UsuarioId))
+                return BadRequest("Ya estas inscripto en esta clase");
+
+            if (clase.Asistencias.Count >= clase.CapacidadMax)
+                return BadRequest("Cupo de clase completo");
+
+            var cobro = new Cobro
+            {
+                Concepto = $"Inscripcion Clase '{clase.Tipo}' - {usuario.Nombre} {usuario.Apellido}",
+                Monto = CostoInscripcionClase,
+                Descuento = 0,
+                MontoFinal = CostoInscripcionClase,
+                Estado = "Pendiente",
+                MetodoPago = string.Empty,
+                Fecha = DateTime.UtcNow
+            };
+            _context.Cobros.Add(cobro);
+            await _context.SaveChangesAsync();
+
+            var inscripcion = new InscripcionClase
+            {
+                ClaseId = id,
+                UsuarioId = request.UsuarioId,
+                CobroId = cobro.Id,
+                Estado = "Pendiente"
+            };
+            _context.InscripcionesClase.Add(inscripcion);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                inscripcion.Id,
+                cobroId = cobro.Id,
+                ClaseId = clase.Id,
+                clase.Tipo,
+                clase.FechaHora,
+                Monto = cobro.MontoFinal,
+                Estado = "Pendiente",
+                Mensaje = "Inscripcion registrada. Completa el pago para confirmar tu lugar."
+            });
         }
 
         [HttpDelete("{id}")]
@@ -184,6 +240,11 @@ namespace Api.Controllers
         {
             public int UsuarioId { get; set; }
             public bool Presente { get; set; }
+        }
+
+        public class InscripcionClaseRequest
+        {
+            public int UsuarioId { get; set; }
         }
     }
 }
