@@ -231,28 +231,28 @@ namespace Api.Controllers
             else
             {
                 // Eliminación directa
+                var fechaDesde = inicio;
+                var fixture = new Fixture
+                {
+                    Numero     = 1,
+                    TorneoId   = torneo.Id,
+                    FechaDesde = fechaDesde,
+                    FechaHasta = fechaDesde.AddDays(6)
+                };
+
                 for (var i = 0; i < equiposConfirmados.Count; i += 2)
                 {
                     if (i + 1 >= equiposConfirmados.Count) break;
-                    var fechaDesde = inicio.AddDays((jornada - 1) * 7);
-                    var fixture = new Fixture
-                    {
-                        Numero     = jornada,
-                        TorneoId   = torneo.Id,
-                        FechaDesde = fechaDesde,
-                        FechaHasta = fechaDesde.AddDays(6)
-                    };
                     fixture.Partidos.Add(new Partido
                     {
                         TorneoId          = torneo.Id,
                         EquipoLocalId     = equiposConfirmados[i],
                         EquipoVisitanteId = equiposConfirmados[i + 1],
-                        FechaHora         = fechaDesde,
+                        FechaHora         = fechaDesde.AddHours(i),
                         Estado            = "Programado"
                     });
-                    fixtures.Add(fixture);
-                    jornada++;
                 }
+                fixtures.Add(fixture);
             }
 
             _context.Fixtures.AddRange(fixtures);

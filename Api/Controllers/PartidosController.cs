@@ -2,6 +2,8 @@ using Domain.Entities;
 using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Api.Controllers
 {
@@ -88,6 +90,67 @@ namespace Api.Controllers
             partido.GolesLocal = request.GolesLocal;
             partido.GolesVisitante = request.GolesVisitante;
             partido.Estado = "Finalizado";
+
+            if (partido.TorneoId.HasValue)
+            {
+                var torneo = await _context.Torneos
+                    .Include(t => t.Fixtures).ThenInclude(f => f.Partidos)
+                    .FirstOrDefaultAsync(t => t.Id == partido.TorneoId.Value);
+
+                if (torneo != null && (torneo.Modalidad.Equals("Eliminacion", StringComparison.OrdinalIgnoreCase) || torneo.Formato.Equals("EliminacionDirecta", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var currentFixture = torneo.Fixtures.FirstOrDefault(f => f.Id == partido.FixtureId);
+                    if (currentFixture != null)
+                    {
+                        bool allFinished = currentFixture.Partidos.All(p => p.Estado == "Finalizado");
+                        if (allFinished)
+                        {
+                            if (currentFixture.Partidos.Count > 1)
+                            {
+                                var winners = new List<int>();
+                                foreach (var p in currentFixture.Partidos.OrderBy(p => p.Id))
+                                {
+                                    var winnerId = p.GolesLocal >= p.GolesVisitante ? p.EquipoLocalId : p.EquipoVisitanteId;
+                                    winners.Add(winnerId);
+                                }
+
+                                var nextFixtureNumero = currentFixture.Numero + 1;
+                                var nextFixtureExists = torneo.Fixtures.Any(f => f.Numero == nextFixtureNumero);
+                                if (!nextFixtureExists)
+                                {
+                                    var nextFechaDesde = currentFixture.FechaHasta.AddDays(1);
+                                    var nextFixture = new Fixture
+                                    {
+                                        Numero = nextFixtureNumero,
+                                        TorneoId = torneo.Id,
+                                        FechaDesde = nextFechaDesde,
+                                        FechaHasta = nextFechaDesde.AddDays(6)
+                                    };
+
+                                    for (int i = 0; i < winners.Count; i += 2)
+                                    {
+                                        if (i + 1 >= winners.Count) break;
+                                        nextFixture.Partidos.Add(new Partido
+                                        {
+                                            TorneoId = torneo.Id,
+                                            EquipoLocalId = winners[i],
+                                            EquipoVisitanteId = winners[i + 1],
+                                            FechaHora = nextFechaDesde.AddHours(i),
+                                            Estado = "Programado"
+                                        });
+                                    }
+
+                                    _context.Fixtures.Add(nextFixture);
+                                }
+                            }
+                            else
+                            {
+                                torneo.Estado = "Finalizado";
+                            }
+                        }
+                    }
+                }
+            }
 
             await _context.SaveChangesAsync();
 

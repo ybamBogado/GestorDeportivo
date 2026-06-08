@@ -37,6 +37,23 @@ export default function DetalleCompetencia() {
     const cupoUsado = (data.inscripciones ?? []).filter(i => i.estado === 'Confirmado').length;
     const cupoLibre = (data.cupoEquipos ?? 0) - cupoUsado;
 
+    const isElimination = tipo === 'torneos' && (
+        data.modalidad?.toLowerCase().includes('eliminacion') ||
+        data.modalidad?.toLowerCase().includes('copa') ||
+        data.formato?.toLowerCase().includes('eliminacion') ||
+        data.formato?.toLowerCase().includes('copa')
+    );
+
+    const getRoundName = (f) => {
+        if (!isElimination) return `Fecha ${f.numero}`;
+        const matchCount = f.partidos?.length || 0;
+        if (matchCount === 1) return 'Final';
+        if (matchCount === 2) return 'Semifinal';
+        if (matchCount === 4) return 'Cuartos de Final';
+        if (matchCount === 8) return 'Octavos de Final';
+        return `Ronda de ${matchCount * 2}`;
+    };
+
     return (
         <>
             <Header />
@@ -115,7 +132,7 @@ export default function DetalleCompetencia() {
                             fixtures.map(f => (
                                 <div key={f.id} className="fixture-jornada">
                                     <div className="fixture-jornada__head">
-                                        <span>Fecha {f.numero}</span>
+                                        <span>{getRoundName(f)}</span>
                                         <small>{formatFecha(f.fechaDesde)} – {formatFecha(f.fechaHasta)}</small>
                                     </div>
                                     {(f.partidos ?? []).map(p => (

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { canchas as canchasApi, reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi, auth as authApi, clases as clasesApi } from '../services/api.js';
+import { canchas as canchasApi, reservas as reservasApi, cobros as cobrosApi, recibos as recibosApi, users as usersApi, auth as authApi, clases as clasesApi, reportes as reportesApi } from '../services/api.js';
 import { useToast } from '../components/Toast.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import EquiposPanel from '../components/Admin/EquiposPanel.jsx';
@@ -475,9 +475,6 @@ export default function AdminPanel() {
                 </nav>
 
                 <div className="admin-sidebar-footer">
-                    <button className="admin-theme-btn" onClick={toggleTheme}>
-                        {theme === 'dark' ? '☀ Modo claro' : '☾ Modo oscuro'}
-                    </button>
                     <button className="admin-logout" onClick={() => { logout(); navigate('/'); }}>
                         Cerrar sesión
                     </button>
@@ -1326,10 +1323,7 @@ export default function AdminPanel() {
                 )}
 
                 {activeSection === 'reportes' && (
-                    <section className="admin-panel placeholder-panel">
-                        <h2>Reportes</h2>
-                        <p>Módulo en desarrollo. Aquí se mostrarán métricas, gráficos y exportaciones.</p>
-                    </section>
+                    <ReportsDashboard notify={notify} moneyFmt={moneyFmt} />
                 )}
             </section>
             <ConfirmModal
@@ -3131,4 +3125,617 @@ function ClasesEntrenamientosPanel({ setMessage, API_URL, canchas }) {
         </section >
     );
 }
+
+
+// ─── Centro de Reportes y Estadísticas ─────────────────────────────────────────
+function ReportsDashboard({ notify, moneyFmt }) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const thirtyDaysAgoStr = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+
+    const [reportTab, setReportTab] = useState('ingresos');
+    const [desde, setDesde] = useState(thirtyDaysAgoStr);
+    const [hasta, setHasta] = useState(todayStr);
+    const [loading, setLoading] = useState(false);
+    const [data, setData] = useState(null);
+
+    const loadReport = useCallback(async () => {
+        if (!desde || !hasta) return;
+        setLoading(true);
+        try {
+            let res;
+            if (reportTab === 'ingresos') {
+                res = await reportesApi.getIngresos(desde, hasta);
+            } else if (reportTab === 'asistencia') {
+                res = await reportesApi.getAsistencia(desde, hasta);
+            } else {
+                res = await reportesApi.getReservas(desde, hasta);
+            }
+            setData(res);
+        } catch (error) {
+            notify('Error al generar reporte: ' + error.message, 'error');
+            setData(null);
+        } finally {
+            setLoading(false);
+        }
+    }, [reportTab, desde, hasta, notify]);
+
+    useEffect(() => {
+        loadReport();
+    }, [loadReport]);
+
+    const handleQuickFilter = (days) => {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(end.getDate() - days);
+        setDesde(start.toISOString().split('T')[0]);
+        setHasta(end.toISOString().split('T')[0]);
+    };
+
+    const handlePrint = () => {
+        if (!data) return;
+        const w = window.open('', '_blank', 'width=900,height=700');
+        
+        let reportTitle = '';
+        let contentHtml = '';
+
+        const formattedDesde = new Date(desde).toLocaleDateString('es-AR');
+        const formattedHasta = new Date(hasta).toLocaleDateString('es-AR');
+
+        if (reportTab === 'ingresos') {
+            reportTitle = 'Reporte de Ingresos por Período';
+            contentHtml = `
+                <h2>Resumen Financiero</h2>
+                <div class="metrics">
+                    <div class="metric-box">
+                        <h3>Monto Original</h3>
+                        <p>${moneyFmt.format(data.totalMontoOriginal)}</p>
+                    </div>
+                    <div class="metric-box">
+                        <h3>Descuentos Aplicados</h3>
+                        <p style="color:#ef4444">-${moneyFmt.format(data.totalDescuento)}</p>
+                    </div>
+                    <div class="metric-box highlight">
+                        <h3>Ingreso Neto</h3>
+                        <p>${moneyFmt.format(data.totalMontoFinal)}</p>
+                    </div>
+                </div>
+
+                <h2>Ingresos por Categoría</h2>
+                <table>
+                    <thead>
+                        <tr><th>Categoría</th><th>Monto Recaudado</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.porCategoria.map(c => `
+                            <tr>
+                                <td><strong>${c.categoria}</strong></td>
+                                <td>${moneyFmt.format(c.total)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <h2>Métodos de Pago Utilizados</h2>
+                <table>
+                    <thead>
+                        <tr><th>Método</th><th>Total</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.porMetodoPago.map(m => `
+                            <tr>
+                                <td><strong>${m.metodoPago}</strong></td>
+                                <td>${moneyFmt.format(m.total)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <h2>Detalle de Transacciones</h2>
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Fecha</th><th>Concepto</th><th>Monto</th><th>Desc.</th><th>Total</th><th>Método</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.transacciones.map(t => `
+                            <tr>
+                                <td>#${t.id}</td>
+                                <td>${new Date(t.fecha).toLocaleDateString('es-AR')}</td>
+                                <td>${t.concepto}</td>
+                                <td>${moneyFmt.format(t.monto)}</td>
+                                <td style="color:#ef4444">${t.descuento > 0 ? `-${moneyFmt.format(t.descuento)}` : '—'}</td>
+                                <td style="color:#31d94f; font-weight:bold">${moneyFmt.format(t.montoFinal)}</td>
+                                <td>${t.metodoPago}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else if (reportTab === 'asistencia') {
+            reportTitle = 'Reporte de Asistencia a Clases y Entrenamientos';
+            contentHtml = `
+                <h2>Resumen de Asistencia</h2>
+                <div class="metrics">
+                    <div class="metric-box">
+                        <h3>Total Eventos</h3>
+                        <p>${data.totalEventos}</p>
+                    </div>
+                    <div class="metric-box">
+                        <h3>Inscripciones Totales</h3>
+                        <p>${data.totalInscritos}</p>
+                    </div>
+                    <div class="metric-box">
+                        <h3>Asistencias Confirmadas</h3>
+                        <p>${data.totalPresentes}</p>
+                    </div>
+                    <div class="metric-box highlight">
+                        <h3>Tasa de Asistencia General</h3>
+                        <p>${data.tasaGeneral}%</p>
+                    </div>
+                </div>
+
+                <h2>Detalle de Clases y Entrenamientos</h2>
+                <table>
+                    <thead>
+                        <tr><th>Tipo</th><th>Nombre</th><th>Fecha</th><th>Instructor</th><th>Cancha</th><th>Inscriptos</th><th>Presentes</th><th>Ausentes</th><th>Asistencia %</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.eventos.map(e => `
+                            <tr>
+                                <td><span class="badge ${e.tipo.toLowerCase()}">${e.tipo}</span></td>
+                                <td><strong>${e.nombre}</strong></td>
+                                <td>${new Date(e.fecha).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                <td>${e.instructor}</td>
+                                <td>${e.cancha}</td>
+                                <td>${e.inscriptos} / ${e.capacidad}</td>
+                                <td>${e.presentes}</td>
+                                <td>${e.ausentes}</td>
+                                <td style="font-weight:bold; color: ${e.tasaAsistencia >= 70 ? '#31d94f' : e.tasaAsistencia >= 40 ? '#f2b84b' : '#ef4444'}">${e.tasaAsistencia}%</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            reportTitle = 'Reporte de Reservas Realizadas, Canceladas y Pendientes';
+            contentHtml = `
+                <h2>Estado de Reservas</h2>
+                <div class="metrics">
+                    <div class="metric-box">
+                        <h3>Total Reservas</h3>
+                        <p>${data.totalReservas}</p>
+                    </div>
+                    <div class="metric-box">
+                        <h3>Confirmadas (Pagadas)</h3>
+                        <p style="color:#31d94f">${data.confirmadas}</p>
+                    </div>
+                    <div class="metric-box">
+                        <h3>Pendientes</h3>
+                        <p style="color:#f2b84b">${data.pendientes}</p>
+                    </div>
+                    <div class="metric-box">
+                        <h3>Canceladas / Expiradas</h3>
+                        <p style="color:#ef4444">${data.canceladas + data.expiradas}</p>
+                    </div>
+                </div>
+                <div class="metrics" style="margin-top: 10px;">
+                    <div class="metric-box highlight">
+                        <h3>Tasa de Cancelación</h3>
+                        <p>${data.tasaCancelacion}%</p>
+                    </div>
+                </div>
+
+                <h2>Rendimiento de Canchas</h2>
+                <table>
+                    <thead>
+                        <tr><th>Cancha</th><th>Total Reservas</th><th>Ingreso Confirmado</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.porCancha.map(c => `
+                            <tr>
+                                <td><strong>${c.cancha}</strong></td>
+                                <td>${c.total} reservas</td>
+                                <td style="color:#31d94f; font-weight:bold">${moneyFmt.format(c.ingresoEstimado)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <h2>Listado Detallado de Reservas</h2>
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Cancha</th><th>Cliente</th><th>Fecha</th><th>Horario</th><th>Precio</th><th>Estado</th><th>Pago</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.reservas.map(r => `
+                            <tr>
+                                <td>#${r.id}</td>
+                                <td>${r.cancha}</td>
+                                <td>${r.cliente}</td>
+                                <td>${new Date(r.fecha).toLocaleDateString('es-AR')}</td>
+                                <td>${r.horaInicio} - ${r.horaFin}</td>
+                                <td>${moneyFmt.format(r.precio)}</td>
+                                <td><span class="badge ${r.estado.toLowerCase()}">${r.estado}</span></td>
+                                <td>${r.pago}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        w.document.write(`
+            <html>
+            <head>
+                <title>${reportTitle}</title>
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #fff; color: #333; padding: 30px; }
+                    .header { border-bottom: 2px solid #2d6a4f; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+                    .header h1 { margin: 0; color: #2d6a4f; font-size: 24px; }
+                    .header p { margin: 5px 0 0 0; color: #666; font-size: 14px; }
+                    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+                    .metric-box { border: 1px solid #ddd; padding: 15px; border-radius: 8px; text-align: center; background: #f9f9f9; }
+                    .metric-box h3 { margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; color: #666; }
+                    .metric-box p { margin: 0; font-size: 20px; font-weight: bold; color: #333; }
+                    .metric-box.highlight { background: #e8f5e9; border-color: #a5d6a7; }
+                    .metric-box.highlight p { color: #2e7d32; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; }
+                    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+                    th { background-color: #f2f2f2; color: #333; font-weight: bold; }
+                    tr:nth-child(even) { background-color: #fcfcfc; }
+                    .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+                    .badge.clase { background: #e3f2fd; color: #1565c0; }
+                    .badge.entrenamiento { background: #efebe9; color: #4e342e; }
+                    .badge.confirmada { background: #e8f5e9; color: #2e7d32; }
+                    .badge.pendiente { background: #fff8e1; color: #f57f17; }
+                    .badge.cancelada { background: #ffeeeef; color: #c62828; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div>
+                        <h1>GOL AHORA - SISTEMA DE GESTIÓN</h1>
+                        <p>${reportTitle} · Período: ${formattedDesde} al ${formattedHasta}</p>
+                    </div>
+                    <div style="font-size: 12px; color: #666; text-align: right;">
+                        Generado el ${new Date().toLocaleString('es-AR')}<br>
+                        Exportación Oficial
+                    </div>
+                </div>
+                ${contentHtml}
+                <script>window.onload = () => window.print()</script>
+            </body>
+            </html>
+        `);
+        w.document.close();
+    };
+
+    return (
+        <section className="admin-panel" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                <div className="status-tabs" style={{ display: 'flex', gap: '6px', margin: 0 }}>
+                    <button className={reportTab === 'ingresos' ? 'active' : ''} onClick={() => { setReportTab('ingresos'); setData(null); }}>
+                        <i className="bi bi-cash-stack me-2"></i> Ingresos
+                    </button>
+                    <button className={reportTab === 'asistencia' ? 'active' : ''} onClick={() => { setReportTab('asistencia'); setData(null); }}>
+                        <i className="bi bi-people-fill me-2"></i> Asistencia
+                    </button>
+                    <button className={reportTab === 'reservas' ? 'active' : ''} onClick={() => { setReportTab('reservas'); setData(null); }}>
+                        <i className="bi bi-calendar-check me-2"></i> Reservas
+                    </button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                        <button onClick={() => handleQuickFilter(7)} className="ghost-button" style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}>7d</button>
+                        <button onClick={() => handleQuickFilter(30)} className="ghost-button" style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}>30d</button>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                            type="date"
+                            value={desde}
+                            onChange={e => setDesde(e.target.value)}
+                            style={{ minHeight: 38, background: '#0a100c', color: '#fff', border: '1px solid rgba(49,217,79,0.25)', borderRadius: 8, padding: '0 8px', fontSize: '0.85rem' }}
+                        />
+                        <span style={{ color: '#8ca092' }}>al</span>
+                        <input
+                            type="date"
+                            value={hasta}
+                            onChange={e => setHasta(e.target.value)}
+                            style={{ minHeight: 38, background: '#0a100c', color: '#fff', border: '1px solid rgba(49,217,79,0.25)', borderRadius: 8, padding: '0 8px', fontSize: '0.85rem' }}
+                        />
+                    </div>
+                    <button onClick={handlePrint} className="ghost-button" style={{ display: 'flex', alignItems: 'center', gap: 6, minHeight: 38, border: '1px solid rgba(255,255,255,0.15)' }} disabled={!data}>
+                        <i className="bi bi-printer-fill"></i> Imprimir PDF
+                    </button>
+                </div>
+            </div>
+
+            {loading ? (
+                <div className="empty-state">Generando reporte y calculando métricas...</div>
+            ) : !data ? (
+                <div className="empty-state">No se pudieron cargar datos para el período seleccionado.</div>
+            ) : (
+                <>
+                    {reportTab === 'ingresos' && (
+                        <>
+                            <div className="metric-grid">
+                                <article>
+                                    <span>Ingreso Bruto</span>
+                                    <strong>{moneyFmt.format(data.totalMontoOriginal)}</strong>
+                                </article>
+                                <article>
+                                    <span>Descuentos</span>
+                                    <strong style={{ color: '#ef4444' }}>-{moneyFmt.format(data.totalDescuento)}</strong>
+                                </article>
+                                <article>
+                                    <span>Ingreso Neto (Cobrado)</span>
+                                    <strong style={{ color: '#31d94f' }}>{moneyFmt.format(data.totalMontoFinal)}</strong>
+                                </article>
+                                <article>
+                                    <span>Transacciones</span>
+                                    <strong>{data.transacciones?.length || 0}</strong>
+                                </article>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginTop: 10 }}>
+                                <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: 20 }}>
+                                    <h4 style={{ margin: '0 0 16px 0', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8 }}><i className="bi bi-pie-chart-fill me-2 text-success"></i>Por Categoría</h4>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                        {data.porCategoria.map(c => {
+                                            const pct = data.totalMontoFinal > 0 ? (c.total / data.totalMontoFinal) * 100 : 0;
+                                            return (
+                                                <div key={c.categoria}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', marginBottom: 4 }}>
+                                                        <span style={{ fontWeight: 'bold' }}>{c.categoria}</span>
+                                                        <span style={{ color: '#31d94f', fontWeight: 'bold' }}>{moneyFmt.format(c.total)} ({Math.round(pct)}%)</span>
+                                                    </div>
+                                                    <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
+                                                        <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #1b4332, #31d94f)', borderRadius: 3 }}></div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {data.porCategoria.length === 0 && <p style={{ color: '#8ca092', fontSize: '0.85rem', textAlign: 'center' }}>Sin registros por categoría.</p>}
+                                    </div>
+                                </div>
+
+                                <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: 20 }}>
+                                    <h4 style={{ margin: '0 0 16px 0', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8 }}><i className="bi bi-wallet2 me-2 text-success"></i>Por Método de Pago</h4>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                        {data.porMetodoPago.map(m => {
+                                            const pct = data.totalMontoFinal > 0 ? (m.total / data.totalMontoFinal) * 100 : 0;
+                                            return (
+                                                <div key={m.metodoPago}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', marginBottom: 4 }}>
+                                                        <span style={{ fontWeight: 'bold' }}>{m.metodoPago}</span>
+                                                        <span style={{ color: '#31d94f', fontWeight: 'bold' }}>{moneyFmt.format(m.total)} ({Math.round(pct)}%)</span>
+                                                    </div>
+                                                    <div style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
+                                                        <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #0f2c3b, #3ca6d8)', borderRadius: 3 }}></div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {data.porMetodoPago.length === 0 && <p style={{ color: '#8ca092', fontSize: '0.85rem', textAlign: 'center' }}>Sin registros por método de pago.</p>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ marginTop: 10 }}>
+                                <h4 style={{ marginBottom: 12 }}><i className="bi bi-list-ul me-2 text-success"></i>Detalle de Transacciones</h4>
+                                <div className="data-table">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Fecha</th>
+                                                <th>Concepto</th>
+                                                <th>Monto</th>
+                                                <th>Desc.</th>
+                                                <th>Total</th>
+                                                <th>Método</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.transacciones.map(t => (
+                                                <tr key={t.id}>
+                                                    <td><span style={{ color: '#8ca092', fontSize: '0.78rem', fontWeight: 700 }}>#{t.id}</span></td>
+                                                    <td style={{ fontSize: '0.82rem' }}>{new Date(t.fecha).toLocaleDateString('es-AR')}</td>
+                                                    <td><strong>{t.concepto}</strong></td>
+                                                    <td>{moneyFmt.format(t.monto)}</td>
+                                                    <td style={{ color: '#ef4444' }}>{t.descuento > 0 ? `-${moneyFmt.format(t.descuento)}` : '—'}</td>
+                                                    <td style={{ color: '#31d94f', fontWeight: 700 }}>{moneyFmt.format(t.montoFinal)}</td>
+                                                    <td><span className="pill neutral" style={{ fontSize: '0.75rem', padding: '2px 8px' }}>{t.metodoPago}</span></td>
+                                                </tr>
+                                            ))}
+                                            {data.transacciones.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#8ca092' }}>No se encontraron cobros registrados en este período.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {reportTab === 'asistencia' && (
+                        <>
+                            <div className="metric-grid">
+                                <article>
+                                    <span>Eventos Realizados</span>
+                                    <strong>{data.totalEventos}</strong>
+                                </article>
+                                <article>
+                                    <span>Inscripciones Totales</span>
+                                    <strong>{data.totalInscritos}</strong>
+                                </article>
+                                <article>
+                                    <span>Asistencias (Presentes)</span>
+                                    <strong style={{ color: '#31d94f' }}>{data.totalPresentes}</strong>
+                                </article>
+                                <article>
+                                    <span>Asistencia General</span>
+                                    <strong style={{ color: data.tasaGeneral >= 70 ? '#31d94f' : data.tasaGeneral >= 40 ? '#f2b84b' : '#ef4444' }}>
+                                        {data.tasaGeneral}%
+                                    </strong>
+                                </article>
+                            </div>
+
+                            <div style={{ marginTop: 10 }}>
+                                <h4 style={{ marginBottom: 12 }}><i className="bi bi-journal-check me-2 text-success"></i>Asistencia por Evento</h4>
+                                <div className="data-table">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Tipo</th>
+                                                <th>Nombre</th>
+                                                <th>Fecha / Hora</th>
+                                                <th>Instructor</th>
+                                                <th>Cancha</th>
+                                                <th>Alumnos</th>
+                                                <th>Presentes</th>
+                                                <th>Ausentes</th>
+                                                <th>Asistencia %</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.eventos.map((e, idx) => (
+                                                <tr key={idx}>
+                                                    <td>
+                                                        <span className={`pill ${e.tipo === 'Clase' ? 'success' : 'neutral'}`} style={{ fontSize: '0.72rem', padding: '2px 8px' }}>
+                                                            {e.tipo}
+                                                        </span>
+                                                    </td>
+                                                    <td><strong>{e.nombre}</strong></td>
+                                                    <td style={{ fontSize: '0.82rem' }}>{new Date(e.fecha).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                                    <td>{e.instructor}</td>
+                                                    <td style={{ color: '#8ca092' }}>{e.cancha}</td>
+                                                    <td>{e.inscriptos} / {e.capacidad}</td>
+                                                    <td style={{ color: '#31d94f', fontWeight: 'bold' }}>{e.presentes}</td>
+                                                    <td style={{ color: '#ef4444' }}>{e.ausentes}</td>
+                                                    <td>
+                                                        <span style={{
+                                                            fontWeight: 'bold',
+                                                            color: e.tasaAsistencia >= 70 ? '#31d94f' : e.tasaAsistencia >= 40 ? '#f2b84b' : '#ef4444'
+                                                        }}>
+                                                            {e.tasaAsistencia}%
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {data.eventos.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="9" style={{ textAlign: 'center', padding: '30px', color: '#8ca092' }}>No se encontraron clases o entrenamientos programados en este período.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {reportTab === 'reservas' && (
+                        <>
+                            <div className="metric-grid">
+                                <article>
+                                    <span>Total Reservas</span>
+                                    <strong>{data.totalReservas}</strong>
+                                </article>
+                                <article>
+                                    <span>Confirmadas</span>
+                                    <strong style={{ color: '#31d94f' }}>{data.confirmadas}</strong>
+                                </article>
+                                <article>
+                                    <span>Pendientes / Verificación</span>
+                                    <strong style={{ color: '#f2b84b' }}>{data.pendientes}</strong>
+                                </article>
+                                <article>
+                                    <span>Canceladas / Expiradas</span>
+                                    <strong style={{ color: '#ef4444' }}>{data.canceladas + data.expiradas}</strong>
+                                </article>
+                            </div>
+                            <div className="metric-grid" style={{ marginTop: '-10px' }}>
+                                <article>
+                                    <span>Tasa de Cancelación</span>
+                                    <strong style={{ color: data.tasaCancelacion > 30 ? '#ef4444' : data.tasaCancelacion > 15 ? '#f2b84b' : '#31d94f' }}>
+                                        {data.tasaCancelacion}%
+                                    </strong>
+                                </article>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginTop: 10 }}>
+                                <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: 20, gridColumn: 'span 2' }}>
+                                    <h4 style={{ margin: '0 0 16px 0', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8 }}><i className="bi bi-grid-3x3-gap me-2 text-success"></i>Rendimiento por Cancha</h4>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+                                        {data.porCancha.map(c => {
+                                            return (
+                                                <div key={c.cancha} style={{ padding: 14, background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.04)' }}>
+                                                    <strong style={{ display: 'block', fontSize: '0.95rem', marginBottom: 6 }}>{c.cancha}</strong>
+                                                    <span style={{ display: 'block', fontSize: '0.8rem', color: '#8ca092', marginBottom: 4 }}>Reservas totales: {c.total}</span>
+                                                    <span style={{ display: 'block', fontSize: '0.9rem', color: '#31d94f', fontWeight: 'bold' }}>Ingresos netos: {moneyFmt.format(c.ingresoEstimado)}</span>
+                                                </div>
+                                            );
+                                        })}
+                                        {data.porCancha.length === 0 && <p style={{ color: '#8ca092', fontSize: '0.85rem', textAlign: 'center', gridColumn: 'span 2' }}>Sin reservas en este período.</p>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ marginTop: 10 }}>
+                                <h4 style={{ marginBottom: 12 }}><i className="bi bi-calendar-check-fill me-2 text-success"></i>Listado Detallado de Reservas</h4>
+                                <div className="data-table">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Cancha</th>
+                                                <th>Cliente</th>
+                                                <th>Fecha</th>
+                                                <th>Horario</th>
+                                                <th>Precio</th>
+                                                <th>Estado</th>
+                                                <th>Pago</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.reservas.map(r => (
+                                                <tr key={r.id}>
+                                                    <td><span style={{ color: '#8ca092', fontSize: '0.78rem', fontWeight: 700 }}>#{r.id}</span></td>
+                                                    <td><strong>{r.cancha}</strong></td>
+                                                    <td>{r.cliente}</td>
+                                                    <td style={{ fontSize: '0.82rem' }}>{new Date(r.fecha).toLocaleDateString('es-AR')}</td>
+                                                    <td>{r.horaInicio} - {r.horaFin}</td>
+                                                    <td>{moneyFmt.format(r.precio)}</td>
+                                                    <td>
+                                                        <span className={`pill ${r.estado === 'Confirmada' ? 'success' : r.estado === 'Cancelada' ? 'danger' : 'pending'}`} style={{ fontSize: '0.75rem', padding: '2px 8px' }}>
+                                                            {r.estado}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span className={`pill ${r.pago === 'Pagado' ? 'success' : 'pending'}`} style={{ fontSize: '0.75rem', padding: '2px 8px' }}>
+                                                            {r.pago}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {data.reservas.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: '#8ca092' }}>No se encontraron reservas en este período.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </>
+            )}
+        </section>
+    );
+}
+
 

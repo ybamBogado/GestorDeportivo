@@ -11,5 +11,6 @@ namespace Domain.Entities
         public virtual Cobro? Cobro { get; set; }
         public string Estado { get; set; } = "Pendiente";
         public DateTime FechaInscripcion { get; set; } = DateTime.UtcNow;
+        public bool Presente { get; set; } = false;
     }
 }

@@ -51,7 +51,11 @@ function addMinutesToTime(timeStr, minutes) {
 }
 
 function todayISO() {
-    return new Date().toISOString().split('T')[0];
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const r = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${r}`;
 }
 
 function maxDateISO() {
@@ -67,6 +71,19 @@ function getCanchaImage(tipo) {
 export default function SelectCancha() {
     const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
+
+    const isPastTime = (slotStart) => {
+        if (selectedDate !== todayISO()) return false;
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        
+        const [slotHour, slotMinute] = slotStart.split(':').map(Number);
+        
+        if (slotHour < currentHour) return true;
+        if (slotHour === currentHour && slotMinute <= currentMinute) return true;
+        return false;
+    };
     const [canchas, setCanchas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -366,31 +383,39 @@ export default function SelectCancha() {
                                                     {loadingDisp ? (
                                                         <p style={{color:'#aaa', fontSize:'0.85rem'}}>Cargando horarios disponibles...</p>
                                                     ) : (
-                                                    <div className="booking-time-slots">
-                                                        {(disponibilidad
-                                                            ? generateTimeSlots(disponibilidad.duracionMaximaMinutos)
-                                                            : generateTimeSlots(60)
-                                                        ).map(slot => {
-                                                            const time = slot.start;
-                                                            const ocupado = isSlotOcupado(time);
-                                                            return (
-                                                                <button
-                                                                    key={time}
-                                                                    type="button"
-                                                                    title={ocupado ? 'Este horario ya está reservado' : `Reservar de ${slot.start} a ${slot.end}`}
-                                                                    className={[
-                                                                        'booking-time-slot',
-                                                                        selectedTime === time ? 'booking-time-slot--active' : '',
-                                                                        ocupado ? 'booking-time-slot--ocupado' : '',
-                                                                    ].join(' ')}
-                                                                    onClick={() => !ocupado && setSelectedTime(time)}
-                                                                    disabled={ocupado}
-                                                                >
-                                                                    {slot.start} - {slot.end}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
+                                                        <div className="booking-time-slots">
+                                                         {(() => {
+                                                             const slots = (disponibilidad
+                                                                 ? generateTimeSlots(disponibilidad.duracionMaximaMinutos)
+                                                                 : generateTimeSlots(60)
+                                                             ).filter(slot => !isPastTime(slot.start));
+                                                             
+                                                             if (slots.length === 0) {
+                                                                 return <p style={{ color: '#8ca092', fontSize: '0.9rem', gridColumn: '1/-1', textAlign: 'center', margin: '10px 0' }}>No hay horarios disponibles para el día de hoy.</p>;
+                                                             }
+                                                             
+                                                             return slots.map(slot => {
+                                                                 const time = slot.start;
+                                                                 const ocupado = isSlotOcupado(time);
+                                                                 return (
+                                                                     <button
+                                                                         key={time}
+                                                                         type="button"
+                                                                         title={ocupado ? 'Este horario ya está reservado' : `Reservar de ${slot.start} a ${slot.end}`}
+                                                                         className={[
+                                                                             'booking-time-slot',
+                                                                             selectedTime === time ? 'booking-time-slot--active' : '',
+                                                                             ocupado ? 'booking-time-slot--ocupado' : '',
+                                                                         ].join(' ')}
+                                                                         onClick={() => !ocupado && setSelectedTime(time)}
+                                                                         disabled={ocupado}
+                                                                     >
+                                                                         {slot.start} - {slot.end}
+                                                                     </button>
+                                                                 );
+                                                             });
+                                                         })()}
+                                                        </div>
                                                     )}
                                                 </div>
 
