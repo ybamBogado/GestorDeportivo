@@ -157,6 +157,23 @@ export default function PanelCompetencias() {
     const formatFecha = (iso) =>
         iso ? new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 
+    const getRoundName = (f) => {
+        const isElimination = subTab === 'torneos' && selected && (
+            selected.modalidad?.toLowerCase().includes('eliminacion') ||
+            selected.modalidad?.toLowerCase().includes('copa') ||
+            selected.formato?.toLowerCase().includes('eliminacion') ||
+            selected.formato?.toLowerCase().includes('copa')
+        );
+
+        if (!isElimination) return `Fecha ${f.numero}`;
+        const matchCount = f.partidos?.length || 0;
+        if (matchCount === 1) return 'Final';
+        if (matchCount === 2) return 'Semifinal';
+        if (matchCount === 4) return 'Cuartos de Final';
+        if (matchCount === 8) return 'Octavos de Final';
+        return `Ronda de ${matchCount * 2}`;
+    };
+
     return (
         <div className="panel-comp">
             <div className="panel-comp__subtabs">
@@ -375,7 +392,7 @@ export default function PanelCompetencias() {
                                     fixtures.map(f => (
                                         <div key={f.id} className="admin-fixture-jornada">
                                             <div className="admin-fixture-jornada__head">
-                                                <span>Fecha {f.numero}</span>
+                                                <span>{getRoundName(f)}</span>
                                                 <small>{formatFecha(f.fechaDesde)} – {formatFecha(f.fechaHasta)}</small>
                                             </div>
                                             {(f.partidos ?? []).map(p => (

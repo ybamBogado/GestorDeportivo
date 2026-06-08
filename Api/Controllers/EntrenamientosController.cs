@@ -40,6 +40,7 @@ namespace Api.Controllers
                     e.Estado,
                     Cancha = e.Cancha.Superficie,
                     Entrenador = $"{e.Profesor.Nombre} {e.Profesor.Apellido}",
+                    EntrenadorId = e.EntrenadorId,
                     Alumnos = e.Alumnos.Count
                 })
                 .ToListAsync();
@@ -53,7 +54,7 @@ namespace Api.Controllers
             var entrenamiento = await _context.Entrenamientos
                 .Include(e => e.Cancha)
                 .Include(e => e.Profesor)
-                .Include(e => e.Alumnos)
+                .Include(e => e.Inscripciones).ThenInclude(i => i.Usuario)
                 .FirstOrDefaultAsync(e => e.Id == id);
 
             if (entrenamiento == null) return NotFound("Entrenamiento no encontrado");
@@ -69,12 +70,13 @@ namespace Api.Controllers
                 Cancha = entrenamiento.Cancha.Superficie,
                 entrenamiento.EntrenadorId,
                 Entrenador = $"{entrenamiento.Profesor.Nombre} {entrenamiento.Profesor.Apellido}",
-                Alumnos = entrenamiento.Alumnos.Select(a => new
+                Inscripciones = entrenamiento.Inscripciones.Select(i => new
                 {
-                    a.Id,
-                    a.Nombre,
-                    a.Apellido,
-                    a.Email
+                    i.Id,
+                    i.UsuarioId,
+                    Usuario = new { i.Usuario.Id, i.Usuario.Nombre, i.Usuario.Apellido, i.Usuario.Email },
+                    i.Estado,
+                    i.Presente
                 })
             });
         }
@@ -133,9 +135,29 @@ namespace Api.Controllers
             });
         }
 
+        [HttpPost("{id}/asistencias")]
+        public async Task<IActionResult> RegistrarAsistencia(int id, [FromBody] AsistenciaEntrenamientoRequest request)
+        {
+            var inscripcion = await _context.InscripcionesEntrenamiento
+                .FirstOrDefaultAsync(i => i.EntrenamientoId == id && i.UsuarioId == request.UsuarioId);
+
+            if (inscripcion == null) return NotFound("Inscripción no encontrada");
+
+            inscripcion.Presente = request.Presente;
+            await _context.SaveChangesAsync();
+
+            return Ok(inscripcion);
+        }
+
         public class InscripcionEntrenamientoRequest
         {
             public int UsuarioId { get; set; }
+        }
+
+        public class AsistenciaEntrenamientoRequest
+        {
+            public int UsuarioId { get; set; }
+            public bool Presente { get; set; }
         }
     }
 }

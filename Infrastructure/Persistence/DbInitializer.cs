@@ -339,6 +339,7 @@ public static class DbInitializer
                 CobroId INTEGER NULL,
                 Estado TEXT NOT NULL,
                 FechaInscripcion TEXT NOT NULL,
+                Presente INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY (EntrenamientoId) REFERENCES ENTRENAMIENTO (Id) ON DELETE CASCADE,
                 FOREIGN KEY (UsuarioId) REFERENCES PERSONA (Id) ON DELETE RESTRICT,
                 FOREIGN KEY (CobroId) REFERENCES COBRO (Id) ON DELETE SET NULL

@@ -152,4 +152,13 @@ export const entrenamientos = {
     },
     getById:     (id) => request(`/entrenamientos/${id}`),
     inscribirse: (id, usuarioId) => request(`/entrenamientos/${id}/inscripciones`, { method: 'POST', body: JSON.stringify({ usuarioId }) }),
+    toggleAsistencia: (id, usuarioId, presente) => request(`/entrenamientos/${id}/asistencias`, { method: 'POST', body: JSON.stringify({ usuarioId, presente }) }),
 };
+
+// ─── Reportes ─────────────────────────────────────────────────────────────────
+export const reportes = {
+    getIngresos: (desde, hasta) => request(`/reportes/ingresos?desde=${desde}&hasta=${hasta}`),
+    getAsistencia: (desde, hasta) => request(`/reportes/asistencia?desde=${desde}&hasta=${hasta}`),
+    getReservas: (desde, hasta) => request(`/reportes/reservas?desde=${desde}&hasta=${hasta}`),
+};
+

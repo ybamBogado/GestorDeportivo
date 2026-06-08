@@ -230,25 +230,54 @@ export default function TrainerPanel() {
     const [clases, setClases] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedClaseId, setSelectedClaseId] = useState(null);
+    const [selectedIsTraining, setSelectedIsTraining] = useState(false);
     const [claseDetails, setClaseDetails] = useState(null);
 
     const fetchClases = useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/clases`);
-            if (res.ok) {
-                const data = await res.json();
-                // Filter classes where the professor name matches or professorId matches
-                // Check user name matches or if backend returns profesorId matching user.id
-                const myClases = data.filter(c => 
+            const [clasesRes, entrenamientosRes] = await Promise.all([
+                fetch(`${API_URL}/clases`),
+                fetch(`${API_URL}/entrenamientos`)
+            ]);
+
+            let merged = [];
+
+            if (clasesRes.ok) {
+                const clasesData = await clasesRes.json();
+                const myClases = clasesData.filter(c => 
                     c.profesorId === user.id || 
                     c.profesor?.toLowerCase().includes(user.nombre?.toLowerCase())
-                );
-                setClases(myClases);
+                ).map(c => ({
+                    ...c,
+                    isTraining: false
+                }));
+                merged = [...merged, ...myClases];
             }
+
+            if (entrenamientosRes.ok) {
+                const entrenamientosData = await entrenamientosRes.json();
+                const myEntrenamientos = entrenamientosData.filter(e => 
+                    e.entrenadorId === user.id || 
+                    e.entrenador?.toLowerCase().includes(user.nombre?.toLowerCase())
+                ).map(e => ({
+                    id: e.id,
+                    tipo: e.tipo,
+                    fechaHora: e.fecha,
+                    cancha: e.cancha,
+                    alumnos: e.alumnos,
+                    capacidadMax: '—',
+                    estado: e.estado,
+                    isTraining: true
+                }));
+                merged = [...merged, ...myEntrenamientos];
+            }
+
+            merged.sort((a, b) => new Date(a.fechaHora) - new Date(b.fechaHora));
+            setClases(merged);
         } catch (error) {
-            notify('Error al cargar clases: ' + error.message, 'error');
+            notify('Error al cargar clases y entrenamientos: ' + error.message, 'error');
         } finally {
             setLoading(false);
         }
@@ -265,12 +294,34 @@ export default function TrainerPanel() {
         fetchClases();
     }, [fetchClases]);
 
-    const loadClaseDetails = async (id) => {
+    const loadClaseDetails = async (id, isTraining) => {
         try {
-            const res = await fetch(`${API_URL}/clases/${id}`);
+            const endpoint = isTraining ? `entrenamientos/${id}` : `clases/${id}`;
+            const res = await fetch(`${API_URL}/${endpoint}`);
             if (res.ok) {
-                setClaseDetails(await res.json());
+                const data = await res.json();
+                if (isTraining) {
+                    const mappedDetails = {
+                        id: data.id,
+                        tipo: data.tipo,
+                        fechaHora: data.fecha,
+                        cancha: data.cancha,
+                        profesor: data.entrenador,
+                        estado: data.estado,
+                        asistencias: (data.inscripciones || []).map(i => ({
+                            id: i.id,
+                            usuarioId: i.usuarioId,
+                            usuario: i.usuario,
+                            presente: i.presente,
+                            estado: i.estado
+                        }))
+                    };
+                    setClaseDetails(mappedDetails);
+                } else {
+                    setClaseDetails(data);
+                }
                 setSelectedClaseId(id);
+                setSelectedIsTraining(isTraining);
             }
         } catch (error) {
             notify('Error al cargar alumnos: ' + error.message, 'error');
@@ -279,7 +330,11 @@ export default function TrainerPanel() {
 
     const handleToggleAsistencia = async (usuarioId, currentPresent) => {
         try {
-            const res = await fetch(`${API_URL}/clases/${selectedClaseId}/asistencias`, {
+            const endpoint = selectedIsTraining 
+                ? `entrenamientos/${selectedClaseId}/asistencias` 
+                : `clases/${selectedClaseId}/asistencias`;
+                
+            const res = await fetch(`${API_URL}/${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -289,7 +344,7 @@ export default function TrainerPanel() {
             });
             if (res.ok) {
                 notify('Asistencia actualizada', 'success');
-                loadClaseDetails(selectedClaseId);
+                loadClaseDetails(selectedClaseId, selectedIsTraining);
             } else {
                 notify('Error al actualizar asistencia', 'error');
             }
@@ -393,20 +448,20 @@ export default function TrainerPanel() {
                                         </thead>
                                         <tbody>
                                             {clases.map(c => (
-                                                <tr key={c.id} className={selectedClaseId === c.id ? 'active-row' : ''} style={selectedClaseId === c.id ? { background: 'rgba(49, 217, 79, 0.05)' } : {}}>
+                                                <tr key={`${c.isTraining ? 't' : 'c'}-${c.id}`} className={(selectedClaseId === c.id && selectedIsTraining === c.isTraining) ? 'active-row' : ''} style={(selectedClaseId === c.id && selectedIsTraining === c.isTraining) ? { background: 'rgba(49, 217, 79, 0.05)' } : {}}>
                                                     <td>#{c.id}</td>
-                                                    <td style={{ fontWeight: 700 }}>{c.tipo}</td>
+                                                    <td style={{ fontWeight: 700 }}>{c.tipo} {c.isTraining && <span style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'rgba(49, 217, 79, 0.15)', color: '#31d94f', borderRadius: 4, marginLeft: 6 }}>Entrenamiento</span>}</td>
                                                     <td>{formatLocalDateTime(c.fechaHora)}</td>
                                                     <td>{c.cancha}</td>
                                                     <td>{c.alumnos}</td>
                                                     <td>{c.capacidadMax}</td>
                                                     <td>
-                                                        <span className={`pill ${c.estado === 'Programada' ? 'success' : 'danger'}`}>
+                                                        <span className={`pill ${c.estado === 'Programada' || c.estado === 'Programado' ? 'success' : 'danger'}`}>
                                                             {c.estado}
                                                         </span>
                                                     </td>
                                                     <td className="table-actions">
-                                                        <button onClick={() => loadClaseDetails(c.id)}>👥 Alumnos & Asistencia</button>
+                                                        <button onClick={() => loadClaseDetails(c.id, c.isTraining)}>👥 Alumnos & Asistencia</button>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -417,7 +472,7 @@ export default function TrainerPanel() {
 
                             {selectedClaseId && claseDetails && (
                                 <div style={{ marginTop: 20, padding: 20, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(149, 255, 172, 0.08)', borderRadius: 8 }}>
-                                    <h3>Asistencia de Alumnos — Clase: <span style={{ color: '#31d94f' }}>{claseDetails.tipo}</span></h3>
+                                    <h3>Asistencia de Alumnos — {selectedIsTraining ? 'Entrenamiento' : 'Clase'}: <span style={{ color: '#31d94f' }}>{claseDetails.tipo}</span></h3>
                                     <div className="data-table" style={{ marginTop: 12 }}>
                                         <table>
                                             <thead>
