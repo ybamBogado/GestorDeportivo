@@ -21,5 +21,6 @@ namespace Domain.Entities
 
         // Relación con Alumnos (Lista de Usuarios)
         public virtual ICollection<Usuario> Alumnos { get; set; } = new List<Usuario>();
+        public virtual ICollection<InscripcionEntrenamiento> Inscripciones { get; set; } = new List<InscripcionEntrenamiento>();
     }
 }

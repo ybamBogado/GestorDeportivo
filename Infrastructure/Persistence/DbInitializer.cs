@@ -10,11 +10,16 @@ public static class DbInitializer
 {
     public static void Initialize(AppDbContext context)
     {
+        EnsureDynamicTables(context);
+
         try
         {
             context.Database.ExecuteSqlRaw(
                 "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PERSONA') AND name = 'CertificadoPdf') " +
                 "ALTER TABLE PERSONA ADD CertificadoPdf NVARCHAR(MAX) NULL;");
+            context.Database.ExecuteSqlRaw(
+                "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('RESERVA') AND name = 'FechaExpiracion') " +
+                "ALTER TABLE RESERVA ADD FechaExpiracion DATETIME2 NOT NULL CONSTRAINT DF_RESERVA_FechaExpiracion DEFAULT DATEADD(MINUTE, 15, SYSUTCDATETIME());");
         }
         catch (System.Exception ex)
         {
@@ -303,5 +308,59 @@ public static class DbInitializer
 
             context.SaveChanges();
         }
+    }
+
+    private static void EnsureDynamicTables(AppDbContext context)
+    {
+        if (!context.Database.ProviderName?.Contains("Sqlite", StringComparison.OrdinalIgnoreCase) ?? true)
+            return;
+
+        context.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS INSCRIPCION_CLASE (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                ClaseId INTEGER NOT NULL,
+                UsuarioId INTEGER NOT NULL,
+                CobroId INTEGER NULL,
+                Estado TEXT NOT NULL,
+                FechaInscripcion TEXT NOT NULL,
+                FOREIGN KEY (ClaseId) REFERENCES CLASE (Id) ON DELETE CASCADE,
+                FOREIGN KEY (UsuarioId) REFERENCES PERSONA (Id) ON DELETE RESTRICT,
+                FOREIGN KEY (CobroId) REFERENCES COBRO (Id) ON DELETE SET NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS IX_INSCRIPCION_CLASE_ClaseId_UsuarioId
+            ON INSCRIPCION_CLASE (ClaseId, UsuarioId);
+        ");
+
+        context.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS INSCRIPCION_ENTRENAMIENTO (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                EntrenamientoId INTEGER NOT NULL,
+                UsuarioId INTEGER NOT NULL,
+                CobroId INTEGER NULL,
+                Estado TEXT NOT NULL,
+                FechaInscripcion TEXT NOT NULL,
+                FOREIGN KEY (EntrenamientoId) REFERENCES ENTRENAMIENTO (Id) ON DELETE CASCADE,
+                FOREIGN KEY (UsuarioId) REFERENCES PERSONA (Id) ON DELETE RESTRICT,
+                FOREIGN KEY (CobroId) REFERENCES COBRO (Id) ON DELETE SET NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS IX_INSCRIPCION_ENTRENAMIENTO_EntrenamientoId_UsuarioId
+            ON INSCRIPCION_ENTRENAMIENTO (EntrenamientoId, UsuarioId);
+        ");
+
+        context.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS INSCRIPCION_EQUIPO (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                EquipoId INTEGER NOT NULL,
+                UsuarioId INTEGER NOT NULL,
+                CobroId INTEGER NULL,
+                Estado TEXT NOT NULL,
+                FechaInscripcion TEXT NOT NULL,
+                FOREIGN KEY (EquipoId) REFERENCES EQUIPO (Id) ON DELETE CASCADE,
+                FOREIGN KEY (UsuarioId) REFERENCES PERSONA (Id) ON DELETE RESTRICT,
+                FOREIGN KEY (CobroId) REFERENCES COBRO (Id) ON DELETE SET NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS IX_INSCRIPCION_EQUIPO_EquipoId_UsuarioId
+            ON INSCRIPCION_EQUIPO (EquipoId, UsuarioId);
+        ");
     }
 }

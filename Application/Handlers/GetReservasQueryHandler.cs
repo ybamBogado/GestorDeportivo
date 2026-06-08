@@ -28,6 +28,7 @@ namespace Application.Handlers
                 PersonaId = r.PersonaId,
                 Cliente = r.Persona == null ? $"Cliente #{r.PersonaId}" : $"{r.Persona.Nombre} {r.Persona.Apellido}".Trim(),
                 Fecha = r.Fecha,
+                FechaExpiracion = r.FechaExpiracion,
                 HoraInicio = r.HoraInicio.ToString(@"hh\:mm"),
                 HoraFin = r.HoraFin.ToString(@"hh\:mm"),
                 Precio = r.Precio,

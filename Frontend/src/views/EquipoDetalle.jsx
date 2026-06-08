@@ -45,10 +45,13 @@ export default function EquipoDetalle() {
 
         setJoining(true);
         try {
-            await equiposApi.inscribirse(id, { usuarioId: user.id });
+            const result = await equiposApi.inscribirse(id, { usuarioId: user.id });
+            const cobroId = result.cobroId ?? result.CobroId;
+            if (cobroId) {
+                navigate(`/pago/${cobroId}`);
+                return;
+            }
             notify('Te sumaste al equipo correctamente', 'success');
-            const updated = await equiposApi.getById(id);
-            setEquipo(updated);
         } catch (error) {
             notify(error.message, 'error');
         } finally {

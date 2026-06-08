@@ -1,12 +1,97 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { reservas as reservasApi, cobros as cobrosApi } from '../services/api';
 import './Header.css';
 
 export default function Header() {
     const { user, logout } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
+    const location = useLocation();
+    const [pendingReserva, setPendingReserva] = useState(null);
+    const [timeLeft, setTimeLeft] = useState(null);
+
+    useEffect(() => {
+        if (!user) {
+            setPendingReserva(null);
+            setTimeLeft(null);
+            return;
+        }
+
+        const checkPending = async () => {
+            try {
+                const allReservas = await reservasApi.getAll();
+                const nowMs = Date.now();
+                const pending = allReservas.find(r => {
+                    if (r.personaId !== user.id || r.estado !== 'Pendiente') return false;
+                    if (!r.fechaExpiracion) return false;
+                    const exp = new Date(r.fechaExpiracion + (r.fechaExpiracion.endsWith('Z') ? '' : 'Z')).getTime();
+                    return exp > nowMs && (exp - nowMs) <= 15 * 60 * 1000;
+                });
+
+                if (pending) {
+                    const allCobros = await cobrosApi.getAll();
+                    const cobro = allCobros.find(c => c.reservaId === pending.id);
+                    if (cobro) {
+                        setPendingReserva({ ...pending, cobroId: cobro.id });
+                        setTimeLeft(new Date(pending.fechaExpiracion + (pending.fechaExpiracion.endsWith('Z') ? '' : 'Z')).getTime() - nowMs);
+                        return;
+                    }
+                }
+
+                setPendingReserva(null);
+                setTimeLeft(null);
+            } catch (e) {
+                console.error('Error checking pending reserva', e);
+            }
+        };
+
+        checkPending();
+        const handleUpdate = () => checkPending();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                checkPending();
+            }
+        };
+
+        window.addEventListener('reservaUpdate', handleUpdate);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            window.removeEventListener('reservaUpdate', handleUpdate);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [user, location.pathname]);
+
+    useEffect(() => {
+        if (!pendingReserva) {
+            setTimeLeft(null);
+            return;
+        }
+
+        const interval = setInterval(() => {
+            const exp = new Date(pendingReserva.fechaExpiracion + (pendingReserva.fechaExpiracion.endsWith('Z') ? '' : 'Z')).getTime();
+            const diff = exp - Date.now();
+            if (diff <= 0) {
+                setPendingReserva(null);
+                setTimeLeft(null);
+                clearInterval(interval);
+            } else {
+                setTimeLeft(diff);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [pendingReserva]);
+
+    function formatTime(ms) {
+        if (!ms || ms <= 0) return '00:00';
+        const totalSecs = Math.floor(ms / 1000);
+        const mins = String(Math.floor(totalSecs / 60)).padStart(2, '0');
+        const secs = String(totalSecs % 60).padStart(2, '0');
+        return `${mins}:${secs}`;
+    }
 
     const handleAuthClick = () => {
         if (user) {
@@ -32,6 +117,15 @@ export default function Header() {
                 </Link>
                 
                 <div className="header-actions">
+                    {pendingReserva && timeLeft !== null && (
+                        <button
+                            className="header-pending-reserva-btn"
+                            onClick={() => navigate(`/pago/${pendingReserva.cobroId}`)}
+                        >
+                            <i className="bi bi-clock-history me-1"></i>
+                            Completar Reserva ({formatTime(timeLeft)})
+                        </button>
+                    )}
                     {user && (
                         <Link to={
                             user.rol === 'Administrador' ? '/admin' :

@@ -10,6 +10,7 @@ namespace Api.Controllers
     public class EquiposController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private const decimal CostoInscripcionEquipo = 3000m;
 
         public EquiposController(AppDbContext context)
         {
@@ -125,6 +126,7 @@ namespace Api.Controllers
             var equipo = await _context.Equipos
                 .Include(e => e.Capitan)
                 .Include(e => e.Jugadores)
+                .Include(e => e.InscripcionesEquipo)
                 .FirstOrDefaultAsync(e => e.Id == id);
 
             if (equipo == null) return NotFound("Equipo no encontrado");
@@ -135,15 +137,40 @@ namespace Api.Controllers
             if (equipo.CapitanId == request.UsuarioId || equipo.Jugadores.Any(j => j.Id == request.UsuarioId))
                 return BadRequest("Ya formas parte de este equipo");
 
-            equipo.Jugadores.Add(usuario);
+            if (equipo.InscripcionesEquipo.Any(i => i.UsuarioId == request.UsuarioId))
+                return BadRequest("Ya tenes una inscripcion pendiente para este equipo");
+
+            var cobro = new Cobro
+            {
+                Concepto = $"Inscripcion Equipo '{equipo.Nombre}' - {usuario.Nombre} {usuario.Apellido}",
+                Monto = CostoInscripcionEquipo,
+                Descuento = 0,
+                MontoFinal = CostoInscripcionEquipo,
+                Estado = "Pendiente",
+                MetodoPago = string.Empty,
+                Fecha = DateTime.UtcNow
+            };
+            _context.Cobros.Add(cobro);
+            await _context.SaveChangesAsync();
+
+            var inscripcion = new InscripcionEquipo
+            {
+                EquipoId = id,
+                UsuarioId = request.UsuarioId,
+                CobroId = cobro.Id,
+                Estado = "Pendiente"
+            };
+            _context.InscripcionesEquipo.Add(inscripcion);
             await _context.SaveChangesAsync();
 
             return Ok(new
             {
-                equipo.Id,
-                equipo.Nombre,
-                Miembros = equipo.Jugadores.Count,
-                Mensaje = "Te inscribiste al equipo correctamente."
+                inscripcion.Id,
+                cobroId = cobro.Id,
+                EquipoId = equipo.Id,
+                Nombre = equipo.Nombre,
+                Monto = cobro.MontoFinal,
+                Mensaje = "Inscripcion registrada. Completa el pago para sumarte al equipo."
             });
         }
 

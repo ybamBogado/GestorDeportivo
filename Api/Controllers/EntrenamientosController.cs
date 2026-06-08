@@ -10,6 +10,7 @@ namespace Api.Controllers
     public class EntrenamientosController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private const decimal CostoInscripcionEntrenamiento = 2500m;
 
         public EntrenamientosController(AppDbContext context)
         {
@@ -83,6 +84,7 @@ namespace Api.Controllers
         {
             var entrenamiento = await _context.Entrenamientos
                 .Include(e => e.Alumnos)
+                .Include(e => e.Inscripciones)
                 .FirstOrDefaultAsync(e => e.Id == id);
 
             if (entrenamiento == null) return NotFound("Entrenamiento no encontrado");
@@ -92,19 +94,42 @@ namespace Api.Controllers
             var usuario = await _context.Usuarios.FindAsync(request.UsuarioId);
             if (usuario == null) return NotFound("Usuario no encontrado");
 
-            if (entrenamiento.Alumnos.Any(a => a.Id == request.UsuarioId))
-                return BadRequest("Ya estás inscripto en este entrenamiento");
+            if (entrenamiento.Alumnos.Any(a => a.Id == request.UsuarioId) || entrenamiento.Inscripciones.Any(i => i.UsuarioId == request.UsuarioId))
+                return BadRequest("Ya estas inscripto en este entrenamiento");
 
-            entrenamiento.Alumnos.Add(usuario);
+            var cobro = new Cobro
+            {
+                Concepto = $"Inscripcion Entrenamiento '{entrenamiento.Tipo}' - {usuario.Nombre} {usuario.Apellido}",
+                Monto = CostoInscripcionEntrenamiento,
+                Descuento = 0,
+                MontoFinal = CostoInscripcionEntrenamiento,
+                Estado = "Pendiente",
+                MetodoPago = string.Empty,
+                Fecha = DateTime.UtcNow
+            };
+            _context.Cobros.Add(cobro);
+            await _context.SaveChangesAsync();
+
+            var inscripcion = new InscripcionEntrenamiento
+            {
+                EntrenamientoId = id,
+                UsuarioId = request.UsuarioId,
+                CobroId = cobro.Id,
+                Estado = "Pendiente"
+            };
+            _context.InscripcionesEntrenamiento.Add(inscripcion);
             await _context.SaveChangesAsync();
 
             return Ok(new
             {
-                entrenamiento.Id,
-                entrenamiento.Tipo,
-                entrenamiento.Fecha,
-                Estado = "Inscripto",
-                Mensaje = "Inscripción a entrenamiento registrada correctamente."
+                inscripcion.Id,
+                cobroId = cobro.Id,
+                EntrenamientoId = entrenamiento.Id,
+                Tipo = entrenamiento.Tipo,
+                Fecha = entrenamiento.Fecha,
+                Monto = cobro.MontoFinal,
+                Estado = "Pendiente",
+                Mensaje = "Inscripcion registrada. Completa el pago para confirmar tu lugar."
             });
         }
 

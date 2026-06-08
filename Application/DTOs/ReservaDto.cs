@@ -8,6 +8,7 @@ namespace Application.DTOs
         public int PersonaId { get; set; }
         public string Cliente { get; set; } = string.Empty;
         public DateTime Fecha { get; set; }
+        public DateTime FechaExpiracion { get; set; }
         public string HoraInicio { get; set; } = string.Empty;
         public string HoraFin { get; set; } = string.Empty;
         public decimal Precio { get; set; }

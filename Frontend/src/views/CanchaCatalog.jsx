@@ -68,10 +68,13 @@ export default function CanchaCatalog() {
 
         setInscribiendo(`clase-${claseId}`);
         try {
-            await clasesApi.inscribirse(claseId, user.id);
+            const result = await clasesApi.inscribirse(claseId, user.id);
+            const cobroId = result.cobroId ?? result.CobroId;
+            if (cobroId) {
+                navigate(`/pago/${cobroId}`);
+                return;
+            }
             notify('Inscripción a clase confirmada', 'success');
-            const updated = await clasesApi.getAll();
-            setClases(updated.slice(0, 3));
         } catch (error) {
             notify(error.message, 'error');
         } finally {
@@ -87,10 +90,13 @@ export default function CanchaCatalog() {
 
         setInscribiendo(`entrenamiento-${entrenamientoId}`);
         try {
-            await entrenamientosApi.inscribirse(entrenamientoId, user.id);
+            const result = await entrenamientosApi.inscribirse(entrenamientoId, user.id);
+            const cobroId = result.cobroId ?? result.CobroId;
+            if (cobroId) {
+                navigate(`/pago/${cobroId}`);
+                return;
+            }
             notify('Inscripción a entrenamiento confirmada', 'success');
-            const updated = await entrenamientosApi.getAll();
-            setEntrenamientos(updated.slice(0, 3));
         } catch (error) {
             notify(error.message, 'error');
         } finally {

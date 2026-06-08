@@ -12,6 +12,7 @@ namespace Domain.Entities
         public TimeSpan HoraFin { get; set; }
         public decimal Precio { get; set; }
         public string Estado { get; set; } = "Pendiente";
+        public DateTime FechaExpiracion { get; set; }
         public int? ComplejoId { get; set; }
         public virtual Complejo? Complejo { get; set; }
         public virtual Cobro? Cobro { get; set; }

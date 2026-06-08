@@ -1,32 +1,24 @@
-/**
- * PanelCompetencias — Componente para el Admin Panel
- * Gestión de Ligas y Torneos: crear, ver inscritos, generar fixture y cargar resultados.
- */
 import { useState, useEffect } from 'react';
 import { ligas as ligasApi, torneos as torneosApi, partidos as partidosApi } from '../../services/api.js';
+import ConfirmModal from '../ConfirmModal.jsx';
 import './PanelCompetencias.css';
 
 export default function PanelCompetencias() {
-    const [subTab, setSubTab]     = useState('ligas'); // 'ligas' | 'torneos'
-    const [items, setItems]       = useState([]);
-    const [loading, setLoading]   = useState(true);
-    const [error, setError]       = useState(null);
-    const [success, setSuccess]   = useState(null);
-
-    // Crear competencia
+    const [subTab, setSubTab] = useState('ligas');
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
     const [showForm, setShowForm] = useState(false);
-    const [form, setForm]         = useState(defaultForm());
-
-    // Ver detalle / fixture / inscritos
-    const [selected, setSelected]   = useState(null);
-    const [fixtures, setFixtures]   = useState([]);
+    const [form, setForm] = useState(defaultForm());
+    const [selected, setSelected] = useState(null);
+    const [fixtures, setFixtures] = useState([]);
     const [inscritos, setInscritos] = useState([]);
     const [loadingDetail, setLoadingDetail] = useState(false);
-
-    // Resultado a cargar
     const [resultadoPartidoId, setResultadoPartidoId] = useState(null);
-    const [golesLocal, setGolesLocal]   = useState(0);
-    const [golesVisit, setGolesVisit]   = useState(0);
+    const [golesLocal, setGolesLocal] = useState(0);
+    const [golesVisit, setGolesVisit] = useState(0);
+    const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
 
     const api = subTab === 'ligas' ? ligasApi : torneosApi;
 
@@ -35,11 +27,22 @@ export default function PanelCompetencias() {
             nombre: '', reglamento: '', estado: 'Abierta', cupoEquipos: 8,
             categoria: 'Primera', costoInscripcion: 0,
             fechaInicio: '', fechaFin: '',
-            // solo torneos
             premioUSD: 0, modalidad: 'Eliminacion', formato: 'EliminacionDirecta',
             cantidadFechas: 1
         };
     }
+
+    const showConfirm = (message, onConfirm, title = 'Confirmación') => {
+        setConfirmConfig({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmConfig(c => ({ ...c, isOpen: false }));
+            }
+        });
+    };
 
     const load = () => {
         setLoading(true);
@@ -57,13 +60,13 @@ export default function PanelCompetencias() {
         try {
             await api.create({
                 ...form,
-                cupoEquipos:      Number(form.cupoEquipos),
+                cupoEquipos: Number(form.cupoEquipos),
                 costoInscripcion: Number(form.costoInscripcion),
-                premioUSD:        Number(form.premioUSD),
-                cantidadFechas:   Number(form.cantidadFechas),
-                fechaInicio:      form.fechaInicio || new Date().toISOString(),
-                fechaFin:         form.fechaFin || new Date(Date.now() + 90 * 86400000).toISOString(),
-                estado:           subTab === 'ligas' ? 'Abierta' : 'Abierto',
+                premioUSD: Number(form.premioUSD),
+                cantidadFechas: Number(form.cantidadFechas),
+                fechaInicio: form.fechaInicio || new Date().toISOString(),
+                fechaFin: form.fechaFin || new Date(Date.now() + 90 * 86400000).toISOString(),
+                estado: subTab === 'ligas' ? 'Abierta' : 'Abierto',
             });
             setSuccess(`${subTab === 'ligas' ? 'Liga' : 'Torneo'} creado/a exitosamente`);
             setShowForm(false);
@@ -94,19 +97,23 @@ export default function PanelCompetencias() {
 
     const handleGenerarFixture = async () => {
         if (!selected) return;
-        if (!window.confirm(`¿Generar fixture para "${selected.nombre}"? Solo participarán equipos con inscripción CONFIRMADA (pago acreditado).`))
-            return;
-        setError(null);
-        try {
-            const result = await api.generarFixture(selected.id, {
-                fechaInicio: selected.fechaInicio || new Date().toISOString()
-            });
-            setSuccess(`Fixture generado: ${result.totalJornadas} jornadas, ${result.totalPartidos} partidos`);
-            handleSelectItem(selected);
-            load();
-        } catch (e) {
-            setError(e.message);
-        }
+        showConfirm(
+            `¿Generar fixture para "${selected.nombre}"? Solo participarán equipos con inscripción confirmada.`,
+            async () => {
+                setError(null);
+                try {
+                    const result = await api.generarFixture(selected.id, {
+                        fechaInicio: selected.fechaInicio || new Date().toISOString()
+                    });
+                    setSuccess(`Fixture generado: ${result.totalJornadas} jornadas, ${result.totalPartidos} partidos`);
+                    handleSelectItem(selected);
+                    load();
+                } catch (e) {
+                    setError(e.message);
+                }
+            },
+            'Generar fixture'
+        );
     };
 
     const handleCargarResultado = async (partidoId) => {
@@ -129,18 +136,20 @@ export default function PanelCompetencias() {
 
     return (
         <div className="panel-comp">
-            {/* Sub-tabs */}
             <div className="panel-comp__subtabs">
-                <button className={`subtab ${subTab === 'ligas' ? 'subtab--active' : ''}`} onClick={() => { setSubTab('ligas'); setSelected(null); }}>⚽ Ligas</button>
-                <button className={`subtab ${subTab === 'torneos' ? 'subtab--active' : ''}`} onClick={() => { setSubTab('torneos'); setSelected(null); }}>🥇 Torneos</button>
+                <button className={`subtab ${subTab === 'ligas' ? 'subtab--active' : ''}`} onClick={() => { setSubTab('ligas'); setSelected(null); }}>
+                    <i className="bi bi-shield-fill"></i> Ligas
+                </button>
+                <button className={`subtab ${subTab === 'torneos' ? 'subtab--active' : ''}`} onClick={() => { setSubTab('torneos'); setSelected(null); }}>
+                    <i className="bi bi-trophy-fill"></i> Torneos
+                </button>
             </div>
 
-            {error   && <div className="panel-comp__msg panel-comp__msg--error">{error}</div>}
+            {error && <div className="panel-comp__msg panel-comp__msg--error">{error}</div>}
             {success && <div className="panel-comp__msg panel-comp__msg--success">{success}</div>}
 
             {!selected ? (
                 <>
-                    {/* Lista */}
                     <div className="panel-comp__toolbar">
                         <h3>{subTab === 'ligas' ? 'Ligas' : 'Torneos'}</h3>
                         <button className="btn-nuevo" onClick={() => { setShowForm(s => !s); setSuccess(null); }}>
@@ -247,7 +256,6 @@ export default function PanelCompetencias() {
                     )}
                 </>
             ) : (
-                /* Detalle de una competencia */
                 <div className="panel-comp__detail">
                     <button className="btn-back" onClick={() => { setSelected(null); setFixtures([]); setInscritos([]); }}>
                         ← Volver a la lista
@@ -261,9 +269,8 @@ export default function PanelCompetencias() {
                         <p className="panel-comp__loading">Cargando...</p>
                     ) : (
                         <>
-                            {/* Inscritos */}
                             <section className="detail-section">
-                                <h4>📋 Equipos inscriptos ({inscritos.length})</h4>
+                                <h4><i className="bi bi-card-list"></i> Equipos inscriptos ({inscritos.length})</h4>
                                 {inscritos.length === 0 ? (
                                     <p className="empty-msg">Sin inscripciones aún.</p>
                                 ) : (
@@ -281,9 +288,7 @@ export default function PanelCompetencias() {
                                                         </span>
                                                     </td>
                                                     <td>
-                                                        {i.cobro
-                                                            ? `$${Number(i.cobro.montoFinal).toLocaleString('es-AR')} (${i.cobro.estado})`
-                                                            : 'Gratis / N/A'}
+                                                        {i.cobro ? `$${Number(i.cobro.montoFinal).toLocaleString('es-AR')} (${i.cobro.estado})` : 'Gratis / N/A'}
                                                     </td>
                                                     <td>{i.jugadores}</td>
                                                 </tr>
@@ -293,14 +298,13 @@ export default function PanelCompetencias() {
                                 )}
                             </section>
 
-                            {/* Generar fixture */}
                             <section className="detail-section">
-                                <h4>⚡ Fixture</h4>
+                                <h4><i className="bi bi-lightning-charge-fill"></i> Fixture</h4>
                                 {fixtures.length === 0 ? (
                                     <div className="fixture-empty">
                                         <p>Fixture no generado.</p>
                                         <button className="btn-generar-fix" onClick={handleGenerarFixture}>
-                                            🎲 Generar Fixture (solo equipos confirmados)
+                                            <i className="bi bi-diagram-3-fill"></i> Generar Fixture
                                         </button>
                                     </div>
                                 ) : (
@@ -314,11 +318,7 @@ export default function PanelCompetencias() {
                                                 <div key={p.id} className="admin-partido">
                                                     <div className="admin-partido__teams">
                                                         <span>{p.equipoLocal}</span>
-                                                        <strong>
-                                                            {p.golesLocal != null
-                                                                ? `${p.golesLocal} – ${p.golesVisitante}`
-                                                                : 'VS'}
-                                                        </strong>
+                                                        <strong>{p.golesLocal != null ? `${p.golesLocal} – ${p.golesVisitante}` : 'VS'}</strong>
                                                         <span>{p.equipoVisitante}</span>
                                                     </div>
                                                     <div className="admin-partido__actions">
@@ -332,7 +332,7 @@ export default function PanelCompetencias() {
                                                                     setGolesVisit(p.golesVisitante ?? 0);
                                                                 }}
                                                             >
-                                                                ✏ Resultado
+                                                                <i className="bi bi-pencil-square"></i> Resultado
                                                             </button>
                                                         )}
                                                     </div>
@@ -355,6 +355,14 @@ export default function PanelCompetencias() {
                     )}
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(c => ({ ...c, isOpen: false }))}
+            />
         </div>
     );
 }
