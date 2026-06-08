@@ -2070,8 +2070,10 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
     const handleInscribirEquipoLiga = async () => {
         if (!inscribirEquipoId) return;
         try {
-            const res = await fetch(`${API_URL}/ligas/${selectedLigaId}/equipos/${inscribirEquipoId}`, {
-                method: 'POST'
+            const res = await fetch(`${API_URL}/ligas/${selectedLigaId}/inscribir`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ equipoId: Number(inscribirEquipoId) })
             });
             if (res.ok) {
                 setMessage('Equipo inscripto en la liga con éxito');
@@ -2159,8 +2161,10 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
     const handleInscribirEquipoTorneo = async () => {
         if (!inscribirEquipoId) return;
         try {
-            const res = await fetch(`${API_URL}/torneos/${selectedTorneoId}/equipos/${inscribirEquipoId}`, {
-                method: 'POST'
+            const res = await fetch(`${API_URL}/torneos/${selectedTorneoId}/inscribir`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ equipoId: Number(inscribirEquipoId) })
             });
             if (res.ok) {
                 setMessage('Equipo inscripto en el torneo con éxito');

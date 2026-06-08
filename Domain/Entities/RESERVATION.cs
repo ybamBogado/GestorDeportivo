@@ -23,7 +23,13 @@ namespace Domain.Entities
 
         /// <summary>Pendiente | PendienteVerificacion | Confirmada | Cancelada | Expirada</summary>
         public string Estado { get; set; } = "Pendiente";
+        public bool Pago { get; set; }
+        public string MetodoPago { get; set; } = string.Empty;
         public DateTime FechaExpiracion { get; set; }
+        public string? CodigoPagoExterno { get; set; }
+        public string? ComprobantePdf { get; set; }
+        public int LimiteReserva { get; set; } = 1;
+        public int LimiteHorario { get; set; } = 1;
         public int? ComplejoId { get; set; }
         public virtual Complejo? Complejo { get; set; }
         public virtual Cobro? Cobro { get; set; }

@@ -178,30 +178,54 @@ namespace Api.Controllers
 
             if (esTodosVsTodos)
             {
-                // Round-robin
-                for (var i = 0; i < equiposConfirmados.Count; i++)
+                var equiposRotacion = equiposConfirmados.Select(idEquipo => (int?)idEquipo).ToList();
+                if (equiposRotacion.Count % 2 != 0)
+                    equiposRotacion.Add(null);
+
+                var totalEquipos = equiposRotacion.Count;
+                var totalJornadas = totalEquipos - 1;
+                var partidosPorJornada = totalEquipos / 2;
+
+                for (var ronda = 0; ronda < totalJornadas; ronda++)
                 {
-                    for (var j = i + 1; j < equiposConfirmados.Count; j++)
+                    var fechaDesde = inicio.AddDays(ronda * 7);
+                    var fixture = new Fixture
                     {
-                        var fechaDesde = inicio.AddDays((jornada - 1) * 7);
-                        var fixture = new Fixture
-                        {
-                            Numero     = jornada,
-                            TorneoId   = torneo.Id,
-                            FechaDesde = fechaDesde,
-                            FechaHasta = fechaDesde.AddDays(6)
-                        };
+                        Numero = jornada,
+                        TorneoId = torneo.Id,
+                        FechaDesde = fechaDesde,
+                        FechaHasta = fechaDesde.AddDays(6)
+                    };
+
+                    for (var i = 0; i < partidosPorJornada; i++)
+                    {
+                        var local = equiposRotacion[i];
+                        var visitante = equiposRotacion[totalEquipos - 1 - i];
+
+                        if (!local.HasValue || !visitante.HasValue)
+                            continue;
+
+                        var invertir = ronda % 2 == 1;
                         fixture.Partidos.Add(new Partido
                         {
-                            TorneoId          = torneo.Id,
-                            EquipoLocalId     = equiposConfirmados[i],
-                            EquipoVisitanteId = equiposConfirmados[j],
-                            FechaHora         = fechaDesde,
-                            Estado            = "Programado"
+                            TorneoId = torneo.Id,
+                            EquipoLocalId = invertir ? visitante.Value : local.Value,
+                            EquipoVisitanteId = invertir ? local.Value : visitante.Value,
+                            FechaHora = fechaDesde.AddHours(i * 2),
+                            Estado = "Programado"
                         });
+                    }
+
+                    if (fixture.Partidos.Count > 0)
+                    {
                         fixtures.Add(fixture);
                         jornada++;
                     }
+
+                    var ultimo = equiposRotacion[^1];
+                    for (var i = totalEquipos - 1; i > 1; i--)
+                        equiposRotacion[i] = equiposRotacion[i - 1];
+                    equiposRotacion[1] = ultimo;
                 }
             }
             else

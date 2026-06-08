@@ -35,7 +35,6 @@ namespace Application.Handlers
                 Estado = r.Estado,
                 Pago = r.Pago,
                 MetodoPago = r.MetodoPago,
-                FechaExpiracion = r.FechaExpiracion,
                 CodigoPagoExterno = r.CodigoPagoExterno,
                 ComprobantePdf = r.ComprobantePdf,
                 FechaCreacion = r.FechaCreacion
