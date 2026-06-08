@@ -50,16 +50,28 @@ namespace Api.Controllers
 
             // Auto-create a pending Cobro linked to this reserva
             var precio = command.Precio <= 0 ? 4500m : command.Precio;
+
+            // Descuento del 15% para equipos que juegan en ligas activas
+            decimal descuento = 0;
+            if (command.PersonaId > 0)
+            {
+                bool jugaEnLiga = await _context.InscripcionesLiga
+                    .AnyAsync(i => i.Equipo.CapitanId == command.PersonaId
+                               && i.Estado == "Confirmado");
+                if (jugaEnLiga)
+                    descuento = precio * 0.15m; // 15% de descuento por ser jugador regular de liga
+            }
+
             var cobro = new Cobro
             {
-                ReservaId = reservaId,
-                Concepto = $"Alquiler de cancha - Reserva #{reservaId}",
-                Monto = precio,
-                Descuento = 0,
-                MontoFinal = precio,
-                Estado = "Pendiente",
+                ReservaId  = reservaId,
+                Concepto   = $"Alquiler de cancha - Reserva #{reservaId}",
+                Monto      = precio,
+                Descuento  = descuento,
+                MontoFinal = precio - descuento,
+                Estado     = "Pendiente",
                 MetodoPago = string.Empty,
-                Fecha = DateTime.UtcNow
+                Fecha      = DateTime.UtcNow
             };
 
             _context.Cobros.Add(cobro);
@@ -68,9 +80,12 @@ namespace Api.Controllers
             return CreatedAtAction(nameof(GetById), new { id = reservaId }, new
             {
                 reservaId,
-                cobroId = cobro.Id,
-                monto = cobro.Monto,
-                concepto = cobro.Concepto
+                cobroId        = cobro.Id,
+                monto          = cobro.Monto,
+                descuento      = cobro.Descuento,
+                montoFinal     = cobro.MontoFinal,
+                descuentoAplicado = descuento > 0,
+                concepto       = cobro.Concepto
             });
         }
 

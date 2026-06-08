@@ -79,6 +79,54 @@ export const users = {
     remove:  (id)     => request(`/users/${id}`, { method: 'DELETE' }),
 };
 
+// ─── Ligas ────────────────────────────────────────────────────────────────────
+export const ligas = {
+    getAll:         ()       => request('/ligas'),
+    getById:        (id)     => request(`/ligas/${id}`),
+    getFixtures:    (id)     => request(`/ligas/${id}/fixtures`),
+    getInscritos:   (id)     => request(`/ligas/${id}/inscritos`),
+    create:         (data)   => request('/ligas',                  { method: 'POST',   body: JSON.stringify(data) }),
+    update:         (id, d)  => request(`/ligas/${id}`,            { method: 'PUT',    body: JSON.stringify(d) }),
+    cancelar:       (id)     => request(`/ligas/${id}`,            { method: 'DELETE' }),
+    generarFixture: (id, d)  => request(`/ligas/${id}/fixture`,    { method: 'POST',   body: JSON.stringify(d) }),
+    inscribir:      (id, d)  => request(`/ligas/${id}/inscribir`,  { method: 'POST',   body: JSON.stringify(d) }),
+};
+
+// ─── Torneos ──────────────────────────────────────────────────────────────────
+export const torneos = {
+    getAll:         ()       => request('/torneos'),
+    getById:        (id)     => request(`/torneos/${id}`),
+    getFixtures:    (id)     => request(`/torneos/${id}/fixtures`),
+    getInscritos:   (id)     => request(`/torneos/${id}/inscritos`),
+    create:         (data)   => request('/torneos',                 { method: 'POST',   body: JSON.stringify(data) }),
+    update:         (id, d)  => request(`/torneos/${id}`,           { method: 'PUT',    body: JSON.stringify(d) }),
+    cancelar:       (id)     => request(`/torneos/${id}`,           { method: 'DELETE' }),
+    generarFixture: (id, d)  => request(`/torneos/${id}/fixture`,   { method: 'POST',   body: JSON.stringify(d) }),
+    inscribir:      (id, d)  => request(`/torneos/${id}/inscribir`, { method: 'POST',   body: JSON.stringify(d) }),
+};
+
+// ─── Partidos ─────────────────────────────────────────────────────────────────
+export const partidos = {
+    getAll:    (params = {}) => {
+        const qs = new URLSearchParams(params).toString();
+        return request(`/partidos${qs ? `?${qs}` : ''}`);
+    },
+    getById:   (id)     => request(`/partidos/${id}`),
+    resultado: (id, d)  => request(`/partidos/${id}/resultado`, { method: 'PUT',    body: JSON.stringify(d) }),
+    programar: (id, d)  => request(`/partidos/${id}/programar`, { method: 'PUT',    body: JSON.stringify(d) }),
+    cancelar:  (id)     => request(`/partidos/${id}`,           { method: 'DELETE' }),
+};
+
+// ─── Equipos ──────────────────────────────────────────────────────────────────
+export const equipos = {
+    getAll:     ()        => request('/equipos'),
+    getById:    (id)      => request(`/equipos/${id}`),
+    create:     (data)    => request('/equipos',                        { method: 'POST',   body: JSON.stringify(data) }),
+    update:     (id, d)   => request(`/equipos/${id}`,                  { method: 'PUT',    body: JSON.stringify(d) }),
+    remove:     (id)      => request(`/equipos/${id}`,                  { method: 'DELETE' }),
+    addJugador: (id, uid) => request(`/equipos/${id}/jugadores/${uid}`, { method: 'POST' }),
+};
+
 // ─── Clases ───────────────────────────────────────────────────────────────────
 export const clases = {
     getAll:            ()       => request('/clases'),

@@ -30,8 +30,15 @@ namespace Api.Controllers
                     t.Formato,
                     t.Estado,
                     t.CupoEquipos,
-                    EquiposInscriptos = t.Inscripciones.Count(i => i.Estado == "Activa"),
-                    Partidos = t.Partidos.Count
+                    t.FechaInicio,
+                    t.FechaFin,
+                    t.Categoria,
+                    t.PremioUSD,
+                    t.Modalidad,
+                    t.CostoInscripcion,
+                    EquiposConfirmados = t.Inscripciones.Count(i => i.Estado == "Confirmado"),
+                    EquiposPendientes  = t.Inscripciones.Count(i => i.Estado == "Pendiente"),
+                    Partidos           = t.Partidos.Count
                 })
                 .ToListAsync();
 
@@ -43,12 +50,51 @@ namespace Api.Controllers
         {
             var torneo = await _context.Torneos
                 .Include(t => t.Inscripciones).ThenInclude(i => i.Equipo)
+                .Include(t => t.Inscripciones).ThenInclude(i => i.Cobro)
                 .Include(t => t.Partidos).ThenInclude(p => p.EquipoLocal)
                 .Include(t => t.Partidos).ThenInclude(p => p.EquipoVisitante)
+                .Include(t => t.Fixtures)
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (torneo == null) return NotFound("Torneo no encontrado");
             return Ok(torneo);
+        }
+
+        /// <summary>GET /torneos/{id}/fixtures — devuelve las jornadas con sus partidos</summary>
+        [HttpGet("{id}/fixtures")]
+        public async Task<IActionResult> GetFixtures(int id)
+        {
+            if (!await _context.Torneos.AnyAsync(t => t.Id == id))
+                return NotFound("Torneo no encontrado");
+
+            var fixtures = await _context.Fixtures
+                .Where(f => f.TorneoId == id)
+                .Include(f => f.Partidos).ThenInclude(p => p.EquipoLocal)
+                .Include(f => f.Partidos).ThenInclude(p => p.EquipoVisitante)
+                .Include(f => f.Partidos).ThenInclude(p => p.Cancha)
+                .OrderBy(f => f.Numero)
+                .Select(f => new
+                {
+                    f.Id,
+                    f.Numero,
+                    f.FechaDesde,
+                    f.FechaHasta,
+                    Partidos = f.Partidos.Select(p => new
+                    {
+                        p.Id,
+                        EquipoLocal     = p.EquipoLocal.Nombre,
+                        EquipoVisitante = p.EquipoVisitante.Nombre,
+                        p.FechaHora,
+                        Cancha          = p.Cancha == null ? null : p.Cancha.Superficie,
+                        p.GolesLocal,
+                        p.GolesVisitante,
+                        p.Resultado,
+                        p.Estado
+                    })
+                })
+                .ToListAsync();
+
+            return Ok(fixtures);
         }
 
         [HttpPost]
@@ -56,12 +102,18 @@ namespace Api.Controllers
         {
             var torneo = new Torneo
             {
-                Nombre = request.Nombre,
-                Reglamento = request.Reglamento,
-                Formato = string.IsNullOrWhiteSpace(request.Formato) ? "EliminacionDirecta" : request.Formato,
-                Estado = string.IsNullOrWhiteSpace(request.Estado) ? "Abierto" : request.Estado,
-                CupoEquipos = request.CupoEquipos <= 0 ? 16 : request.CupoEquipos,
-                ComplejoId = request.ComplejoId
+                Nombre           = request.Nombre,
+                Reglamento       = request.Reglamento,
+                Formato          = string.IsNullOrWhiteSpace(request.Formato) ? "EliminacionDirecta" : request.Formato,
+                Estado           = string.IsNullOrWhiteSpace(request.Estado) ? "Abierto" : request.Estado,
+                CupoEquipos      = request.CupoEquipos <= 0 ? 16 : request.CupoEquipos,
+                ComplejoId       = request.ComplejoId,
+                FechaInicio      = request.FechaInicio == default ? DateTime.UtcNow : request.FechaInicio,
+                FechaFin         = request.FechaFin == default ? DateTime.UtcNow.AddMonths(1) : request.FechaFin,
+                Categoria        = string.IsNullOrWhiteSpace(request.Categoria) ? "Primera" : request.Categoria,
+                PremioUSD        = request.PremioUSD < 0 ? 0 : request.PremioUSD,
+                Modalidad        = string.IsNullOrWhiteSpace(request.Modalidad) ? "Eliminacion" : request.Modalidad,
+                CostoInscripcion = request.CostoInscripcion < 0 ? 0 : request.CostoInscripcion
             };
 
             _context.Torneos.Add(torneo);
@@ -75,87 +127,122 @@ namespace Api.Controllers
             var torneo = await _context.Torneos.FindAsync(id);
             if (torneo == null) return NotFound("Torneo no encontrado");
 
-            torneo.Nombre = request.Nombre;
-            torneo.Reglamento = request.Reglamento;
-            torneo.Formato = string.IsNullOrWhiteSpace(request.Formato) ? torneo.Formato : request.Formato;
-            torneo.Estado = string.IsNullOrWhiteSpace(request.Estado) ? torneo.Estado : request.Estado;
+            torneo.Nombre      = request.Nombre;
+            torneo.Reglamento  = request.Reglamento;
+            torneo.Formato     = string.IsNullOrWhiteSpace(request.Formato) ? torneo.Formato : request.Formato;
+            torneo.Estado      = string.IsNullOrWhiteSpace(request.Estado) ? torneo.Estado : request.Estado;
             torneo.CupoEquipos = request.CupoEquipos <= 0 ? torneo.CupoEquipos : request.CupoEquipos;
-            torneo.ComplejoId = request.ComplejoId;
+            torneo.ComplejoId  = request.ComplejoId;
+            if (request.FechaInicio != default)                 torneo.FechaInicio      = request.FechaInicio;
+            if (request.FechaFin != default)                    torneo.FechaFin         = request.FechaFin;
+            if (!string.IsNullOrWhiteSpace(request.Categoria))  torneo.Categoria        = request.Categoria;
+            if (request.PremioUSD >= 0)                         torneo.PremioUSD        = request.PremioUSD;
+            if (!string.IsNullOrWhiteSpace(request.Modalidad))  torneo.Modalidad        = request.Modalidad;
+            if (request.CostoInscripcion >= 0)                  torneo.CostoInscripcion = request.CostoInscripcion;
 
             await _context.SaveChangesAsync();
             return Ok(torneo);
         }
 
-        [HttpPost("{id}/equipos/{equipoId}")]
-        public async Task<IActionResult> InscribirEquipo(int id, int equipoId)
-        {
-            var torneo = await _context.Torneos.Include(t => t.Inscripciones).FirstOrDefaultAsync(t => t.Id == id);
-            if (torneo == null) return NotFound("Torneo no encontrado");
-            if (!await _context.Equipos.AnyAsync(e => e.Id == equipoId)) return NotFound("Equipo no encontrado");
-            if (torneo.Inscripciones.Count(i => i.Estado == "Activa") >= torneo.CupoEquipos) return BadRequest("Cupo de torneo agotado");
-            if (torneo.Inscripciones.Any(i => i.EquipoId == equipoId)) return BadRequest("El equipo ya está inscripto");
-
-            torneo.Inscripciones.Add(new InscripcionTorneo { TorneoId = id, EquipoId = equipoId });
-            await _context.SaveChangesAsync();
-            return Ok("Equipo inscripto en torneo");
-        }
-
+        /// <summary>
+        /// Genera el fixture para el torneo.
+        /// SOLO incluye equipos con Estado="Confirmado" (inscripción pagada).
+        /// </summary>
         [HttpPost("{id}/fixture")]
         public async Task<IActionResult> GenerarFixture(int id, [FromBody] FixtureRequest? request)
         {
             var torneo = await _context.Torneos
                 .Include(t => t.Inscripciones)
                 .Include(t => t.Partidos)
+                .Include(t => t.Fixtures)
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (torneo == null) return NotFound("Torneo no encontrado");
-            if (torneo.Partidos.Any()) return BadRequest("El torneo ya tiene fixture generado");
+            if (torneo.Fixtures.Any()) return BadRequest("El torneo ya tiene fixture generado");
 
-            var equipos = torneo.Inscripciones.Where(i => i.Estado == "Activa").Select(i => i.EquipoId).ToList();
-            if (equipos.Count < 2) return BadRequest("Se necesitan al menos 2 equipos");
+            // Solo equipos que pagaron
+            var equiposConfirmados = torneo.Inscripciones
+                .Where(i => i.Estado == "Confirmado")
+                .Select(i => i.EquipoId)
+                .ToList();
 
-            var inicio = request?.FechaInicio ?? DateTime.UtcNow.Date.AddDays(1);
-            var partidos = new List<Partido>();
+            if (equiposConfirmados.Count < 2)
+                return BadRequest("Se necesitan al menos 2 equipos con inscripción confirmada (pagada) para generar el fixture");
 
-            if (torneo.Formato.Equals("TodosContraTodos", StringComparison.OrdinalIgnoreCase))
+            var inicio = request?.FechaInicio ?? DateTime.UtcNow.Date.AddDays(7);
+            var fixtures = new List<Fixture>();
+            int jornada = 1;
+
+            bool esTodosVsTodos = torneo.Modalidad.Equals("TodosVsTodos", StringComparison.OrdinalIgnoreCase)
+                               || torneo.Formato.Equals("TodosContraTodos", StringComparison.OrdinalIgnoreCase);
+
+            if (esTodosVsTodos)
             {
-                var fecha = inicio;
-                for (var i = 0; i < equipos.Count; i++)
+                // Round-robin
+                for (var i = 0; i < equiposConfirmados.Count; i++)
                 {
-                    for (var j = i + 1; j < equipos.Count; j++)
+                    for (var j = i + 1; j < equiposConfirmados.Count; j++)
                     {
-                        partidos.Add(new Partido
+                        var fechaDesde = inicio.AddDays((jornada - 1) * 7);
+                        var fixture = new Fixture
                         {
-                            TorneoId = torneo.Id,
-                            EquipoLocalId = equipos[i],
-                            EquipoVisitanteId = equipos[j],
-                            FechaHora = fecha,
-                            Estado = "Programado"
+                            Numero     = jornada,
+                            TorneoId   = torneo.Id,
+                            FechaDesde = fechaDesde,
+                            FechaHasta = fechaDesde.AddDays(6)
+                        };
+                        fixture.Partidos.Add(new Partido
+                        {
+                            TorneoId          = torneo.Id,
+                            EquipoLocalId     = equiposConfirmados[i],
+                            EquipoVisitanteId = equiposConfirmados[j],
+                            FechaHora         = fechaDesde,
+                            Estado            = "Programado"
                         });
-                        fecha = fecha.AddDays(7);
+                        fixtures.Add(fixture);
+                        jornada++;
                     }
                 }
             }
             else
             {
-                for (var i = 0; i < equipos.Count; i += 2)
+                // Eliminación directa
+                for (var i = 0; i < equiposConfirmados.Count; i += 2)
                 {
-                    if (i + 1 >= equipos.Count) break;
-                    partidos.Add(new Partido
+                    if (i + 1 >= equiposConfirmados.Count) break;
+                    var fechaDesde = inicio.AddDays((jornada - 1) * 7);
+                    var fixture = new Fixture
                     {
-                        TorneoId = torneo.Id,
-                        EquipoLocalId = equipos[i],
-                        EquipoVisitanteId = equipos[i + 1],
-                        FechaHora = inicio.AddDays(i / 2),
-                        Estado = "Programado"
+                        Numero     = jornada,
+                        TorneoId   = torneo.Id,
+                        FechaDesde = fechaDesde,
+                        FechaHasta = fechaDesde.AddDays(6)
+                    };
+                    fixture.Partidos.Add(new Partido
+                    {
+                        TorneoId          = torneo.Id,
+                        EquipoLocalId     = equiposConfirmados[i],
+                        EquipoVisitanteId = equiposConfirmados[i + 1],
+                        FechaHora         = fechaDesde,
+                        Estado            = "Programado"
                     });
+                    fixtures.Add(fixture);
+                    jornada++;
                 }
             }
 
-            _context.Partidos.AddRange(partidos);
+            _context.Fixtures.AddRange(fixtures);
             torneo.Estado = "En curso";
             await _context.SaveChangesAsync();
-            return Ok(partidos);
+
+            return Ok(new
+            {
+                totalJornadas    = fixtures.Count,
+                totalPartidos    = fixtures.Sum(f => f.Partidos.Count),
+                equiposIncluidos = equiposConfirmados.Count,
+                modalidad        = esTodosVsTodos ? "TodosVsTodos" : "Eliminacion",
+                fixtures         = fixtures.Select(f => new { f.Numero, f.FechaDesde, f.FechaHasta, Partidos = f.Partidos.Count })
+            });
         }
 
         [HttpPut("partidos/{partidoId}/resultado")]
@@ -164,9 +251,9 @@ namespace Api.Controllers
             var partido = await _context.Partidos.FindAsync(partidoId);
             if (partido == null) return NotFound("Partido no encontrado");
 
-            partido.GolesLocal = request.GolesLocal;
+            partido.GolesLocal     = request.GolesLocal;
             partido.GolesVisitante = request.GolesVisitante;
-            partido.Estado = "Finalizado";
+            partido.Estado         = "Finalizado";
 
             await _context.SaveChangesAsync();
             return Ok(partido);
@@ -191,6 +278,12 @@ namespace Api.Controllers
             public string Estado { get; set; } = "Abierto";
             public int CupoEquipos { get; set; } = 16;
             public int? ComplejoId { get; set; }
+            public DateTime FechaInicio { get; set; }
+            public DateTime FechaFin { get; set; }
+            public string Categoria { get; set; } = "Primera";
+            public int PremioUSD { get; set; } = 0;
+            public string Modalidad { get; set; } = "Eliminacion";
+            public decimal CostoInscripcion { get; set; } = 0;
         }
 
         public class FixtureRequest

@@ -1,0 +1,201 @@
+.portal-comp {
+    min-height: 80vh;
+    padding: 2rem 1rem 4rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.portal-comp__hero {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+.portal-comp__hero h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+.portal-comp__hero p {
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+}
+
+.portal-comp__error {
+    background: var(--danger-muted);
+    color: var(--danger);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.portal-comp__tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    justify-content: center;
+}
+.comp-tab {
+    padding: 0.6rem 2rem;
+    border: 2px solid var(--border-base);
+    border-radius: 999px;
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+}
+.comp-tab:hover { border-color: var(--accent); color: var(--accent); }
+.comp-tab--active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.portal-comp__empty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 4rem 0;
+    font-size: 1.1rem;
+}
+
+/* ── Grid de tarjetas ── */
+.comp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.comp-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    box-shadow: var(--shadow-card);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.comp-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+}
+
+.comp-card__head {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.comp-badge {
+    padding: 0.2rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.comp-badge--open   { background: rgba(34,197,94,0.15); color: #22c55e; }
+.comp-badge--closed { background: var(--bg-input);      color: var(--text-muted); }
+.comp-badge--prize  { background: rgba(234,179,8,0.15); color: #ca8a04; }
+
+.comp-card__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+.comp-card__categoria {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.comp-card__dates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    background: var(--bg-input);
+    border-radius: 8px;
+    padding: 0.75rem;
+}
+.comp-card__dates div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+.comp-card__dates span { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; }
+.comp-card__dates strong { font-size: 0.9rem; color: var(--text-primary); }
+
+.comp-card__cupo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.comp-card__cupo span { font-size: 0.8rem; color: var(--text-muted); }
+.cupo-bar {
+    height: 6px;
+    background: var(--border-subtle);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.cupo-bar__fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.4s;
+}
+
+.comp-card__costo {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+.comp-card__costo strong { color: var(--accent); font-size: 1rem; }
+.comp-free { color: #22c55e; font-weight: 600; }
+
+.comp-card__actions {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-top: auto;
+}
+.btn-ver-fixture {
+    flex: 1;
+    padding: 0.6rem;
+    border: 1px solid var(--border-base);
+    border-radius: 8px;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+.btn-ver-fixture:hover { border-color: var(--accent); color: var(--accent); }
+
+.btn-inscribir {
+    flex: 1;
+    padding: 0.6rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 700;
+    transition: background 0.2s;
+}
+.btn-inscribir:hover { background: var(--accent-hover); }
+
+.comp-sin-cupo {
+    font-size: 0.8rem;
+    color: var(--danger);
+    font-weight: 600;
+    align-self: center;
+}
+
+@media (max-width: 600px) {
+    .comp-grid { grid-template-columns: 1fr; }
+    .portal-comp__hero h1 { font-size: 1.6rem; }
+}
