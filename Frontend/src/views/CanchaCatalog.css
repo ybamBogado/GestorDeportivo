@@ -1,8 +1,8 @@
 .landing-page-hero {
     width: 100%;
-    height: calc(100vh - 68px);
+    min-height: calc(100vh - 68px);
     margin: 0;
-    padding: 0;
+    padding: 40px 0;
     overflow: hidden;
     position: relative;
     background: #000;
@@ -149,9 +149,168 @@
     box-shadow: 0 10px 25px rgba(49, 217, 79, 0.45);
 }
 
+.cancha-card-btn--secondary {
+    margin-top: 12px;
+    background: transparent;
+    color: #fff !important;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: none;
+}
+
+.cancha-card-btn--secondary:hover {
+    border-color: rgba(49, 217, 79, 0.55);
+    color: var(--accent) !important;
+}
+
+.welcome-badge--secondary {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+}
+
+.landing-cta-panel {
+    width: min(1100px, 100%);
+    background: rgba(6, 12, 9, 0.58);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 28px;
+    padding: 28px;
+    text-align: left;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
+    animation: fadeInUp 1s ease 0.35s forwards;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+.landing-cta-panel__header h3 {
+    margin: 0 0 8px;
+    color: #fff;
+    font-size: 1.8rem;
+    font-family: 'Outfit', sans-serif;
+}
+
+.landing-cta-panel__header p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.landing-cta-grid {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.landing-cta-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 22px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.landing-cta-card__title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.landing-cta-card__title-row h4 {
+    margin: 0;
+    color: #fff;
+    font-size: 1.05rem;
+}
+
+.landing-cta-card__title-row span {
+    min-width: 34px;
+    height: 34px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(49, 217, 79, 0.16);
+    color: var(--accent);
+    font-weight: 800;
+}
+
+.landing-cta-card__empty {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.landing-activity-item,
+.landing-team-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.landing-activity-item:first-of-type,
+.landing-team-item:first-of-type {
+    border-top: none;
+    padding-top: 0;
+}
+
+.landing-activity-item div,
+.landing-team-item div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.landing-activity-item strong,
+.landing-team-item strong {
+    color: #fff;
+}
+
+.landing-activity-item span,
+.landing-team-item span {
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 0.9rem;
+}
+
+.landing-mini-btn {
+    border: none;
+    border-radius: 999px;
+    padding: 10px 14px;
+    background: var(--accent);
+    color: #061007;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.landing-mini-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(49, 217, 79, 0.3);
+}
+
+.landing-mini-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.landing-mini-btn--ghost {
+    background: transparent;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
 @media (max-width: 768px) {
     .slide-hero-title { font-size: 2.5rem; }
     .landing-welcome-card { padding: 24px 20px; }
+    .landing-hero-content { padding: 24px 16px 48px; }
+    .landing-cta-panel { padding: 20px; }
+    .landing-cta-grid { grid-template-columns: 1fr; }
+    .landing-activity-item,
+    .landing-team-item { flex-direction: column; align-items: stretch; }
+    .landing-mini-btn,
+    .landing-mini-btn--ghost { width: 100%; }
 }
 
 .catalog-empty-full {

@@ -109,7 +109,7 @@ export default function EquiposPanel({ setMessage }) {
 
             {/* Toolbar */}
             <div className="equipos-toolbar">
-                <h3>⚽ Gestión de Equipos</h3>
+                <h3> Gestión de Equipos</h3>
                 <button className="btn-nuevo" onClick={() => { setShowForm(!showForm); setEditingId(null); }}>
                     {showForm ? 'Cancelar' : '+ Nuevo Equipo'}
                 </button>

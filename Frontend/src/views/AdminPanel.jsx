@@ -17,7 +17,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5071/api/v1';
 
 const menuItems = [
     { id: 'usuarios', label: 'Gestión de usuarios', icon: 'bi bi-people-fill' },
-    { id: 'equipos', label: 'Gestión de equipos', icon: 'bi bi-people-team' },
+    { id: 'equipos', label: 'Gestión de equipos', icon: 'bi bi-microsoft-teams' },
     { id: 'canchas', label: 'Gestión de canchas', icon: 'bi bi-grid-3x3-gap' },
     { id: 'reservas', label: 'Reservas y turnos', icon: 'bi bi-calendar-check' },
     { id: 'pagos', label: 'Pagos y recibos', icon: 'bi bi-credit-card' },

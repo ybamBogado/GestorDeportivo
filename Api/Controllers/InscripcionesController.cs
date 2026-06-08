@@ -66,7 +66,7 @@ namespace Api.Controllers
             {
                 LigaId = ligaId,
                 EquipoId = equipo.Id,
-                Estado = "Pendiente",
+                Estado = liga.CostoInscripcion > 0 ? "Pendiente" : "Confirmado",
                 CobroId = cobro.Id
             };
             _context.InscripcionesLiga.Add(inscripcion);
@@ -161,7 +161,7 @@ namespace Api.Controllers
             {
                 TorneoId = torneoId,
                 EquipoId = equipo.Id,
-                Estado = "Pendiente",
+                Estado = torneo.CostoInscripcion > 0 ? "Pendiente" : "Confirmado",
                 CobroId = cobro.Id
             };
             _context.InscripcionesTorneo.Add(inscripcion);
@@ -228,9 +228,17 @@ namespace Api.Controllers
             if (string.IsNullOrWhiteSpace(request.NombreEquipo))
                 return null;
 
+            var nombreEquipo = request.NombreEquipo.Trim();
+            var nombreNormalizado = nombreEquipo.ToLower();
+            var equipoExistente = await _context.Equipos
+                .FirstOrDefaultAsync(e => e.Nombre.ToLower() == nombreNormalizado);
+
+            if (equipoExistente != null)
+                return equipoExistente;
+
             var equipo = new Equipo
             {
-                Nombre = request.NombreEquipo,
+                Nombre = nombreEquipo,
                 Categoria = request.Categoria ?? "Primera",
                 Estado = "Activo",
                 CapitanId = request.CapitanId

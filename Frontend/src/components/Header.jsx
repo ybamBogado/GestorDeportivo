@@ -30,11 +30,7 @@ export default function Header() {
                     <img src="/logo.png" alt="Gol Ahora Logo" className="header-logo" />
                     <span className="header-title">Gol Ahora</span>
                 </Link>
-                <nav className="header-nav">
-                    <Link to="/competencias" className="header-nav-link">
-                        🏆 Competencias
-                    </Link>
-                </nav>
+                
                 <div className="header-actions">
                     {user && (
                         <Link to={

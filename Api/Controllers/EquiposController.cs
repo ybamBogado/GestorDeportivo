@@ -28,6 +28,7 @@ namespace Api.Controllers
                     e.Nombre,
                     e.Categoria,
                     e.Estado,
+                    e.CapitanId,
                     Capitan = e.Capitan == null ? null : $"{e.Capitan.Nombre} {e.Capitan.Apellido}",
                     Jugadores = e.Jugadores.Count
                 })
@@ -45,7 +46,28 @@ namespace Api.Controllers
                 .FirstOrDefaultAsync(e => e.Id == id);
 
             if (equipo == null) return NotFound("Equipo no encontrado");
-            return Ok(equipo);
+            return Ok(new
+            {
+                equipo.Id,
+                equipo.Nombre,
+                equipo.Categoria,
+                equipo.Estado,
+                equipo.CapitanId,
+                Capitan = equipo.Capitan == null ? null : new
+                {
+                    equipo.Capitan.Id,
+                    equipo.Capitan.Nombre,
+                    equipo.Capitan.Apellido,
+                    equipo.Capitan.Email
+                },
+                Miembros = equipo.Jugadores.Select(j => new
+                {
+                    j.Id,
+                    j.Nombre,
+                    j.Apellido,
+                    j.Email
+                })
+            });
         }
 
         [HttpPost]
@@ -97,6 +119,34 @@ namespace Api.Controllers
             return Ok("Jugador agregado al equipo");
         }
 
+        [HttpPost("{id}/inscripciones")]
+        public async Task<IActionResult> InscribirseAEquipo(int id, [FromBody] InscripcionEquipoRequest request)
+        {
+            var equipo = await _context.Equipos
+                .Include(e => e.Capitan)
+                .Include(e => e.Jugadores)
+                .FirstOrDefaultAsync(e => e.Id == id);
+
+            if (equipo == null) return NotFound("Equipo no encontrado");
+
+            var usuario = await _context.Usuarios.FindAsync(request.UsuarioId);
+            if (usuario == null) return NotFound("Usuario no encontrado");
+
+            if (equipo.CapitanId == request.UsuarioId || equipo.Jugadores.Any(j => j.Id == request.UsuarioId))
+                return BadRequest("Ya formas parte de este equipo");
+
+            equipo.Jugadores.Add(usuario);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                equipo.Id,
+                equipo.Nombre,
+                Miembros = equipo.Jugadores.Count,
+                Mensaje = "Te inscribiste al equipo correctamente."
+            });
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -114,6 +164,11 @@ namespace Api.Controllers
             public string Categoria { get; set; } = string.Empty;
             public string Estado { get; set; } = "Activo";
             public int? CapitanId { get; set; }
+        }
+
+        public class InscripcionEquipoRequest
+        {
+            public int UsuarioId { get; set; }
         }
     }
 }

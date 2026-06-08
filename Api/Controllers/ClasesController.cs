@@ -39,7 +39,8 @@ namespace Api.Controllers
                     c.Estado,
                     Cancha = c.Cancha.Superficie,
                     Profesor = $"{c.Profesor.Nombre} {c.Profesor.Apellido}",
-                    Alumnos = c.Asistencias.Count
+                    Alumnos = c.Asistencias.Count,
+                    CuposDisponibles = c.CapacidadMax - c.Asistencias.Count
                 })
                 .ToListAsync();
 
@@ -141,6 +142,46 @@ namespace Api.Controllers
             return Ok(asistencia);
         }
 
+        [HttpPost("{id}/inscripciones")]
+        public async Task<IActionResult> Inscribirse(int id, [FromBody] InscripcionClaseRequest request)
+        {
+            var clase = await _context.Clases
+                .Include(c => c.Asistencias)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (clase == null) return NotFound("Clase no encontrada");
+            if (clase.Estado == "Cancelada") return BadRequest("La clase fue cancelada");
+
+            var usuario = await _context.Usuarios.FindAsync(request.UsuarioId);
+            if (usuario == null) return NotFound("Usuario no encontrado");
+
+            if (clase.Asistencias.Any(a => a.UsuarioId == request.UsuarioId))
+                return BadRequest("Ya estás inscripto en esta clase");
+
+            if (clase.Asistencias.Count >= clase.CapacidadMax)
+                return BadRequest("Cupo de clase completo");
+
+            var asistencia = new Asistencia
+            {
+                ClaseId = id,
+                UsuarioId = request.UsuarioId,
+                Presente = false
+            };
+
+            _context.Asistencias.Add(asistencia);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                asistencia.Id,
+                ClaseId = clase.Id,
+                clase.Tipo,
+                clase.FechaHora,
+                Estado = "Inscripto",
+                Mensaje = "Inscripción a clase registrada correctamente."
+            });
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> Cancelar(int id)
         {
@@ -184,6 +225,11 @@ namespace Api.Controllers
         {
             public int UsuarioId { get; set; }
             public bool Presente { get; set; }
+        }
+
+        public class InscripcionClaseRequest
+        {
+            public int UsuarioId { get; set; }
         }
     }
 }

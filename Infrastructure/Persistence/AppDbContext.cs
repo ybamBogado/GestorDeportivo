@@ -149,7 +149,7 @@ namespace Infrastructure.Persistence
                     .HasForeignKey(e => e.CapitanId)
                     .OnDelete(DeleteBehavior.SetNull);
                 entity.HasMany(e => e.Jugadores)
-                    .WithMany()
+                    .WithMany(u => u.Equipos)
                     .UsingEntity(j => j.ToTable("EQUIPO_JUGADOR"));
             });
 
@@ -283,7 +283,7 @@ namespace Infrastructure.Persistence
                     .HasForeignKey(e => e.ClaseId)
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(e => e.Usuario)
-                    .WithMany()
+                    .WithMany(u => u.Asistencias)
                     .HasForeignKey(e => e.UsuarioId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
@@ -314,7 +314,7 @@ namespace Infrastructure.Persistence
                     .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasMany(e => e.Alumnos)
-                    .WithMany()
+                    .WithMany(u => u.Entrenamientos)
                     .UsingEntity(j => j.ToTable("ENTRENAMIENTO_ALUMNO"));
             });
 
