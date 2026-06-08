@@ -604,7 +604,7 @@ export default function AdminPanel() {
                             </button>
                         </div>
                         {showCanchaForm && (
-                            <form className="admin-form" onSubmit={handleCreateCancha}>
+                            <form className="admin-form" onSubmit={handleCreateCancha} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '650px' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '12px' }}>
                                     <div>
                                         <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Superficie / Nombre</label>
@@ -637,7 +637,7 @@ export default function AdminPanel() {
                                             placeholder="4500" />
                                     </div>
                                 </div>
-                                <button type="submit" className="primary-action" style={{ marginTop: 8 }}>Guardar cancha</button>
+                                <button type="submit" className="primary-action" style={{ alignSelf: 'flex-start', minHeight: '40px', marginTop: '8px' }}>Guardar cancha</button>
                             </form>
                         )}
 
