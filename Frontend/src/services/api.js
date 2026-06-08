@@ -41,9 +41,11 @@ export const auth = {
 
 // ─── Canchas ───────────────────────────────────────────────────────────────────
 export const canchas = {
-    getAll:  ()     => request('/canchas'),
-    getById: (id)   => request(`/canchas/${id}`),
-    create:  (data) => request('/canchas', { method: 'POST', body: JSON.stringify(data) }),
+    getAll:  ()       => request('/canchas'),
+    getById: (id)     => request(`/canchas/${id}`),
+    create:  (data)   => request('/canchas',      { method: 'POST',   body: JSON.stringify(data) }),
+    update:  (id, d)  => request(`/canchas/${id}`, { method: 'PUT',    body: JSON.stringify(d) }),
+    remove:  (id)     => request(`/canchas/${id}`, { method: 'DELETE' }),
 };
 
 // ─── Reservas ─────────────────────────────────────────────────────────────────

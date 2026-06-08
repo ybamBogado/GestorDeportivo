@@ -18,10 +18,24 @@ import UserPortal from './views/UserPortal.jsx'
 import SelectCancha from './views/SelectCancha.jsx'
 import EquipoDetalle from './views/EquipoDetalle.jsx'
 
-// Nuevas vistas de competencias (ligas y torneos)
+// Competencias
 import PortalCompetencias from './views/Competencias/PortalCompetencias.jsx'
 import DetalleCompetencia from './views/Competencias/DetalleCompetencia.jsx'
 import FormularioEquipo   from './views/Competencias/FormularioEquipo.jsx'
+
+// Legal
+import TerminosCondiciones from './views/Legal/TerminosCondiciones.jsx'
+import PoliticaPrivacidad  from './views/Legal/PoliticaPrivacidad.jsx'
+import LibroQuejas         from './views/Legal/LibroQuejas.jsx'
+
+// Gestión
+import ContactoRRHH from './views/Gestion/ContactoRRHH.jsx'
+
+// Redes sociales (simuladas)
+import FacebookPage  from './views/Social/FacebookPage.jsx'
+import InstagramPage from './views/Social/InstagramPage.jsx'
+import TwitterPage   from './views/Social/TwitterPage.jsx'
+import LinkedInPage  from './views/Social/LinkedInPage.jsx'
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
@@ -44,12 +58,24 @@ createRoot(document.getElementById('root')).render(
               <Route path="/pago/:cobroId"     element={<Pago />} />
               <Route path="/equipos/:id"       element={<EquipoDetalle />} />
 
-              {/* Portal público de Competencias */}
+              {/* Competencias */}
               <Route path="/competencias"                              element={<PortalCompetencias />} />
-              {/* Fixture público (tipo = ligas | torneos) */}
               <Route path="/competencias/:tipo/:id/fixture"            element={<DetalleCompetencia />} />
-              {/* Formulario de inscripción (requiere login) */}
               <Route path="/competencias/:tipo/:id/inscribir"          element={<FormularioEquipo />} />
+
+              {/* Legal */}
+              <Route path="/terminos-condiciones" element={<TerminosCondiciones />} />
+              <Route path="/politica-privacidad"  element={<PoliticaPrivacidad />} />
+              <Route path="/libro-quejas"         element={<LibroQuejas />} />
+
+              {/* Gestión */}
+              <Route path="/contacto-rrhh" element={<ContactoRRHH />} />
+
+              {/* Redes sociales simuladas */}
+              <Route path="/social/facebook"  element={<FacebookPage />} />
+              <Route path="/social/instagram" element={<InstagramPage />} />
+              <Route path="/social/twitter"   element={<TwitterPage />} />
+              <Route path="/social/linkedin"  element={<LinkedInPage />} />
             </Routes>
           </BrowserRouter>
           <ToastContainer />
