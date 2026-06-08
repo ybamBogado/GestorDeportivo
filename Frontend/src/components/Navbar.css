@@ -1,0 +1,22 @@
+.brand-text { color: var(--afa-c3); font-weight:700; font-family: "Roboto Condensed", sans-serif; }
+.navbar-toggler { border: none; }
+.navbar-toggler-icon {
+  display:inline-block;
+  width: 22px;
+  height: 2px;
+  background: var(--afa-c3);
+  position: relative;
+}
+.navbar-toggler-icon::after, .navbar-toggler-icon::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 22px;
+  height: 2px;
+  background: var(--afa-c3);
+}
+.navbar-toggler-icon::before { top: -7px; }
+.navbar-toggler-icon::after { top: 7px; }
+
+/* garantiza cursor en elementos interactivos */
+.navbar-custom .nav-link, .navbar-custom .btn { cursor: pointer; }

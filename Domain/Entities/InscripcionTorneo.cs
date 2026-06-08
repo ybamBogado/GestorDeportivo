@@ -8,6 +8,12 @@ namespace Domain.Entities
         public int EquipoId { get; set; }
         public virtual Equipo Equipo { get; set; } = null!;
         public DateTime FechaInscripcion { get; set; } = DateTime.UtcNow;
-        public string Estado { get; set; } = "Activa";
+
+        // "Pendiente" hasta que se pague, luego "Confirmado"
+        public string Estado { get; set; } = "Pendiente";
+
+        // Cobro generado al inscribirse (para el flujo de pago)
+        public int? CobroId { get; set; }
+        public virtual Cobro? Cobro { get; set; }
     }
 }

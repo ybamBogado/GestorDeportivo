@@ -12,6 +12,12 @@ namespace Domain.Entities
         public int EquipoVisitanteId { get; set; }
         public virtual Equipo EquipoVisitante { get; set; } = null!;
         public DateTime FechaHora { get; set; }
+        // Cancha asignada para este partido
+        public int? CanchaId { get; set; }
+        public virtual Cancha? Cancha { get; set; }
+        // Fixture al que pertenece este partido
+        public int? FixtureId { get; set; }
+        public virtual Fixture? Fixture { get; set; }
         public int? GolesLocal { get; set; }
         public int? GolesVisitante { get; set; }
         public string Estado { get; set; } = "Programado";

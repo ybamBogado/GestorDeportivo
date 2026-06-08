@@ -30,6 +30,7 @@ namespace Infrastructure.Persistence
         public DbSet<InscripcionLiga> InscripcionesLiga { get; set; }
         public DbSet<InscripcionTorneo> InscripcionesTorneo { get; set; }
         public DbSet<Partido> Partidos { get; set; }
+        public DbSet<Fixture> Fixtures { get; set; }
         public DbSet<Clase> Clases { get; set; }
         public DbSet<Asistencia> Asistencias { get; set; }
         
@@ -197,6 +198,10 @@ namespace Infrastructure.Persistence
                     .WithMany(eq => eq.InscripcionesLiga)
                     .HasForeignKey(e => e.EquipoId)
                     .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Cobro)
+                    .WithMany()
+                    .HasForeignKey(e => e.CobroId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<InscripcionTorneo>(entity =>
@@ -212,6 +217,24 @@ namespace Infrastructure.Persistence
                     .WithMany(eq => eq.InscripcionesTorneo)
                     .HasForeignKey(e => e.EquipoId)
                     .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Cobro)
+                    .WithMany()
+                    .HasForeignKey(e => e.CobroId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<Fixture>(entity =>
+            {
+                entity.ToTable("FIXTURE");
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.Liga)
+                    .WithMany(l => l.Fixtures)
+                    .HasForeignKey(e => e.LigaId)
+                    .OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(e => e.Torneo)
+                    .WithMany(t => t.Fixtures)
+                    .HasForeignKey(e => e.TorneoId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
             modelBuilder.Entity<Partido>(entity =>
@@ -234,6 +257,14 @@ namespace Infrastructure.Persistence
                     .WithMany()
                     .HasForeignKey(e => e.EquipoVisitanteId)
                     .OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(e => e.Cancha)
+                    .WithMany()
+                    .HasForeignKey(e => e.CanchaId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(e => e.Fixture)
+                    .WithMany(f => f.Partidos)
+                    .HasForeignKey(e => e.FixtureId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<Clase>(entity =>

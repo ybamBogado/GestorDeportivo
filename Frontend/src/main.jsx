@@ -17,6 +17,11 @@ import TrainerPanel from './views/TrainerPanel.jsx'
 import UserPortal from './views/UserPortal.jsx'
 import SelectCancha from './views/SelectCancha.jsx'
 
+// Nuevas vistas de competencias (ligas y torneos)
+import PortalCompetencias from './views/Competencias/PortalCompetencias.jsx'
+import DetalleCompetencia from './views/Competencias/DetalleCompetencia.jsx'
+import FormularioEquipo   from './views/Competencias/FormularioEquipo.jsx'
+
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 createRoot(document.getElementById('root')).render(
@@ -36,6 +41,13 @@ createRoot(document.getElementById('root')).render(
               <Route path="/my-portal"         element={<UserPortal />} />
               <Route path="/select-cancha"     element={<SelectCancha />} />
               <Route path="/pago/:cobroId"     element={<Pago />} />
+
+              {/* Portal público de Competencias */}
+              <Route path="/competencias"                              element={<PortalCompetencias />} />
+              {/* Fixture público (tipo = ligas | torneos) */}
+              <Route path="/competencias/:tipo/:id/fixture"            element={<DetalleCompetencia />} />
+              {/* Formulario de inscripción (requiere login) */}
+              <Route path="/competencias/:tipo/:id/inscribir"          element={<FormularioEquipo />} />
             </Routes>
           </BrowserRouter>
           <ToastContainer />

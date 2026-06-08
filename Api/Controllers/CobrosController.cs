@@ -103,6 +103,20 @@ namespace Api.Controllers
                 cobro.Reserva.Pago = true;
             }
 
+            // Si el cobro corresponde a una inscripción de liga o torneo, confirmar automáticamente
+            if (paymentApproved)
+            {
+                var inscripcionLiga = await _context.InscripcionesLiga
+                    .FirstOrDefaultAsync(i => i.CobroId == id);
+                if (inscripcionLiga != null)
+                    inscripcionLiga.Estado = "Confirmado";
+
+                var inscripcionTorneo = await _context.InscripcionesTorneo
+                    .FirstOrDefaultAsync(i => i.CobroId == id);
+                if (inscripcionTorneo != null)
+                    inscripcionTorneo.Estado = "Confirmado";
+            }
+
             if (paymentApproved)
             {
                 var recibo = new Recibo

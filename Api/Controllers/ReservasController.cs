@@ -173,28 +173,30 @@ namespace Api.Controllers
 
             var reservaId = await handler.HandleAsync(command);
 
-            // Actualizar los campos extra que el handler no conoce
-            var reservaCreada = await _context.Reservas.FindAsync(reservaId);
-            if (reservaCreada != null)
+            // Auto-create a pending Cobro linked to this reserva
+            var precio = command.Precio <= 0 ? 4500m : command.Precio;
+
+            // Descuento del 15% para equipos que juegan en ligas activas
+            decimal descuento = 0;
+            if (command.PersonaId > 0)
             {
-                reservaCreada.MetodoPago = metodoPago;
-                reservaCreada.FechaExpiracion = expiracion;
-                reservaCreada.CodigoPagoExterno = codigoPago;
-                await _context.SaveChangesAsync();
+                bool jugaEnLiga = await _context.InscripcionesLiga
+                    .AnyAsync(i => i.Equipo.CapitanId == command.PersonaId
+                               && i.Estado == "Confirmado");
+                if (jugaEnLiga)
+                    descuento = precio * 0.15m; // 15% de descuento por ser jugador regular de liga
             }
 
-            // Auto-crear Cobro pendiente vinculado a esta reserva
-            var precio = cancha.PrecioHora > 0 ? cancha.PrecioHora : (command.Precio <= 0 ? 4500m : command.Precio);
             var cobro = new Cobro
             {
-                ReservaId = reservaId,
-                Concepto = $"Alquiler de cancha - Reserva #{reservaId}",
-                Monto = precio,
-                Descuento = 0,
-                MontoFinal = precio,
-                Estado = "Pendiente",
+                ReservaId  = reservaId,
+                Concepto   = $"Alquiler de cancha - Reserva #{reservaId}",
+                Monto      = precio,
+                Descuento  = descuento,
+                MontoFinal = precio - descuento,
+                Estado     = "Pendiente",
                 MetodoPago = string.Empty,
-                Fecha = DateTime.UtcNow
+                Fecha      = DateTime.UtcNow
             };
 
             _context.Cobros.Add(cobro);
@@ -203,13 +205,12 @@ namespace Api.Controllers
             return CreatedAtAction(nameof(GetById), new { id = reservaId }, new
             {
                 reservaId,
-                cobroId = cobro.Id,
-                monto = cobro.Monto,
-                concepto = cobro.Concepto,
-                estado = "Pendiente",
-                fechaExpiracion = expiracion,
-                codigoPagoExterno = codigoPago,
-                metodoPago
+                cobroId        = cobro.Id,
+                monto          = cobro.Monto,
+                descuento      = cobro.Descuento,
+                montoFinal     = cobro.MontoFinal,
+                descuentoAplicado = descuento > 0,
+                concepto       = cobro.Concepto
             });
         }
 
