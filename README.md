@@ -78,19 +78,19 @@ Si ya instalaste las dependencias (`pnpm install`) en una sesión anterior, tu f
 
 ## Vistas del proyecto
 
-##Home
+## Home
 <img width="1917" height="954" alt="image" src="https://github.com/user-attachments/assets/b3f2f766-162c-4223-b981-3b554c31cc84" />
 
-##incripciones 
+## incripciones 
 <img width="1909" height="885" alt="image" src="https://github.com/user-attachments/assets/e096028a-be5c-4c3d-87ee-5fa79d1ee780" />
 
-##Visualización de canchas disponibles
+## Visualización de canchas disponibles
 <img width="1899" height="945" alt="image" src="https://github.com/user-attachments/assets/cc2f910c-00fd-44ff-a644-e1c1d3b73d51" />
 
-##Seleccion de canchas
+## Seleccion de canchas
 <img width="1911" height="942" alt="image" src="https://github.com/user-attachments/assets/8e99a5c7-085b-4460-a184-21d6673d3c11" />
 
-##Sección de pagos (igual para todas las operaciones)
+## Sección de pagos (igual para todas las operaciones)
 
 Tarjeta
 
@@ -105,19 +105,24 @@ Efectivo
 <img width="1920" height="952" alt="image" src="https://github.com/user-attachments/assets/035141cc-ec10-451c-840b-6cac4d58c403" />
 
 
-##Panel usuario
+## Panel usuario
 <img width="1917" height="947" alt="image" src="https://github.com/user-attachments/assets/3d97773d-d867-468f-a099-61cbacfaefb8" />
 
 
 ## Inicio de Sesion 
-<img width="1702" height="493" alt="image" src="https://github.com/user-attachments/assets/fe6c16d3-5dc4-4609-8c73-4640560ccdd4" />
+
+<img width="1916" height="954" alt="image" src="https://github.com/user-attachments/assets/011a7b12-7931-4b4f-aa38-d6d749caa6cd" />
 
 
 ## Registro
 
-<img width="1687" height="493" alt="image" src="https://github.com/user-attachments/assets/4bf38984-a4e9-4de8-8578-368342c6ee80" />
+<img width="1911" height="944" alt="image" src="https://github.com/user-attachments/assets/fe95c84b-1221-417c-aaa6-28f2eeab21d2" />
 
-##Panel de Administrador
+
+## Panel de Administrador
+
+<img width="1916" height="954" alt="image" src="https://github.com/user-attachments/assets/011a7b12-7931-4b4f-aa38-d6d749caa6cd" />
+
 
 Gestion de usuarios
 <img width="1913" height="963" alt="image" src="https://github.com/user-attachments/assets/7804fe4f-6000-4a22-9db6-0dea3cae65ec" />
