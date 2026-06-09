@@ -241,14 +241,19 @@ namespace Api.Controllers
                     FechaHasta = fechaDesde.AddDays(6)
                 };
 
-                for (var i = 0; i < equiposConfirmados.Count; i += 2)
+                var bracketSize = GetBracketSize(equiposConfirmados.Count);
+                var nextRoundSize = Math.Max(1, bracketSize / 2);
+                var playInMatchCount = Math.Max(1, equiposConfirmados.Count - nextRoundSize);
+                var byeCount = Math.Max(0, equiposConfirmados.Count - (playInMatchCount * 2));
+                var equiposEnPlayIn = equiposConfirmados.Skip(byeCount).ToList();
+
+                for (var i = 0; i + 1 < equiposEnPlayIn.Count; i += 2)
                 {
-                    if (i + 1 >= equiposConfirmados.Count) break;
                     fixture.Partidos.Add(new Partido
                     {
                         TorneoId          = torneo.Id,
-                        EquipoLocalId     = equiposConfirmados[i],
-                        EquipoVisitanteId = equiposConfirmados[i + 1],
+                        EquipoLocalId     = equiposEnPlayIn[i],
+                        EquipoVisitanteId = equiposEnPlayIn[i + 1],
                         FechaHora         = fechaDesde.AddHours(i),
                         Estado            = "Programado"
                     });
@@ -270,6 +275,15 @@ namespace Api.Controllers
                 modalidad        = esTodosVsTodos ? "TodosVsTodos" : "Eliminacion",
                 fixtures         = fixtures.Select(f => new { f.Numero, f.FechaDesde, f.FechaHasta, Partidos = f.Partidos.Count })
             });
+        }
+
+        private static int GetBracketSize(int teamCount)
+        {
+            var size = 1;
+            while (size < Math.Max(2, teamCount))
+                size *= 2;
+
+            return size;
         }
 
         [HttpPut("partidos/{partidoId}/resultado")]

@@ -456,6 +456,33 @@ export default function AdminPanel() {
         printWindow.document.close();
     };
 
+    const getBracketSize = (teamCount) => {
+        let size = 1;
+        while (size < Math.max(2, teamCount || 2)) size *= 2;
+        return size;
+    };
+
+    const getTorneoRoundName = (teamCount, roundNumber) => {
+        let remaining = getBracketSize(teamCount);
+        for (let round = 1; round < roundNumber; round += 1) remaining = Math.max(2, Math.floor(remaining / 2));
+        if (remaining <= 2) return 'Final';
+        if (remaining <= 4) return 'Semifinal';
+        if (remaining <= 8) return 'Cuartos';
+        if (remaining <= 16) return 'Octavos';
+        return `Ronda de ${remaining}`;
+    };
+
+    const getTorneoFixtures = (torneoDetails) => (torneoDetails?.fixtures || [])
+        .slice()
+        .sort((a, b) => (a.numero || 0) - (b.numero || 0))
+        .map(fixture => ({
+            ...fixture,
+            partidos: (torneoDetails?.partidos || [])
+                .filter(partido => partido.fixtureId === fixture.id)
+                .slice()
+                .sort((a, b) => new Date(a.fechaHora || 0) - new Date(b.fechaHora || 0))
+        }));
+
     return (
         <main className="admin-shell">
             <aside className="admin-sidebar">
@@ -1947,6 +1974,7 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
 
     const [selectedTorneoId, setSelectedTorneoId] = useState(null);
     const [torneoDetails, setTorneoDetails] = useState(null);
+    const [selectedTorneoPhaseIndex, setSelectedTorneoPhaseIndex] = useState(0);
 
     // Confirm modal state (local to this component)
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
@@ -2000,6 +2028,12 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
 
     // Load detailed Liga
     const loadLigaDetails = async (id) => {
+        if (selectedLigaId === id) {
+            setSelectedLigaId(null);
+            setLigaDetails(null);
+            return;
+        }
+
         try {
             const res = await fetch(`${API_URL}/ligas/${id}`);
             if (res.ok) {
@@ -2018,12 +2052,20 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
 
     // Load detailed Torneo
     const loadTorneoDetails = async (id) => {
+        if (selectedTorneoId === id) {
+            setSelectedTorneoId(null);
+            setTorneoDetails(null);
+            setSelectedTorneoPhaseIndex(0);
+            return;
+        }
+
         try {
             const res = await fetch(`${API_URL}/torneos/${id}`);
             if (res.ok) {
                 const data = await res.json();
                 setTorneoDetails(data);
                 setSelectedTorneoId(id);
+                setSelectedTorneoPhaseIndex(0);
                 setSelectedLigaId(null);
                 setLigaDetails(null);
             } else {
@@ -2523,6 +2565,412 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                             </div>
                         </div>
                     )}
+
+                    {selectedTorneoId && torneoDetails && (
+                        <div style={{ marginTop: 20, marginLeft: 'auto', width: 'min(100%, 900px)', padding: 20, background: 'linear-gradient(180deg, rgba(49,217,79,0.06), rgba(255,255,255,0.02))', border: '1px solid rgba(149, 255, 172, 0.12)', borderRadius: 14, boxShadow: '0 20px 40px rgba(0,0,0,0.16)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                                <div>
+                                    <h3 style={{ marginBottom: 6 }}>Detalle del Torneo: <span style={{ color: '#31d94f' }}>{torneoDetails.nombre}</span></h3>
+                                    <p style={{ margin: 0, color: '#8ca092', fontSize: '0.88rem' }}>Podes cerrarlo tocando otra vez "Ver detalle" o desde este panel.</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span className={`pill ${torneoDetails.estado === 'Abierto' ? 'success' : torneoDetails.estado === 'En curso' ? 'pending' : 'danger'}`}>{torneoDetails.estado}</span>
+                                    <button className="danger" onClick={() => { setSelectedTorneoId(null); setTorneoDetails(null); setSelectedTorneoPhaseIndex(0); }}>Ocultar</button>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 0.95fr) minmax(0, 1.35fr)', gap: '20px' }}>
+                                <div>
+                                    {torneoDetails.estado === 'Abierto' && (torneoDetails.inscripciones?.length || 0) < torneoDetails.cupoEquipos && (
+                                        <div style={{ marginBottom: 18, padding: 14, background: 'rgba(49,217,79,0.06)', border: '1px solid rgba(49,217,79,0.18)', borderRadius: 10 }}>
+                                            <h4 style={{ marginBottom: 10 }}>Inscribir Equipo</h4>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <select
+                                                    value={inscribirEquipoId}
+                                                    onChange={e => setInscribirEquipoId(e.target.value)}
+                                                    style={{ minHeight: 38, background: '#080c0a', color: '#fff', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 8, padding: '0 8px', flex: 1 }}
+                                                >
+                                                    <option value="">Seleccionar Equipo</option>
+                                                    {equipos
+                                                        .filter(eq => !torneoDetails.inscripciones?.some(ins => ins.equipoId === eq.id))
+                                                        .map(eq => (
+                                                            <option key={eq.id} value={eq.id}>{eq.nombre}</option>
+                                                        ))
+                                                    }
+                                                </select>
+                                                <button
+                                                    onClick={handleInscribirEquipoTorneo}
+                                                    className="primary-action"
+                                                    style={{ minHeight: 38, padding: '0 12px', fontSize: '0.85rem' }}
+                                                    disabled={!inscribirEquipoId}
+                                                >
+                                                    Inscribir
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <h4 style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8, marginBottom: 12 }}>Equipos Inscriptos ({torneoDetails.inscripciones?.length || 0} / {torneoDetails.cupoEquipos})</h4>
+                                    {torneoDetails.inscripciones?.length === 0 ? (
+                                        <p style={{ color: '#8ca092', fontSize: '0.85rem' }}>No hay equipos inscriptos.</p>
+                                    ) : (
+                                        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 6 }}>
+                                            {torneoDetails.inscripciones?.map(i => (
+                                                <li key={i.id} style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                                    <span>âš½ {i.equipo?.nombre || `Equipo #${i.equipoId}`}</span>
+                                                    <span style={{ color: '#8ca092', fontSize: '0.75rem' }}>{i.equipo?.categoria || 'Libre'}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <h4 style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8, marginBottom: 12 }}>Fixture por Fases</h4>
+
+                                    {(!torneoDetails.partidos || torneoDetails.partidos.length === 0) ? (
+                                        <div style={{ padding: 20, textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: 8 }}>
+                                            <p style={{ color: '#8ca092', marginBottom: 14, fontSize: '0.9rem' }}>El fixture aun no ha sido generado para este torneo.</p>
+                                            {(torneoDetails.inscripciones?.length || 0) >= 2 ? (
+                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                                                    <input
+                                                        type="date"
+                                                        value={fixtureFechaInicio}
+                                                        onChange={e => setFixtureFechaInicio(e.target.value)}
+                                                        style={{ width: 'auto', minHeight: 38, padding: '0 10px', background: '#080c0a', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 8, color: '#fff' }}
+                                                    />
+                                                    <button onClick={handleGenerarFixtureTorneo} className="primary-action" style={{ minHeight: 38, padding: '0 16px' }}>
+                                                        Generar Fixture
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <p style={{ color: '#ff9a8f', fontSize: '0.85rem', fontWeight: 'bold' }}>Se necesitan al menos 2 equipos inscriptos para generar el fixture.</p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ display: 'grid', gap: 12, marginBottom: 14 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedTorneoPhaseIndex(index => Math.max(0, index - 1))}
+                                                        disabled={selectedTorneoPhaseIndex === 0}
+                                                        style={{ minWidth: 42, minHeight: 38, borderRadius: 10, border: '1px solid rgba(149,255,172,0.18)', background: 'rgba(255,255,255,0.03)', color: '#fff' }}
+                                                    >
+                                                        <i className="bi bi-chevron-left"></i>
+                                                    </button>
+                                                    <div style={{ flex: 1, minWidth: 220, textAlign: 'center', padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(149,255,172,0.1)' }}>
+                                                        <div style={{ color: '#31d94f', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                                                            {getTorneoFixtures(torneoDetails)[selectedTorneoPhaseIndex] ? getTorneoRoundName((torneoDetails?.inscripciones?.filter(i => i.estado === 'Confirmado').length || 0), getTorneoFixtures(torneoDetails)[selectedTorneoPhaseIndex].numero) : 'Fase'}
+                                                        </div>
+                                                        <div style={{ color: '#8ca092', fontSize: '0.78rem', marginTop: 4 }}>
+                                                            {getTorneoFixtures(torneoDetails)[selectedTorneoPhaseIndex] ? `Jornada ${getTorneoFixtures(torneoDetails)[selectedTorneoPhaseIndex].numero}` : 'Sin fase seleccionada'}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedTorneoPhaseIndex(index => Math.min(getTorneoFixtures(torneoDetails).length - 1, index + 1))}
+                                                        disabled={selectedTorneoPhaseIndex >= getTorneoFixtures(torneoDetails).length - 1}
+                                                        style={{ minWidth: 42, minHeight: 38, borderRadius: 10, border: '1px solid rgba(149,255,172,0.18)', background: 'rgba(255,255,255,0.03)', color: '#fff' }}
+                                                    >
+                                                        <i className="bi bi-chevron-right"></i>
+                                                    </button>
+                                                </div>
+
+                                                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                                    {getTorneoFixtures(torneoDetails).map((fixture, index) => (
+                                                        <button
+                                                            key={fixture.id}
+                                                            type="button"
+                                                            onClick={() => setSelectedTorneoPhaseIndex(index)}
+                                                            style={{
+                                                                minWidth: 96,
+                                                                minHeight: 34,
+                                                                borderRadius: 999,
+                                                                border: index === selectedTorneoPhaseIndex ? '1px solid #31d94f' : '1px solid rgba(149,255,172,0.12)',
+                                                                background: index === selectedTorneoPhaseIndex ? 'rgba(49,217,79,0.16)' : 'rgba(255,255,255,0.02)',
+                                                                color: index === selectedTorneoPhaseIndex ? '#31d94f' : '#d9e5d8',
+                                                                fontWeight: 700
+                                                            }}
+                                                        >
+                                                            {getTorneoRoundName((torneoDetails?.inscripciones?.filter(i => i.estado === 'Confirmado').length || 0), fixture.numero)}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {getTorneoFixtures(torneoDetails)[selectedTorneoPhaseIndex] && (
+                                                <div className="data-table" style={{ maxHeight: 360, overflow: 'auto' }}>
+                                                    <table>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Fecha/Hora</th>
+                                                                <th>Local</th>
+                                                                <th>Resultado</th>
+                                                                <th>Visitante</th>
+                                                                <th>Estado</th>
+                                                                <th>Acciones</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {getTorneoFixtures(torneoDetails)[selectedTorneoPhaseIndex].partidos.map(p => (
+                                                                <tr key={p.id}>
+                                                                    <td style={{ fontSize: '0.8rem' }}>{formatLocalDateTime(p.fechaHora)}</td>
+                                                                    <td style={{ fontWeight: p.golesLocal > p.golesVisitante ? 'bold' : 'normal', color: p.golesLocal > p.golesVisitante ? '#31d94f' : '#fff' }}>
+                                                                        {p.equipoLocal?.nombre || `Equipo #${p.equipoLocalId}`}
+                                                                    </td>
+                                                                    <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.05rem', color: '#4ade80' }}>
+                                                                        {p.estado === 'Finalizado' ? `${p.golesLocal} - ${p.golesVisitante}` : 'vs'}
+                                                                    </td>
+                                                                    <td style={{ fontWeight: p.golesVisitante > p.golesLocal ? 'bold' : 'normal', color: p.golesVisitante > p.golesLocal ? '#31d94f' : '#fff' }}>
+                                                                        {p.equipoVisitante?.nombre || `Equipo #${p.equipoVisitanteId}`}
+                                                                    </td>
+                                                                    <td>
+                                                                        <span className={`pill ${p.estado === 'Finalizado' ? 'success' : 'neutral'}`}>{p.estado}</span>
+                                                                    </td>
+                                                                    <td className="table-actions">
+                                                                        {p.estado !== 'Finalizado' && editingMatchId !== p.id && (
+                                                                            <button onClick={() => { setEditingMatchId(p.id); setMatchResult({ golesLocal: 0, golesVisitante: 0 }); }}>
+                                                                                <i className="bi bi-pencil-square"></i> Resultado
+                                                                            </button>
+                                                                        )}
+                                                                        {editingMatchId === p.id && (
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                                <input
+                                                                                    type="number" min="0" style={{ width: 45, minHeight: 30, padding: 2, textAlign: 'center' }}
+                                                                                    value={matchResult.golesLocal}
+                                                                                    onChange={e => setMatchResult({ ...matchResult, golesLocal: e.target.value })}
+                                                                                />
+                                                                                <span>-</span>
+                                                                                <input
+                                                                                    type="number" min="0" style={{ width: 45, minHeight: 30, padding: 2, textAlign: 'center' }}
+                                                                                    value={matchResult.golesVisitante}
+                                                                                    onChange={e => setMatchResult({ ...matchResult, golesVisitante: e.target.value })}
+                                                                                />
+                                                                                <button onClick={() => handleSaveMatchResult(p.id, false)} style={{ padding: '4px 8px', background: '#31d94f', color: '#000', border: 0, borderRadius: 4 }}>
+                                                                                    <i className="bi bi-floppy"></i>
+                                                                                </button>
+                                                                                <button onClick={() => setEditingMatchId(null)} style={{ padding: '4px 8px', background: '#ef4444', color: '#fff', border: 0, borderRadius: 4 }}>
+                                                                                    <i className="bi bi-x-lg"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {false && selectedTorneoId && torneoDetails && (
+                        <div style={{ marginTop: 20, marginLeft: 'auto', width: 'min(100%, 900px)', padding: 20, background: 'linear-gradient(180deg, rgba(49,217,79,0.06), rgba(255,255,255,0.02))', border: '1px solid rgba(149, 255, 172, 0.12)', borderRadius: 14, boxShadow: '0 20px 40px rgba(0,0,0,0.16)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                                <div>
+                                    <h3 style={{ marginBottom: 6 }}>Detalle del Torneo: <span style={{ color: '#31d94f' }}>{torneoDetails.nombre}</span></h3>
+                                    <p style={{ margin: 0, color: '#8ca092', fontSize: '0.88rem' }}>PodÃ©s cerrarlo tocando otra vez "Ver detalle" o desde este panel.</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span className={`pill ${torneoDetails.estado === 'Abierto' ? 'success' : torneoDetails.estado === 'En curso' ? 'pending' : 'danger'}`}>{torneoDetails.estado}</span>
+                                    <button className="danger" onClick={() => { setSelectedTorneoId(null); setTorneoDetails(null); setSelectedTorneoPhaseIndex(0); }}>Ocultar</button>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 0.95fr) minmax(0, 1.35fr)', gap: '20px' }}>
+                                <div>
+                                    {torneoDetails.estado === 'Abierto' && (torneoDetails.inscripciones?.length || 0) < torneoDetails.cupoEquipos && (
+                                        <div style={{ marginBottom: 18, padding: 14, background: 'rgba(49,217,79,0.06)', border: '1px solid rgba(49,217,79,0.18)', borderRadius: 10 }}>
+                                            <h4 style={{ marginBottom: 10 }}>Inscribir Equipo</h4>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <select
+                                                    value={inscribirEquipoId}
+                                                    onChange={e => setInscribirEquipoId(e.target.value)}
+                                                    style={{ minHeight: 38, background: '#080c0a', color: '#fff', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 8, padding: '0 8px', flex: 1 }}
+                                                >
+                                                    <option value="">Seleccionar Equipo</option>
+                                                    {equipos
+                                                        .filter(eq => !torneoDetails.inscripciones?.some(ins => ins.equipoId === eq.id))
+                                                        .map(eq => (
+                                                            <option key={eq.id} value={eq.id}>{eq.nombre}</option>
+                                                        ))
+                                                    }
+                                                </select>
+                                                <button
+                                                    onClick={handleInscribirEquipoTorneo}
+                                                    className="primary-action"
+                                                    style={{ minHeight: 38, padding: '0 12px', fontSize: '0.85rem' }}
+                                                    disabled={!inscribirEquipoId}
+                                                >
+                                                    Inscribir
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <h4 style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8, marginBottom: 12 }}>Equipos Inscriptos ({torneoDetails.inscripciones?.length || 0} / {torneoDetails.cupoEquipos})</h4>
+                                    {torneoDetails.inscripciones?.length === 0 ? (
+                                        <p style={{ color: '#8ca092', fontSize: '0.85rem' }}>No hay equipos inscriptos.</p>
+                                    ) : (
+                                        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 6 }}>
+                                            {torneoDetails.inscripciones?.map(i => (
+                                                <li key={i.id} style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                                    <span>âš½ {i.equipo?.nombre || `Equipo #${i.equipoId}`}</span>
+                                                    <span style={{ color: '#8ca092', fontSize: '0.75rem' }}>{i.equipo?.categoria || 'Libre'}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <h4 style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8, marginBottom: 12 }}>Fixture por Fases</h4>
+
+                                    {(!torneoDetails.partidos || torneoDetails.partidos.length === 0) ? (
+                                        <div style={{ padding: 20, textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: 8 }}>
+                                            <p style={{ color: '#8ca092', marginBottom: 14, fontSize: '0.9rem' }}>El fixture aÃºn no ha sido generado para este torneo.</p>
+                                            {(torneoDetails.inscripciones?.length || 0) >= 2 ? (
+                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                                                    <input
+                                                        type="date"
+                                                        value={fixtureFechaInicio}
+                                                        onChange={e => setFixtureFechaInicio(e.target.value)}
+                                                        style={{ width: 'auto', minHeight: 38, padding: '0 10px', background: '#080c0a', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 8, color: '#fff' }}
+                                                    />
+                                                    <button onClick={handleGenerarFixtureTorneo} className="primary-action" style={{ minHeight: 38, padding: '0 16px' }}>
+                                                        Generar Fixture
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <p style={{ color: '#ff9a8f', fontSize: '0.85rem', fontWeight: 'bold' }}>Se necesitan al menos 2 equipos inscriptos para generar el fixture.</p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ display: 'grid', gap: 12, marginBottom: 14 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedTorneoPhaseIndex(index => Math.max(0, index - 1))}
+                                                        disabled={selectedTorneoPhaseIndex === 0}
+                                                        style={{ minWidth: 42, minHeight: 38, borderRadius: 10, border: '1px solid rgba(149,255,172,0.18)', background: 'rgba(255,255,255,0.03)', color: '#fff' }}
+                                                    >
+                                                        <i className="bi bi-chevron-left"></i>
+                                                    </button>
+                                                    <div style={{ flex: 1, minWidth: 220, textAlign: 'center', padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(149,255,172,0.1)' }}>
+                                                        <div style={{ color: '#31d94f', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                                                            {torneoSelectedFixture ? getTorneoRoundName(torneoConfirmedTeams, torneoSelectedFixture.numero) : 'Fase'}
+                                                        </div>
+                                                        <div style={{ color: '#8ca092', fontSize: '0.78rem', marginTop: 4 }}>
+                                                            {torneoSelectedFixture ? `Jornada ${torneoSelectedFixture.numero}` : 'Sin fase seleccionada'}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedTorneoPhaseIndex(index => Math.min(torneoFixtures.length - 1, index + 1))}
+                                                        disabled={selectedTorneoPhaseIndex >= torneoFixtures.length - 1}
+                                                        style={{ minWidth: 42, minHeight: 38, borderRadius: 10, border: '1px solid rgba(149,255,172,0.18)', background: 'rgba(255,255,255,0.03)', color: '#fff' }}
+                                                    >
+                                                        <i className="bi bi-chevron-right"></i>
+                                                    </button>
+                                                </div>
+
+                                                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                                    {torneoFixtures.map((fixture, index) => (
+                                                        <button
+                                                            key={fixture.id}
+                                                            type="button"
+                                                            onClick={() => setSelectedTorneoPhaseIndex(index)}
+                                                            style={{
+                                                                minWidth: 96,
+                                                                minHeight: 34,
+                                                                borderRadius: 999,
+                                                                border: index === selectedTorneoPhaseIndex ? '1px solid #31d94f' : '1px solid rgba(149,255,172,0.12)',
+                                                                background: index === selectedTorneoPhaseIndex ? 'rgba(49,217,79,0.16)' : 'rgba(255,255,255,0.02)',
+                                                                color: index === selectedTorneoPhaseIndex ? '#31d94f' : '#d9e5d8',
+                                                                fontWeight: 700
+                                                            }}
+                                                        >
+                                                            {getTorneoRoundName(torneoConfirmedTeams, fixture.numero)}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {torneoSelectedFixture && (
+                                                <div className="data-table" style={{ maxHeight: 360, overflow: 'auto' }}>
+                                                    <table>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Fecha/Hora</th>
+                                                                <th>Local</th>
+                                                                <th>Resultado</th>
+                                                                <th>Visitante</th>
+                                                                <th>Estado</th>
+                                                                <th>Acciones</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {torneoSelectedFixture.partidos.map(p => (
+                                                                <tr key={p.id}>
+                                                                    <td style={{ fontSize: '0.8rem' }}>{formatLocalDateTime(p.fechaHora)}</td>
+                                                                    <td style={{ fontWeight: p.golesLocal > p.golesVisitante ? 'bold' : 'normal', color: p.golesLocal > p.golesVisitante ? '#31d94f' : '#fff' }}>
+                                                                        {p.equipoLocal?.nombre || `Equipo #${p.equipoLocalId}`}
+                                                                    </td>
+                                                                    <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.05rem', color: '#4ade80' }}>
+                                                                        {p.estado === 'Finalizado' ? `${p.golesLocal} - ${p.golesVisitante}` : 'vs'}
+                                                                    </td>
+                                                                    <td style={{ fontWeight: p.golesVisitante > p.golesLocal ? 'bold' : 'normal', color: p.golesVisitante > p.golesLocal ? '#31d94f' : '#fff' }}>
+                                                                        {p.equipoVisitante?.nombre || `Equipo #${p.equipoVisitanteId}`}
+                                                                    </td>
+                                                                    <td>
+                                                                        <span className={`pill ${p.estado === 'Finalizado' ? 'success' : 'neutral'}`}>{p.estado}</span>
+                                                                    </td>
+                                                                    <td className="table-actions">
+                                                                        {p.estado !== 'Finalizado' && editingMatchId !== p.id && (
+                                                                            <button onClick={() => { setEditingMatchId(p.id); setMatchResult({ golesLocal: 0, golesVisitante: 0 }); }}>
+                                                                                <i className="bi bi-pencil-square"></i> Resultado
+                                                                            </button>
+                                                                        )}
+                                                                        {editingMatchId === p.id && (
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                                <input
+                                                                                    type="number" min="0" style={{ width: 45, minHeight: 30, padding: 2, textAlign: 'center' }}
+                                                                                    value={matchResult.golesLocal}
+                                                                                    onChange={e => setMatchResult({ ...matchResult, golesLocal: e.target.value })}
+                                                                                />
+                                                                                <span>-</span>
+                                                                                <input
+                                                                                    type="number" min="0" style={{ width: 45, minHeight: 30, padding: 2, textAlign: 'center' }}
+                                                                                    value={matchResult.golesVisitante}
+                                                                                    onChange={e => setMatchResult({ ...matchResult, golesVisitante: e.target.value })}
+                                                                                />
+                                                                                <button onClick={() => handleSaveMatchResult(p.id, false)} style={{ padding: '4px 8px', background: '#31d94f', color: '#000', border: 0, borderRadius: 4 }}>
+                                                                                    <i className="bi bi-floppy"></i>
+                                                                                </button>
+                                                                                <button onClick={() => setEditingMatchId(null)} style={{ padding: '4px 8px', background: '#ef4444', color: '#fff', border: 0, borderRadius: 4 }}>
+                                                                                    <i className="bi bi-x-lg"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
 
@@ -2631,7 +3079,9 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                                     </span>
                                                 </td>
                                                 <td className="table-actions">
-                                                    <button onClick={() => loadTorneoDetails(t.id)}>🔍 Ver Detalle</button>
+                                                    <button onClick={() => loadTorneoDetails(t.id)}>
+                                                        <i className={`bi ${selectedTorneoId === t.id ? 'bi-eye-slash' : 'bi-search'}`}></i> {selectedTorneoId === t.id ? 'Ocultar' : 'Ver Detalle'}
+                                                    </button>
                                                     {t.estado !== 'Cancelado' && (
                                                         <button className="danger" onClick={() => handleCancelTorneo(t.id)}>Cancelar</button>
                                                     )}
@@ -2644,7 +3094,7 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                         )
                     )}
 
-                    {selectedTorneoId && torneoDetails && (
+                    {false && selectedTorneoId && torneoDetails && (
                         <div style={{ marginTop: 20, padding: 20, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(149, 255, 172, 0.08)', borderRadius: 8 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                                 <h3>Detalle del Torneo: <span style={{ color: '#31d94f' }}>{torneoDetails.nombre}</span></h3>

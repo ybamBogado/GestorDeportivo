@@ -108,17 +108,12 @@ namespace Api.Controllers
                 var currentFixture = torneo.Fixtures.FirstOrDefault(f => f.Id == partido.FixtureId);
                 if (currentFixture != null && currentFixture.Partidos.All(p => p.Estado == "Finalizado"))
                 {
-                    var activeTeams = GetActiveTeamsBeforeFixture(torneo, currentFixture);
-                    var participants = currentFixture.Partidos
-                        .SelectMany(p => new[] { p.EquipoLocalId, p.EquipoVisitanteId })
-                        .Distinct()
-                        .ToList();
-                    var byeTeams = activeTeams.Except(participants).ToList();
                     var winners = currentFixture.Partidos
-                        .OrderBy(p => p.Id)
+                        .OrderBy(p => p.FechaHora)
+                        .ThenBy(p => p.Id)
                         .Select(GetWinnerId)
                         .ToList();
-                    var classified = winners.Concat(byeTeams).Distinct().OrderBy(teamId => teamId).ToList();
+                    var classified = GetQualifiedTeamsForNextRound(torneo, currentFixture, winners);
 
                     if (classified.Count <= 1)
                     {
@@ -154,33 +149,24 @@ namespace Api.Controllers
                 ? partido.EquipoLocalId
                 : partido.EquipoVisitanteId;
 
-        private static List<int> GetActiveTeamsBeforeFixture(Torneo torneo, Fixture targetFixture)
+        private static List<int> GetQualifiedTeamsForNextRound(Torneo torneo, Fixture currentFixture, List<int> winners)
         {
-            var activeTeams = torneo.Inscripciones
+            if (currentFixture.Numero > 1)
+                return winners;
+
+            var confirmedTeams = torneo.Inscripciones
                 .Where(i => i.Estado == "Confirmado")
                 .Select(i => i.EquipoId)
                 .Distinct()
                 .OrderBy(id => id)
                 .ToList();
 
-            foreach (var fixture in torneo.Fixtures.OrderBy(f => f.Numero).ThenBy(f => f.Id))
-            {
-                if (fixture.Id == targetFixture.Id)
-                    break;
+            var bracketSize = GetBracketSize(confirmedTeams.Count);
+            var nextRoundSize = Math.Max(1, bracketSize / 2);
+            var byeCount = Math.Max(0, confirmedTeams.Count - (winners.Count * 2));
+            var byeTeams = confirmedTeams.Take(byeCount).ToList();
 
-                var participants = fixture.Partidos
-                    .SelectMany(p => new[] { p.EquipoLocalId, p.EquipoVisitanteId })
-                    .Distinct()
-                    .ToList();
-                var byeTeams = activeTeams.Except(participants);
-                var winners = fixture.Partidos
-                    .Where(p => p.Estado == "Finalizado" && p.GolesLocal.HasValue && p.GolesVisitante.HasValue)
-                    .Select(GetWinnerId);
-
-                activeTeams = winners.Concat(byeTeams).Distinct().OrderBy(id => id).ToList();
-            }
-
-            return activeTeams;
+            return InterleaveByeTeamsAndWinners(byeTeams, winners, nextRoundSize);
         }
 
         private static Fixture CreateNextRound(int torneoId, Fixture currentFixture, List<int> classified)
@@ -207,6 +193,39 @@ namespace Api.Controllers
             }
 
             return nextFixture;
+        }
+
+        private static int GetBracketSize(int teamCount)
+        {
+            var size = 1;
+            while (size < Math.Max(2, teamCount))
+                size *= 2;
+
+            return size;
+        }
+
+        private static List<int> InterleaveByeTeamsAndWinners(List<int> byeTeams, List<int> winners, int expectedCount)
+        {
+            var ordered = new List<int>(expectedCount);
+            var byeIndex = 0;
+            var winnerIndex = 0;
+
+            while (ordered.Count < expectedCount && (byeIndex < byeTeams.Count || winnerIndex < winners.Count))
+            {
+                if (byeIndex < byeTeams.Count)
+                    ordered.Add(byeTeams[byeIndex++]);
+
+                if (ordered.Count < expectedCount && winnerIndex < winners.Count)
+                    ordered.Add(winners[winnerIndex++]);
+            }
+
+            while (ordered.Count < expectedCount && byeIndex < byeTeams.Count)
+                ordered.Add(byeTeams[byeIndex++]);
+
+            while (ordered.Count < expectedCount && winnerIndex < winners.Count)
+                ordered.Add(winners[winnerIndex++]);
+
+            return ordered;
         }
 
         /// <summary>
