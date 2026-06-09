@@ -104,7 +104,7 @@ namespace Api.Controllers
             {
                 Nombre           = request.Nombre,
                 Reglamento       = request.Reglamento,
-                Formato          = string.IsNullOrWhiteSpace(request.Formato) ? "EliminacionDirecta" : request.Formato,
+                Formato          = "EliminacionDirecta",
                 Estado           = string.IsNullOrWhiteSpace(request.Estado) ? "Abierto" : request.Estado,
                 CupoEquipos      = request.CupoEquipos <= 0 ? 16 : request.CupoEquipos,
                 ComplejoId       = request.ComplejoId,
@@ -112,7 +112,7 @@ namespace Api.Controllers
                 FechaFin         = request.FechaFin == default ? DateTime.UtcNow.AddMonths(1) : request.FechaFin,
                 Categoria        = string.IsNullOrWhiteSpace(request.Categoria) ? "Primera" : request.Categoria,
                 PremioUSD        = request.PremioUSD < 0 ? 0 : request.PremioUSD,
-                Modalidad        = string.IsNullOrWhiteSpace(request.Modalidad) ? "Eliminacion" : request.Modalidad,
+                Modalidad        = "Eliminacion",
                 CostoInscripcion = request.CostoInscripcion < 0 ? 0 : request.CostoInscripcion
             };
 
@@ -129,7 +129,7 @@ namespace Api.Controllers
 
             torneo.Nombre      = request.Nombre;
             torneo.Reglamento  = request.Reglamento;
-            torneo.Formato     = string.IsNullOrWhiteSpace(request.Formato) ? torneo.Formato : request.Formato;
+            torneo.Formato     = "EliminacionDirecta";
             torneo.Estado      = string.IsNullOrWhiteSpace(request.Estado) ? torneo.Estado : request.Estado;
             torneo.CupoEquipos = request.CupoEquipos <= 0 ? torneo.CupoEquipos : request.CupoEquipos;
             torneo.ComplejoId  = request.ComplejoId;
@@ -137,7 +137,7 @@ namespace Api.Controllers
             if (request.FechaFin != default)                    torneo.FechaFin         = request.FechaFin;
             if (!string.IsNullOrWhiteSpace(request.Categoria))  torneo.Categoria        = request.Categoria;
             if (request.PremioUSD >= 0)                         torneo.PremioUSD        = request.PremioUSD;
-            if (!string.IsNullOrWhiteSpace(request.Modalidad))  torneo.Modalidad        = request.Modalidad;
+            torneo.Modalidad = "Eliminacion";
             if (request.CostoInscripcion >= 0)                  torneo.CostoInscripcion = request.CostoInscripcion;
 
             await _context.SaveChangesAsync();
@@ -164,6 +164,8 @@ namespace Api.Controllers
             var equiposConfirmados = torneo.Inscripciones
                 .Where(i => i.Estado == "Confirmado")
                 .Select(i => i.EquipoId)
+                .Distinct()
+                .OrderBy(id => id)
                 .ToList();
 
             if (equiposConfirmados.Count < 2)
@@ -173,8 +175,7 @@ namespace Api.Controllers
             var fixtures = new List<Fixture>();
             int jornada = 1;
 
-            bool esTodosVsTodos = torneo.Modalidad.Equals("TodosVsTodos", StringComparison.OrdinalIgnoreCase)
-                               || torneo.Formato.Equals("TodosContraTodos", StringComparison.OrdinalIgnoreCase);
+            bool esTodosVsTodos = false;
 
             if (esTodosVsTodos)
             {
@@ -240,14 +241,19 @@ namespace Api.Controllers
                     FechaHasta = fechaDesde.AddDays(6)
                 };
 
-                for (var i = 0; i < equiposConfirmados.Count; i += 2)
+                var bracketSize = GetBracketSize(equiposConfirmados.Count);
+                var nextRoundSize = Math.Max(1, bracketSize / 2);
+                var playInMatchCount = Math.Max(1, equiposConfirmados.Count - nextRoundSize);
+                var byeCount = Math.Max(0, equiposConfirmados.Count - (playInMatchCount * 2));
+                var equiposEnPlayIn = equiposConfirmados.Skip(byeCount).ToList();
+
+                for (var i = 0; i + 1 < equiposEnPlayIn.Count; i += 2)
                 {
-                    if (i + 1 >= equiposConfirmados.Count) break;
                     fixture.Partidos.Add(new Partido
                     {
                         TorneoId          = torneo.Id,
-                        EquipoLocalId     = equiposConfirmados[i],
-                        EquipoVisitanteId = equiposConfirmados[i + 1],
+                        EquipoLocalId     = equiposEnPlayIn[i],
+                        EquipoVisitanteId = equiposEnPlayIn[i + 1],
                         FechaHora         = fechaDesde.AddHours(i),
                         Estado            = "Programado"
                     });
@@ -256,6 +262,8 @@ namespace Api.Controllers
             }
 
             _context.Fixtures.AddRange(fixtures);
+            torneo.Formato = "EliminacionDirecta";
+            torneo.Modalidad = "Eliminacion";
             torneo.Estado = "En curso";
             await _context.SaveChangesAsync();
 
@@ -267,6 +275,15 @@ namespace Api.Controllers
                 modalidad        = esTodosVsTodos ? "TodosVsTodos" : "Eliminacion",
                 fixtures         = fixtures.Select(f => new { f.Numero, f.FechaDesde, f.FechaHasta, Partidos = f.Partidos.Count })
             });
+        }
+
+        private static int GetBracketSize(int teamCount)
+        {
+            var size = 1;
+            while (size < Math.Max(2, teamCount))
+                size *= 2;
+
+            return size;
         }
 
         [HttpPut("partidos/{partidoId}/resultado")]

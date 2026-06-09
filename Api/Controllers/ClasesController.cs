@@ -182,6 +182,16 @@ namespace Api.Controllers
                 Estado = "Pendiente"
             };
             _context.InscripcionesClase.Add(inscripcion);
+
+            var asistencia = new Asistencia
+            {
+                ClaseId = id,
+                UsuarioId = request.UsuarioId,
+                Presente = false,
+                FechaRegistro = DateTime.UtcNow
+            };
+            _context.Asistencias.Add(asistencia);
+
             await _context.SaveChangesAsync();
 
             return Ok(new

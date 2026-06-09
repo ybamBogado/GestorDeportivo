@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -12,6 +12,19 @@ import './AdminPanel.css';
 const todayInput = () => new Date().toISOString().split('T')[0];
 
 const moneyFmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+
+const getKycDetails = (certificadoPdf) => {
+    if (!certificadoPdf) return { role: 'Profesor', pdfUrl: '' };
+    if (certificadoPdf.includes(':')) {
+        const parts = certificadoPdf.split(':');
+        if (parts[0] === 'Entrenador' || parts[0] === 'Profesor') {
+            const role = parts[0];
+            const path = parts.slice(1).join(':');
+            return { role, pdfUrl: path };
+        }
+    }
+    return { role: 'Profesor', pdfUrl: certificadoPdf };
+};
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5071/api/v1';
 
@@ -443,6 +456,33 @@ export default function AdminPanel() {
         printWindow.document.close();
     };
 
+    const getBracketSize = (teamCount) => {
+        let size = 1;
+        while (size < Math.max(2, teamCount || 2)) size *= 2;
+        return size;
+    };
+
+    const getTorneoRoundName = (teamCount, roundNumber) => {
+        let remaining = getBracketSize(teamCount);
+        for (let round = 1; round < roundNumber; round += 1) remaining = Math.max(2, Math.floor(remaining / 2));
+        if (remaining <= 2) return 'Final';
+        if (remaining <= 4) return 'Semifinal';
+        if (remaining <= 8) return 'Cuartos';
+        if (remaining <= 16) return 'Octavos';
+        return `Ronda de ${remaining}`;
+    };
+
+    const getTorneoFixtures = (torneoDetails) => (torneoDetails?.fixtures || [])
+        .slice()
+        .sort((a, b) => (a.numero || 0) - (b.numero || 0))
+        .map(fixture => ({
+            ...fixture,
+            partidos: (torneoDetails?.partidos || [])
+                .filter(partido => partido.fixtureId === fixture.id)
+                .slice()
+                .sort((a, b) => new Date(a.fechaHora || 0) - new Date(b.fechaHora || 0))
+        }));
+
     return (
         <main className="admin-shell">
             <aside className="admin-sidebar">
@@ -591,7 +631,7 @@ export default function AdminPanel() {
                             </button>
                         </div>
                         {showCanchaForm && (
-                            <form className="admin-form" onSubmit={handleCreateCancha}>
+                            <form className="admin-form" onSubmit={handleCreateCancha} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '650px' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '12px' }}>
                                     <div>
                                         <label style={{ fontSize: '0.78rem', color: '#8ca092', fontWeight: 700, display: 'block', marginBottom: 4 }}>Superficie / Nombre</label>
@@ -624,7 +664,7 @@ export default function AdminPanel() {
                                             placeholder="4500" />
                                     </div>
                                 </div>
-                                <button type="submit" className="primary-action" style={{ marginTop: 8 }}>Guardar cancha</button>
+                                <button type="submit" className="primary-action" style={{ alignSelf: 'flex-start', minHeight: '40px', marginTop: '8px' }}>Guardar cancha</button>
                             </form>
                         )}
 
@@ -1246,6 +1286,7 @@ export default function AdminPanel() {
                                             <th>DNI</th>
                                             <th>Contacto</th>
                                             <th>Email</th>
+                                            <th>Puesto Solicitado</th>
                                             <th>Certificado PDF</th>
                                             <th>Acciones</th>
                                         </tr>
@@ -1253,57 +1294,60 @@ export default function AdminPanel() {
                                     <tbody>
                                         {pendingKycUsers.length === 0 ? (
                                             <tr>
-                                                <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#8ca092' }}>
+                                                <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: '#8ca092' }}>
                                                     No hay solicitudes pendientes de validación (KYC).
                                                 </td>
                                             </tr>
                                         ) : (
-                                            pendingKycUsers.map(selectedUser => (
-                                                <tr key={selectedUser.id}>
-                                                    <td>#{selectedUser.id}</td>
-                                                    <td style={{ fontWeight: 'bold' }}>{selectedUser.nombre} {selectedUser.apellido}</td>
-                                                    <td>{selectedUser.dni}</td>
-                                                    <td>
-                                                        <div style={{ fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                            <span><i className="bi bi-telephone-fill text-success me-1"></i> {selectedUser.telefono || '—'}</span>
-                                                            <span style={{ color: '#8ca092' }}><i className="bi bi-geo-alt-fill text-success me-1"></i> {selectedUser.direccion || '—'}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td>{selectedUser.email}</td>
-                                                    <td>
-                                                        <a
-                                                            href={`http://localhost:5071${selectedUser.certificadoPdf}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="pill success text-decoration-none"
-                                                            style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'inline-block', fontWeight: 'bold' }}
-                                                        >
-                                                            <i className="bi bi-file-earmark-pdf-fill me-1"></i> Ver Documento PDF
-                                                        </a>
-                                                    </td>
-                                                    <td className="table-actions">
-                                                        <button
-                                                            onClick={() => handleKycAction(selectedUser, 'Profesor', true)}
-                                                            style={{ backgroundColor: '#1b4332', borderColor: '#2d6a4f', color: '#52b788', padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold' }}
-                                                        >
-                                                            Aprobar Profesor
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleKycAction(selectedUser, 'Entrenador', true)}
-                                                            style={{ backgroundColor: '#0f2c3b', borderColor: '#1b4d66', color: '#3ca6d8', padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold' }}
-                                                        >
-                                                            Aprobar Entrenador
-                                                        </button>
-                                                        <button
-                                                            className="danger"
-                                                            onClick={() => handleKycAction(selectedUser, 'Usuario', false)}
-                                                            style={{ padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold' }}
-                                                        >
-                                                            Rechazar
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))
+                                            pendingKycUsers.map(selectedUser => {
+                                                const { role, pdfUrl } = getKycDetails(selectedUser.certificadoPdf);
+                                                const fullUrl = pdfUrl.startsWith('http') ? pdfUrl : `http://localhost:5071${pdfUrl}`;
+                                                return (
+                                                    <tr key={selectedUser.id}>
+                                                        <td>#{selectedUser.id}</td>
+                                                        <td style={{ fontWeight: 'bold' }}>{selectedUser.nombre} {selectedUser.apellido}</td>
+                                                        <td>{selectedUser.dni}</td>
+                                                        <td>
+                                                            <div style={{ fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                                <span><i className="bi bi-telephone-fill text-success me-1"></i> {selectedUser.telefono || '—'}</span>
+                                                                <span style={{ color: '#8ca092' }}><i className="bi bi-geo-alt-fill text-success me-1"></i> {selectedUser.direccion || '—'}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td>{selectedUser.email}</td>
+                                                        <td>
+                                                            <span className="pill neutral" style={{ fontWeight: 'bold', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                                                                {role}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <a
+                                                                href={fullUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="pill success text-decoration-none"
+                                                                style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'inline-block', fontWeight: 'bold' }}
+                                                            >
+                                                                <i className="bi bi-file-earmark-pdf-fill me-1"></i> Ver Documento PDF
+                                                            </a>
+                                                        </td>
+                                                        <td className="table-actions">
+                                                            <button
+                                                                onClick={() => handleKycAction(selectedUser, role, true)}
+                                                                style={{ backgroundColor: '#1b4332', borderColor: '#2d6a4f', color: '#52b788', padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold' }}
+                                                            >
+                                                                Aprobar
+                                                            </button>
+                                                            <button
+                                                                className="danger"
+                                                                onClick={() => handleKycAction(selectedUser, 'Usuario', false)}
+                                                                style={{ padding: '6px 12px', borderRadius: '4px', fontWeight: 'bold' }}
+                                                            >
+                                                                Rechazar
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
                                         )}
                                     </tbody>
                                 </table>
@@ -1482,18 +1526,22 @@ export default function AdminPanel() {
                                             </div>
                                         )}
                                         {/* PDF */}
-                                        {userDetailPanel.certificadoPdf ? (
-                                            <a href={`http://localhost:5071${userDetailPanel.certificadoPdf}`} target="_blank" rel="noopener noreferrer"
-                                                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(49,217,79,0.07)', border: '1px solid rgba(49,217,79,0.2)', borderRadius: 8, color: '#31d94f', textDecoration: 'none', fontWeight: 700, fontSize: '0.82rem' }}
-                                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(49,217,79,0.15)'}
-                                                onMouseLeave={e => e.currentTarget.style.background = 'rgba(49,217,79,0.07)'}
-                                            >
-                                                <i className="bi bi-file-earmark-pdf-fill" style={{ fontSize: '1.1rem', color: '#ef4444' }}></i>
-                                                <div><div>Ver certificado PDF</div><div style={{ fontSize: '0.7rem', color: '#8ca092', fontWeight: 400 }}>Abrir en nueva pestaña</div></div>
-                                                <i className="bi bi-box-arrow-up-right" style={{ marginLeft: 'auto', fontSize: '0.75rem' }}></i>
-                                            </a>
-                                        ) : (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 8, color: '#8ca092', fontSize: '0.8rem' }}>
+                                        {userDetailPanel.certificadoPdf ? (() => {
+                                            const { pdfUrl } = getKycDetails(userDetailPanel.certificadoPdf);
+                                            const fullUrl = pdfUrl.startsWith('http') ? pdfUrl : `http://localhost:5071${pdfUrl}`;
+                                            return (
+                                                <a href={fullUrl} target="_blank" rel="noopener noreferrer"
+                                                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(49,217,79,0.07)', border: '1px solid rgba(49,217,79,0.2)', borderRadius: 8, color: '#31d94f', textDecoration: 'none', fontWeight: 700, fontSize: '0.82rem' }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(49,217,79,0.15)'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(49,217,79,0.07)'}
+                                                >
+                                                    <i className="bi bi-file-earmark-pdf-fill" style={{ fontSize: '1.1rem', color: '#ef4444' }}></i>
+                                                    <div><div>Ver certificado PDF</div><div style={{ fontSize: '0.7rem', color: '#8ca092', fontWeight: 400 }}>Abrir en nueva pestaña</div></div>
+                                                    <i className="bi bi-box-arrow-up-right" style={{ marginLeft: 'auto', fontSize: '0.75rem' }}></i>
+                                                </a>
+                                            );
+                                        })()
+                                        : (<div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 8, color: '#8ca092', fontSize: '0.8rem' }}>
                                                 <i className="bi bi-file-earmark-x" style={{ color: '#ef4444' }}></i>
                                                 No se subió ningún certificado PDF
                                             </div>
@@ -1926,6 +1974,7 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
 
     const [selectedTorneoId, setSelectedTorneoId] = useState(null);
     const [torneoDetails, setTorneoDetails] = useState(null);
+    const [selectedTorneoPhaseIndex, setSelectedTorneoPhaseIndex] = useState(0);
 
     // Confirm modal state (local to this component)
     const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
@@ -1979,6 +2028,12 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
 
     // Load detailed Liga
     const loadLigaDetails = async (id) => {
+        if (selectedLigaId === id) {
+            setSelectedLigaId(null);
+            setLigaDetails(null);
+            return;
+        }
+
         try {
             const res = await fetch(`${API_URL}/ligas/${id}`);
             if (res.ok) {
@@ -1997,12 +2052,20 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
 
     // Load detailed Torneo
     const loadTorneoDetails = async (id) => {
+        if (selectedTorneoId === id) {
+            setSelectedTorneoId(null);
+            setTorneoDetails(null);
+            setSelectedTorneoPhaseIndex(0);
+            return;
+        }
+
         try {
             const res = await fetch(`${API_URL}/torneos/${id}`);
             if (res.ok) {
                 const data = await res.json();
                 setTorneoDetails(data);
                 setSelectedTorneoId(id);
+                setSelectedTorneoPhaseIndex(0);
                 setSelectedLigaId(null);
                 setLigaDetails(null);
             } else {
@@ -2198,7 +2261,7 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
     const handleSaveMatchResult = async (partidoId, isLiga) => {
         const url = isLiga
             ? `${API_URL}/ligas/partidos/${partidoId}/resultado`
-            : `${API_URL}/torneos/partidos/${partidoId}/resultado`;
+            : `${API_URL}/partidos/${partidoId}/resultado`;
         try {
             const res = await fetch(url, {
                 method: 'PUT',
@@ -2390,6 +2453,32 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                             </button>
                                         </div>
                                     )}
+
+                                    <div style={{ marginTop: 18 }}>
+                                        <h4 style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8, marginBottom: 12 }}>Tabla de Posiciones</h4>
+                                        {ligaDetails.tablaPosiciones?.length ? (
+                                            <div className="data-table" style={{ maxHeight: 260, overflow: 'auto' }}>
+                                                <table>
+                                                    <thead>
+                                                        <tr><th>#</th><th>Equipo</th><th>PJ</th><th>DG</th><th>Pts</th></tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {ligaDetails.tablaPosiciones.map((pos, idx) => (
+                                                            <tr key={pos.equipoId}>
+                                                                <td>{idx + 1}</td>
+                                                                <td style={{ fontWeight: 700 }}>{pos.equipo}</td>
+                                                                <td>{pos.pj}</td>
+                                                                <td>{pos.dg > 0 ? `+${pos.dg}` : pos.dg}</td>
+                                                                <td style={{ color: '#31d94f', fontWeight: 700 }}>{pos.pts}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <p style={{ color: '#8ca092', fontSize: '0.85rem' }}>Sin posiciones disponibles.</p>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Right Column: Fixture */}
@@ -2476,6 +2565,412 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                             </div>
                         </div>
                     )}
+
+                    {selectedTorneoId && torneoDetails && (
+                        <div style={{ marginTop: 20, marginLeft: 'auto', width: 'min(100%, 900px)', padding: 20, background: 'linear-gradient(180deg, rgba(49,217,79,0.06), rgba(255,255,255,0.02))', border: '1px solid rgba(149, 255, 172, 0.12)', borderRadius: 14, boxShadow: '0 20px 40px rgba(0,0,0,0.16)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                                <div>
+                                    <h3 style={{ marginBottom: 6 }}>Detalle del Torneo: <span style={{ color: '#31d94f' }}>{torneoDetails.nombre}</span></h3>
+                                    <p style={{ margin: 0, color: '#8ca092', fontSize: '0.88rem' }}>Podes cerrarlo tocando otra vez "Ver detalle" o desde este panel.</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span className={`pill ${torneoDetails.estado === 'Abierto' ? 'success' : torneoDetails.estado === 'En curso' ? 'pending' : 'danger'}`}>{torneoDetails.estado}</span>
+                                    <button className="danger" onClick={() => { setSelectedTorneoId(null); setTorneoDetails(null); setSelectedTorneoPhaseIndex(0); }}>Ocultar</button>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 0.95fr) minmax(0, 1.35fr)', gap: '20px' }}>
+                                <div>
+                                    {torneoDetails.estado === 'Abierto' && (torneoDetails.inscripciones?.length || 0) < torneoDetails.cupoEquipos && (
+                                        <div style={{ marginBottom: 18, padding: 14, background: 'rgba(49,217,79,0.06)', border: '1px solid rgba(49,217,79,0.18)', borderRadius: 10 }}>
+                                            <h4 style={{ marginBottom: 10 }}>Inscribir Equipo</h4>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <select
+                                                    value={inscribirEquipoId}
+                                                    onChange={e => setInscribirEquipoId(e.target.value)}
+                                                    style={{ minHeight: 38, background: '#080c0a', color: '#fff', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 8, padding: '0 8px', flex: 1 }}
+                                                >
+                                                    <option value="">Seleccionar Equipo</option>
+                                                    {equipos
+                                                        .filter(eq => !torneoDetails.inscripciones?.some(ins => ins.equipoId === eq.id))
+                                                        .map(eq => (
+                                                            <option key={eq.id} value={eq.id}>{eq.nombre}</option>
+                                                        ))
+                                                    }
+                                                </select>
+                                                <button
+                                                    onClick={handleInscribirEquipoTorneo}
+                                                    className="primary-action"
+                                                    style={{ minHeight: 38, padding: '0 12px', fontSize: '0.85rem' }}
+                                                    disabled={!inscribirEquipoId}
+                                                >
+                                                    Inscribir
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <h4 style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8, marginBottom: 12 }}>Equipos Inscriptos ({torneoDetails.inscripciones?.length || 0} / {torneoDetails.cupoEquipos})</h4>
+                                    {torneoDetails.inscripciones?.length === 0 ? (
+                                        <p style={{ color: '#8ca092', fontSize: '0.85rem' }}>No hay equipos inscriptos.</p>
+                                    ) : (
+                                        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 6 }}>
+                                            {torneoDetails.inscripciones?.map(i => (
+                                                <li key={i.id} style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                                    <span>âš½ {i.equipo?.nombre || `Equipo #${i.equipoId}`}</span>
+                                                    <span style={{ color: '#8ca092', fontSize: '0.75rem' }}>{i.equipo?.categoria || 'Libre'}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <h4 style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8, marginBottom: 12 }}>Fixture por Fases</h4>
+
+                                    {(!torneoDetails.partidos || torneoDetails.partidos.length === 0) ? (
+                                        <div style={{ padding: 20, textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: 8 }}>
+                                            <p style={{ color: '#8ca092', marginBottom: 14, fontSize: '0.9rem' }}>El fixture aun no ha sido generado para este torneo.</p>
+                                            {(torneoDetails.inscripciones?.length || 0) >= 2 ? (
+                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                                                    <input
+                                                        type="date"
+                                                        value={fixtureFechaInicio}
+                                                        onChange={e => setFixtureFechaInicio(e.target.value)}
+                                                        style={{ width: 'auto', minHeight: 38, padding: '0 10px', background: '#080c0a', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 8, color: '#fff' }}
+                                                    />
+                                                    <button onClick={handleGenerarFixtureTorneo} className="primary-action" style={{ minHeight: 38, padding: '0 16px' }}>
+                                                        Generar Fixture
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <p style={{ color: '#ff9a8f', fontSize: '0.85rem', fontWeight: 'bold' }}>Se necesitan al menos 2 equipos inscriptos para generar el fixture.</p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ display: 'grid', gap: 12, marginBottom: 14 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedTorneoPhaseIndex(index => Math.max(0, index - 1))}
+                                                        disabled={selectedTorneoPhaseIndex === 0}
+                                                        style={{ minWidth: 42, minHeight: 38, borderRadius: 10, border: '1px solid rgba(149,255,172,0.18)', background: 'rgba(255,255,255,0.03)', color: '#fff' }}
+                                                    >
+                                                        <i className="bi bi-chevron-left"></i>
+                                                    </button>
+                                                    <div style={{ flex: 1, minWidth: 220, textAlign: 'center', padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(149,255,172,0.1)' }}>
+                                                        <div style={{ color: '#31d94f', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                                                            {getTorneoFixtures(torneoDetails)[selectedTorneoPhaseIndex] ? getTorneoRoundName((torneoDetails?.inscripciones?.filter(i => i.estado === 'Confirmado').length || 0), getTorneoFixtures(torneoDetails)[selectedTorneoPhaseIndex].numero) : 'Fase'}
+                                                        </div>
+                                                        <div style={{ color: '#8ca092', fontSize: '0.78rem', marginTop: 4 }}>
+                                                            {getTorneoFixtures(torneoDetails)[selectedTorneoPhaseIndex] ? `Jornada ${getTorneoFixtures(torneoDetails)[selectedTorneoPhaseIndex].numero}` : 'Sin fase seleccionada'}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedTorneoPhaseIndex(index => Math.min(getTorneoFixtures(torneoDetails).length - 1, index + 1))}
+                                                        disabled={selectedTorneoPhaseIndex >= getTorneoFixtures(torneoDetails).length - 1}
+                                                        style={{ minWidth: 42, minHeight: 38, borderRadius: 10, border: '1px solid rgba(149,255,172,0.18)', background: 'rgba(255,255,255,0.03)', color: '#fff' }}
+                                                    >
+                                                        <i className="bi bi-chevron-right"></i>
+                                                    </button>
+                                                </div>
+
+                                                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                                    {getTorneoFixtures(torneoDetails).map((fixture, index) => (
+                                                        <button
+                                                            key={fixture.id}
+                                                            type="button"
+                                                            onClick={() => setSelectedTorneoPhaseIndex(index)}
+                                                            style={{
+                                                                minWidth: 96,
+                                                                minHeight: 34,
+                                                                borderRadius: 999,
+                                                                border: index === selectedTorneoPhaseIndex ? '1px solid #31d94f' : '1px solid rgba(149,255,172,0.12)',
+                                                                background: index === selectedTorneoPhaseIndex ? 'rgba(49,217,79,0.16)' : 'rgba(255,255,255,0.02)',
+                                                                color: index === selectedTorneoPhaseIndex ? '#31d94f' : '#d9e5d8',
+                                                                fontWeight: 700
+                                                            }}
+                                                        >
+                                                            {getTorneoRoundName((torneoDetails?.inscripciones?.filter(i => i.estado === 'Confirmado').length || 0), fixture.numero)}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {getTorneoFixtures(torneoDetails)[selectedTorneoPhaseIndex] && (
+                                                <div className="data-table" style={{ maxHeight: 360, overflow: 'auto' }}>
+                                                    <table>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Fecha/Hora</th>
+                                                                <th>Local</th>
+                                                                <th>Resultado</th>
+                                                                <th>Visitante</th>
+                                                                <th>Estado</th>
+                                                                <th>Acciones</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {getTorneoFixtures(torneoDetails)[selectedTorneoPhaseIndex].partidos.map(p => (
+                                                                <tr key={p.id}>
+                                                                    <td style={{ fontSize: '0.8rem' }}>{formatLocalDateTime(p.fechaHora)}</td>
+                                                                    <td style={{ fontWeight: p.golesLocal > p.golesVisitante ? 'bold' : 'normal', color: p.golesLocal > p.golesVisitante ? '#31d94f' : '#fff' }}>
+                                                                        {p.equipoLocal?.nombre || `Equipo #${p.equipoLocalId}`}
+                                                                    </td>
+                                                                    <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.05rem', color: '#4ade80' }}>
+                                                                        {p.estado === 'Finalizado' ? `${p.golesLocal} - ${p.golesVisitante}` : 'vs'}
+                                                                    </td>
+                                                                    <td style={{ fontWeight: p.golesVisitante > p.golesLocal ? 'bold' : 'normal', color: p.golesVisitante > p.golesLocal ? '#31d94f' : '#fff' }}>
+                                                                        {p.equipoVisitante?.nombre || `Equipo #${p.equipoVisitanteId}`}
+                                                                    </td>
+                                                                    <td>
+                                                                        <span className={`pill ${p.estado === 'Finalizado' ? 'success' : 'neutral'}`}>{p.estado}</span>
+                                                                    </td>
+                                                                    <td className="table-actions">
+                                                                        {p.estado !== 'Finalizado' && editingMatchId !== p.id && (
+                                                                            <button onClick={() => { setEditingMatchId(p.id); setMatchResult({ golesLocal: 0, golesVisitante: 0 }); }}>
+                                                                                <i className="bi bi-pencil-square"></i> Resultado
+                                                                            </button>
+                                                                        )}
+                                                                        {editingMatchId === p.id && (
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                                <input
+                                                                                    type="number" min="0" style={{ width: 45, minHeight: 30, padding: 2, textAlign: 'center' }}
+                                                                                    value={matchResult.golesLocal}
+                                                                                    onChange={e => setMatchResult({ ...matchResult, golesLocal: e.target.value })}
+                                                                                />
+                                                                                <span>-</span>
+                                                                                <input
+                                                                                    type="number" min="0" style={{ width: 45, minHeight: 30, padding: 2, textAlign: 'center' }}
+                                                                                    value={matchResult.golesVisitante}
+                                                                                    onChange={e => setMatchResult({ ...matchResult, golesVisitante: e.target.value })}
+                                                                                />
+                                                                                <button onClick={() => handleSaveMatchResult(p.id, false)} style={{ padding: '4px 8px', background: '#31d94f', color: '#000', border: 0, borderRadius: 4 }}>
+                                                                                    <i className="bi bi-floppy"></i>
+                                                                                </button>
+                                                                                <button onClick={() => setEditingMatchId(null)} style={{ padding: '4px 8px', background: '#ef4444', color: '#fff', border: 0, borderRadius: 4 }}>
+                                                                                    <i className="bi bi-x-lg"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {false && selectedTorneoId && torneoDetails && (
+                        <div style={{ marginTop: 20, marginLeft: 'auto', width: 'min(100%, 900px)', padding: 20, background: 'linear-gradient(180deg, rgba(49,217,79,0.06), rgba(255,255,255,0.02))', border: '1px solid rgba(149, 255, 172, 0.12)', borderRadius: 14, boxShadow: '0 20px 40px rgba(0,0,0,0.16)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                                <div>
+                                    <h3 style={{ marginBottom: 6 }}>Detalle del Torneo: <span style={{ color: '#31d94f' }}>{torneoDetails.nombre}</span></h3>
+                                    <p style={{ margin: 0, color: '#8ca092', fontSize: '0.88rem' }}>PodÃ©s cerrarlo tocando otra vez "Ver detalle" o desde este panel.</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span className={`pill ${torneoDetails.estado === 'Abierto' ? 'success' : torneoDetails.estado === 'En curso' ? 'pending' : 'danger'}`}>{torneoDetails.estado}</span>
+                                    <button className="danger" onClick={() => { setSelectedTorneoId(null); setTorneoDetails(null); setSelectedTorneoPhaseIndex(0); }}>Ocultar</button>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 0.95fr) minmax(0, 1.35fr)', gap: '20px' }}>
+                                <div>
+                                    {torneoDetails.estado === 'Abierto' && (torneoDetails.inscripciones?.length || 0) < torneoDetails.cupoEquipos && (
+                                        <div style={{ marginBottom: 18, padding: 14, background: 'rgba(49,217,79,0.06)', border: '1px solid rgba(49,217,79,0.18)', borderRadius: 10 }}>
+                                            <h4 style={{ marginBottom: 10 }}>Inscribir Equipo</h4>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <select
+                                                    value={inscribirEquipoId}
+                                                    onChange={e => setInscribirEquipoId(e.target.value)}
+                                                    style={{ minHeight: 38, background: '#080c0a', color: '#fff', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 8, padding: '0 8px', flex: 1 }}
+                                                >
+                                                    <option value="">Seleccionar Equipo</option>
+                                                    {equipos
+                                                        .filter(eq => !torneoDetails.inscripciones?.some(ins => ins.equipoId === eq.id))
+                                                        .map(eq => (
+                                                            <option key={eq.id} value={eq.id}>{eq.nombre}</option>
+                                                        ))
+                                                    }
+                                                </select>
+                                                <button
+                                                    onClick={handleInscribirEquipoTorneo}
+                                                    className="primary-action"
+                                                    style={{ minHeight: 38, padding: '0 12px', fontSize: '0.85rem' }}
+                                                    disabled={!inscribirEquipoId}
+                                                >
+                                                    Inscribir
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <h4 style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8, marginBottom: 12 }}>Equipos Inscriptos ({torneoDetails.inscripciones?.length || 0} / {torneoDetails.cupoEquipos})</h4>
+                                    {torneoDetails.inscripciones?.length === 0 ? (
+                                        <p style={{ color: '#8ca092', fontSize: '0.85rem' }}>No hay equipos inscriptos.</p>
+                                    ) : (
+                                        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 6 }}>
+                                            {torneoDetails.inscripciones?.map(i => (
+                                                <li key={i.id} style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                                    <span>âš½ {i.equipo?.nombre || `Equipo #${i.equipoId}`}</span>
+                                                    <span style={{ color: '#8ca092', fontSize: '0.75rem' }}>{i.equipo?.categoria || 'Libre'}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <h4 style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 8, marginBottom: 12 }}>Fixture por Fases</h4>
+
+                                    {(!torneoDetails.partidos || torneoDetails.partidos.length === 0) ? (
+                                        <div style={{ padding: 20, textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: 8 }}>
+                                            <p style={{ color: '#8ca092', marginBottom: 14, fontSize: '0.9rem' }}>El fixture aÃºn no ha sido generado para este torneo.</p>
+                                            {(torneoDetails.inscripciones?.length || 0) >= 2 ? (
+                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                                                    <input
+                                                        type="date"
+                                                        value={fixtureFechaInicio}
+                                                        onChange={e => setFixtureFechaInicio(e.target.value)}
+                                                        style={{ width: 'auto', minHeight: 38, padding: '0 10px', background: '#080c0a', border: '1px solid rgba(149,255,172,0.18)', borderRadius: 8, color: '#fff' }}
+                                                    />
+                                                    <button onClick={handleGenerarFixtureTorneo} className="primary-action" style={{ minHeight: 38, padding: '0 16px' }}>
+                                                        Generar Fixture
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <p style={{ color: '#ff9a8f', fontSize: '0.85rem', fontWeight: 'bold' }}>Se necesitan al menos 2 equipos inscriptos para generar el fixture.</p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ display: 'grid', gap: 12, marginBottom: 14 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedTorneoPhaseIndex(index => Math.max(0, index - 1))}
+                                                        disabled={selectedTorneoPhaseIndex === 0}
+                                                        style={{ minWidth: 42, minHeight: 38, borderRadius: 10, border: '1px solid rgba(149,255,172,0.18)', background: 'rgba(255,255,255,0.03)', color: '#fff' }}
+                                                    >
+                                                        <i className="bi bi-chevron-left"></i>
+                                                    </button>
+                                                    <div style={{ flex: 1, minWidth: 220, textAlign: 'center', padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(149,255,172,0.1)' }}>
+                                                        <div style={{ color: '#31d94f', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                                                            {torneoSelectedFixture ? getTorneoRoundName(torneoConfirmedTeams, torneoSelectedFixture.numero) : 'Fase'}
+                                                        </div>
+                                                        <div style={{ color: '#8ca092', fontSize: '0.78rem', marginTop: 4 }}>
+                                                            {torneoSelectedFixture ? `Jornada ${torneoSelectedFixture.numero}` : 'Sin fase seleccionada'}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedTorneoPhaseIndex(index => Math.min(torneoFixtures.length - 1, index + 1))}
+                                                        disabled={selectedTorneoPhaseIndex >= torneoFixtures.length - 1}
+                                                        style={{ minWidth: 42, minHeight: 38, borderRadius: 10, border: '1px solid rgba(149,255,172,0.18)', background: 'rgba(255,255,255,0.03)', color: '#fff' }}
+                                                    >
+                                                        <i className="bi bi-chevron-right"></i>
+                                                    </button>
+                                                </div>
+
+                                                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                                    {torneoFixtures.map((fixture, index) => (
+                                                        <button
+                                                            key={fixture.id}
+                                                            type="button"
+                                                            onClick={() => setSelectedTorneoPhaseIndex(index)}
+                                                            style={{
+                                                                minWidth: 96,
+                                                                minHeight: 34,
+                                                                borderRadius: 999,
+                                                                border: index === selectedTorneoPhaseIndex ? '1px solid #31d94f' : '1px solid rgba(149,255,172,0.12)',
+                                                                background: index === selectedTorneoPhaseIndex ? 'rgba(49,217,79,0.16)' : 'rgba(255,255,255,0.02)',
+                                                                color: index === selectedTorneoPhaseIndex ? '#31d94f' : '#d9e5d8',
+                                                                fontWeight: 700
+                                                            }}
+                                                        >
+                                                            {getTorneoRoundName(torneoConfirmedTeams, fixture.numero)}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {torneoSelectedFixture && (
+                                                <div className="data-table" style={{ maxHeight: 360, overflow: 'auto' }}>
+                                                    <table>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Fecha/Hora</th>
+                                                                <th>Local</th>
+                                                                <th>Resultado</th>
+                                                                <th>Visitante</th>
+                                                                <th>Estado</th>
+                                                                <th>Acciones</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {torneoSelectedFixture.partidos.map(p => (
+                                                                <tr key={p.id}>
+                                                                    <td style={{ fontSize: '0.8rem' }}>{formatLocalDateTime(p.fechaHora)}</td>
+                                                                    <td style={{ fontWeight: p.golesLocal > p.golesVisitante ? 'bold' : 'normal', color: p.golesLocal > p.golesVisitante ? '#31d94f' : '#fff' }}>
+                                                                        {p.equipoLocal?.nombre || `Equipo #${p.equipoLocalId}`}
+                                                                    </td>
+                                                                    <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.05rem', color: '#4ade80' }}>
+                                                                        {p.estado === 'Finalizado' ? `${p.golesLocal} - ${p.golesVisitante}` : 'vs'}
+                                                                    </td>
+                                                                    <td style={{ fontWeight: p.golesVisitante > p.golesLocal ? 'bold' : 'normal', color: p.golesVisitante > p.golesLocal ? '#31d94f' : '#fff' }}>
+                                                                        {p.equipoVisitante?.nombre || `Equipo #${p.equipoVisitanteId}`}
+                                                                    </td>
+                                                                    <td>
+                                                                        <span className={`pill ${p.estado === 'Finalizado' ? 'success' : 'neutral'}`}>{p.estado}</span>
+                                                                    </td>
+                                                                    <td className="table-actions">
+                                                                        {p.estado !== 'Finalizado' && editingMatchId !== p.id && (
+                                                                            <button onClick={() => { setEditingMatchId(p.id); setMatchResult({ golesLocal: 0, golesVisitante: 0 }); }}>
+                                                                                <i className="bi bi-pencil-square"></i> Resultado
+                                                                            </button>
+                                                                        )}
+                                                                        {editingMatchId === p.id && (
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                                <input
+                                                                                    type="number" min="0" style={{ width: 45, minHeight: 30, padding: 2, textAlign: 'center' }}
+                                                                                    value={matchResult.golesLocal}
+                                                                                    onChange={e => setMatchResult({ ...matchResult, golesLocal: e.target.value })}
+                                                                                />
+                                                                                <span>-</span>
+                                                                                <input
+                                                                                    type="number" min="0" style={{ width: 45, minHeight: 30, padding: 2, textAlign: 'center' }}
+                                                                                    value={matchResult.golesVisitante}
+                                                                                    onChange={e => setMatchResult({ ...matchResult, golesVisitante: e.target.value })}
+                                                                                />
+                                                                                <button onClick={() => handleSaveMatchResult(p.id, false)} style={{ padding: '4px 8px', background: '#31d94f', color: '#000', border: 0, borderRadius: 4 }}>
+                                                                                    <i className="bi bi-floppy"></i>
+                                                                                </button>
+                                                                                <button onClick={() => setEditingMatchId(null)} style={{ padding: '4px 8px', background: '#ef4444', color: '#fff', border: 0, borderRadius: 4 }}>
+                                                                                    <i className="bi bi-x-lg"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
 
@@ -2534,7 +3029,6 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                     onChange={e => setTorneoForm({ ...torneoForm, formato: e.target.value })}
                                 >
                                     <option value="EliminacionDirecta">Eliminación Directa</option>
-                                    <option value="TodosContraTodos">Todos contra Todos</option>
                                 </select>
                             </div>
                             <div>
@@ -2585,7 +3079,9 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                                     </span>
                                                 </td>
                                                 <td className="table-actions">
-                                                    <button onClick={() => loadTorneoDetails(t.id)}>🔍 Ver Detalle</button>
+                                                    <button onClick={() => loadTorneoDetails(t.id)}>
+                                                        <i className={`bi ${selectedTorneoId === t.id ? 'bi-eye-slash' : 'bi-search'}`}></i> {selectedTorneoId === t.id ? 'Ocultar' : 'Ver Detalle'}
+                                                    </button>
                                                     {t.estado !== 'Cancelado' && (
                                                         <button className="danger" onClick={() => handleCancelTorneo(t.id)}>Cancelar</button>
                                                     )}
@@ -2598,7 +3094,7 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                         )
                     )}
 
-                    {selectedTorneoId && torneoDetails && (
+                    {false && selectedTorneoId && torneoDetails && (
                         <div style={{ marginTop: 20, padding: 20, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(149, 255, 172, 0.08)', borderRadius: 8 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                                 <h3>Detalle del Torneo: <span style={{ color: '#31d94f' }}>{torneoDetails.nombre}</span></h3>
@@ -2678,6 +3174,7 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                                 <thead>
                                                     <tr>
                                                         <th>Fecha/Hora</th>
+                                                        <th>Fase</th>
                                                         <th>Local</th>
                                                         <th>Resultado</th>
                                                         <th>Visitante</th>
@@ -2689,6 +3186,18 @@ function LigasTorneosPanel({ moneyFormatter, setMessage, API_URL }) {
                                                     {torneoDetails.partidos.map(p => (
                                                         <tr key={p.id}>
                                                             <td style={{ fontSize: '0.8rem' }}>{formatLocalDateTime(p.fechaHora)}</td>
+                                                            <td style={{ color: '#31d94f', fontWeight: 700 }}>
+                                                                {(() => {
+                                                                    const fixture = torneoDetails.fixtures?.find(f => f.id === p.fixtureId);
+                                                                    let remaining = Math.max(2, torneoDetails.inscripciones?.filter(i => i.estado === 'Confirmado').length || 2);
+                                                                    for (let round = 1; round < (fixture?.numero || 1); round += 1) remaining = Math.ceil(remaining / 2);
+                                                                    if (remaining <= 2) return 'Final';
+                                                                    if (remaining <= 4) return 'Semifinal';
+                                                                    if (remaining <= 8) return 'Cuartos';
+                                                                    if (remaining <= 16) return 'Octavos';
+                                                                    return `Ronda de ${remaining}`;
+                                                                })()}
+                                                            </td>
                                                             <td style={{ fontWeight: p.golesLocal > p.golesVisitante ? 'bold' : 'normal', color: p.golesLocal > p.golesVisitante ? '#31d94f' : '#fff' }}>
                                                                 {p.equipoLocal?.nombre || `Equipo #${p.equipoLocalId}`}
                                                             </td>
@@ -3137,6 +3646,7 @@ function ReportsDashboard({ notify, moneyFmt }) {
     const [hasta, setHasta] = useState(todayStr);
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState(null);
+    const [expandedEvent, setExpandedEvent] = useState(null);
 
     const loadReport = useCallback(async () => {
         if (!desde || !hasta) return;
@@ -3282,7 +3792,14 @@ function ReportsDashboard({ notify, moneyFmt }) {
                         ${data.eventos.map(e => `
                             <tr>
                                 <td><span class="badge ${e.tipo.toLowerCase()}">${e.tipo}</span></td>
-                                <td><strong>${e.nombre}</strong></td>
+                                <td>
+                                    <strong>${e.nombre}</strong>
+                                    ${e.alumnos && e.alumnos.length > 0 ? `
+                                        <div style="font-size:0.75rem; color:#555; margin-top:4px;">
+                                            <strong>Alumnos:</strong> ${e.alumnos.map(al => `${al.nombreCompleto} (${al.presente ? 'Presente' : 'Ausente'})`).join(', ')}
+                                        </div>
+                                    ` : '<div style="font-size:0.75rem; color:#999; margin-top:4px; font-style:italic;">Sin alumnos</div>'}
+                                </td>
                                 <td>${new Date(e.fecha).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
                                 <td>${e.instructor}</td>
                                 <td>${e.cancha}</td>
@@ -3413,13 +3930,13 @@ function ReportsDashboard({ notify, moneyFmt }) {
         <section className="admin-panel" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                 <div className="status-tabs" style={{ display: 'flex', gap: '6px', margin: 0 }}>
-                    <button className={reportTab === 'ingresos' ? 'active' : ''} onClick={() => { setReportTab('ingresos'); setData(null); }}>
+                    <button className={reportTab === 'ingresos' ? 'active' : ''} onClick={() => { setReportTab('ingresos'); setData(null); setExpandedEvent(null); }}>
                         <i className="bi bi-cash-stack me-2"></i> Ingresos
                     </button>
-                    <button className={reportTab === 'asistencia' ? 'active' : ''} onClick={() => { setReportTab('asistencia'); setData(null); }}>
+                    <button className={reportTab === 'asistencia' ? 'active' : ''} onClick={() => { setReportTab('asistencia'); setData(null); setExpandedEvent(null); }}>
                         <i className="bi bi-people-fill me-2"></i> Asistencia
                     </button>
-                    <button className={reportTab === 'reservas' ? 'active' : ''} onClick={() => { setReportTab('reservas'); setData(null); }}>
+                    <button className={reportTab === 'reservas' ? 'active' : ''} onClick={() => { setReportTab('reservas'); setData(null); setExpandedEvent(null); }}>
                         <i className="bi bi-calendar-check me-2"></i> Reservas
                     </button>
                 </div>
@@ -3601,30 +4118,69 @@ function ReportsDashboard({ notify, moneyFmt }) {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {data.eventos.map((e, idx) => (
-                                                <tr key={idx}>
-                                                    <td>
-                                                        <span className={`pill ${e.tipo === 'Clase' ? 'success' : 'neutral'}`} style={{ fontSize: '0.72rem', padding: '2px 8px' }}>
-                                                            {e.tipo}
-                                                        </span>
-                                                    </td>
-                                                    <td><strong>{e.nombre}</strong></td>
-                                                    <td style={{ fontSize: '0.82rem' }}>{new Date(e.fecha).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
-                                                    <td>{e.instructor}</td>
-                                                    <td style={{ color: '#8ca092' }}>{e.cancha}</td>
-                                                    <td>{e.inscriptos} / {e.capacidad}</td>
-                                                    <td style={{ color: '#31d94f', fontWeight: 'bold' }}>{e.presentes}</td>
-                                                    <td style={{ color: '#ef4444' }}>{e.ausentes}</td>
-                                                    <td>
-                                                        <span style={{
-                                                            fontWeight: 'bold',
-                                                            color: e.tasaAsistencia >= 70 ? '#31d94f' : e.tasaAsistencia >= 40 ? '#f2b84b' : '#ef4444'
-                                                        }}>
-                                                            {e.tasaAsistencia}%
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                             {data.eventos.map((e, idx) => {
+                                                 const isExpanded = expandedEvent === `${e.tipo}-${e.id}`;
+                                                 return (
+                                                     <Fragment key={idx}>
+                                                         <tr>
+                                                             <td>
+                                                                 <span className={`pill ${e.tipo === 'Clase' ? 'success' : 'neutral'}`} style={{ fontSize: '0.72rem', padding: '2px 8px' }}>
+                                                                     {e.tipo}
+                                                                 </span>
+                                                             </td>
+                                                             <td><strong>{e.nombre}</strong></td>
+                                                             <td style={{ fontSize: '0.82rem' }}>{new Date(e.fecha).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                                                             <td>{e.instructor}</td>
+                                                             <td style={{ color: '#8ca092' }}>{e.cancha}</td>
+                                                             <td 
+                                                                 style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                                 onClick={() => setExpandedEvent(isExpanded ? null : `${e.tipo}-${e.id}`)}
+                                                                 title="Haga clic para ver alumnos"
+                                                             >
+                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                     <span style={{ textDecoration: 'underline', color: '#31d94f', fontWeight: 'bold' }}>{e.inscriptos} / {e.capacidad}</span>
+                                                                     <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} text-success`} style={{ fontSize: '0.75rem' }}></i>
+                                                                 </div>
+                                                             </td>
+                                                             <td style={{ color: '#31d94f', fontWeight: 'bold' }}>{e.presentes}</td>
+                                                             <td style={{ color: '#ef4444' }}>{e.ausentes}</td>
+                                                             <td>
+                                                                 <span style={{
+                                                                     fontWeight: 'bold',
+                                                                     color: e.tasaAsistencia >= 70 ? '#31d94f' : e.tasaAsistencia >= 40 ? '#f2b84b' : '#ef4444'
+                                                                 }}>
+                                                                     {e.tasaAsistencia}%
+                                                                 </span>
+                                                             </td>
+                                                         </tr>
+                                                         {isExpanded && (
+                                                             <tr style={{ background: 'rgba(49,217,79,0.02)' }}>
+                                                                 <td colSpan="9" style={{ padding: '12px 20px', borderBottom: '1px solid rgba(49,217,79,0.1)' }}>
+                                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                                         <div style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#31d94f', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                             <i className="bi bi-people-fill"></i> Alumnos Inscriptos y Asistencia:
+                                                                         </div>
+                                                                         {e.alumnos && e.alumnos.length > 0 ? (
+                                                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8, marginTop: 4 }}>
+                                                                                 {e.alumnos.map(al => (
+                                                                                     <div key={al.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, fontSize: '0.8rem' }}>
+                                                                                         <span style={{ color: '#fff', fontWeight: 500 }}>{al.nombreCompleto}</span>
+                                                                                         <span className={`pill ${al.presente ? 'success' : 'danger'}`} style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+                                                                                             {al.presente ? 'Presente' : 'Ausente'}
+                                                                                         </span>
+                                                                                     </div>
+                                                                                 ))}
+                                                                             </div>
+                                                                         ) : (
+                                                                             <div style={{ fontSize: '0.8rem', color: '#8ca092', fontStyle: 'italic' }}>No hay alumnos inscriptos en este evento.</div>
+                                                                         )}
+                                                                     </div>
+                                                                 </td>
+                                                             </tr>
+                                                         )}
+                                                     </Fragment>
+                                                 );
+                                             })}
                                             {data.eventos.length === 0 && (
                                                 <tr>
                                                     <td colSpan="9" style={{ textAlign: 'center', padding: '30px', color: '#8ca092' }}>No se encontraron clases o entrenamientos programados en este período.</td>

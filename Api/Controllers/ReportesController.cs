@@ -80,19 +80,21 @@ namespace Api.Controllers
         {
             var fechaHastaFinDia = hasta.Date.AddDays(1).AddTicks(-1);
 
-            // Fetch all non-cancelled classes
+            // Fetch all non-cancelled classes with attendees
             var clases = await _context.Clases
                 .Include(c => c.Profesor)
                 .Include(c => c.Cancha)
                 .Include(c => c.Asistencias)
+                    .ThenInclude(a => a.Usuario)
                 .Where(c => c.FechaHora >= desde && c.FechaHora <= fechaHastaFinDia && c.Estado != "Cancelada")
                 .ToListAsync();
 
-            // Fetch all non-cancelled training sessions
+            // Fetch all non-cancelled training sessions with attendees
             var entrenamientos = await _context.Entrenamientos
                 .Include(e => e.Profesor)
                 .Include(e => e.Cancha)
                 .Include(e => e.Inscripciones)
+                    .ThenInclude(i => i.Usuario)
                 .Where(e => e.Fecha >= desde && e.Fecha <= fechaHastaFinDia && e.Estado != "Cancelado")
                 .ToListAsync();
 
@@ -114,15 +116,21 @@ namespace Api.Controllers
                     Inscriptos = totalInscriptos,
                     Presentes = presentes,
                     Ausentes = ausentes,
-                    TasaAsistencia = Math.Round(tasaAsistencia, 1)
+                    TasaAsistencia = Math.Round(tasaAsistencia, 1),
+                    Alumnos = c.Asistencias.Select(a => new
+                    {
+                        a.Usuario.Id,
+                        NombreCompleto = $"{a.Usuario.Nombre} {a.Usuario.Apellido}",
+                        a.Presente
+                    }).ToList()
                 };
             }).ToList();
 
             var listaEntrenamientos = entrenamientos.Select(e =>
             {
-                var confirmedInscripciones = e.Inscripciones.Where(i => i.Estado == "Confirmado").ToList();
-                var totalInscriptos = confirmedInscripciones.Count;
-                var presentes = confirmedInscripciones.Count(i => i.Presente);
+                var activeInscripciones = e.Inscripciones.Where(i => i.Estado != "Cancelado").ToList();
+                var totalInscriptos = activeInscripciones.Count;
+                var presentes = activeInscripciones.Count(i => i.Presente);
                 var ausentes = totalInscriptos - presentes;
                 double tasaAsistencia = totalInscriptos > 0 ? (double)presentes / totalInscriptos * 100 : 0;
                 return new
@@ -137,7 +145,13 @@ namespace Api.Controllers
                     Inscriptos = totalInscriptos,
                     Presentes = presentes,
                     Ausentes = ausentes,
-                    TasaAsistencia = Math.Round(tasaAsistencia, 1)
+                    TasaAsistencia = Math.Round(tasaAsistencia, 1),
+                    Alumnos = activeInscripciones.Select(i => new
+                    {
+                        i.Usuario.Id,
+                        NombreCompleto = $"{i.Usuario.Nombre} {i.Usuario.Apellido}",
+                        i.Presente
+                    }).ToList()
                 };
             }).ToList();
 
